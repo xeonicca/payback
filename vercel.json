@@ -1,8 +1,12 @@
 {
   "rewrites": [
     {
-      "source": "/__/:match*",
-      "destination": "https://payback-travel-mate.firebaseapp.com/__/:match*"
+      "source": "/__/auth/:match*",
+      "destination": "https://payback-travel-mate.firebaseapp.com/__/auth/:match*"
+    },
+    {
+      "source": "/__/firebase/init.json",
+      "destination": "https://payback-travel-mate.firebaseapp.com/__/firebase/init.json"
     }
   ]
 }
