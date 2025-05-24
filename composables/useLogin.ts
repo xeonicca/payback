@@ -20,9 +20,6 @@ interface ReturnUser {
   user: AppUser
 }
 
-interface LoginResponse {
-  user: AppUser
-}
 
 export default function useLogin() {
   const sessionUser = useSessionUser()
@@ -42,11 +39,11 @@ export default function useLogin() {
 
   const setSession = async (user: User) => {
     const firebaseIdToken = await getIdToken(user)
-    const data = await $fetch<LoginResponse>('/api/auth/login', {
+    const data = await $fetch<AppUser>('/api/auth/login', {
       method: 'POST',
       body: JSON.stringify({ firebaseIdToken }),
     })
-    sessionUser.value = data.user
+    sessionUser.value = data
   }
 
   const redirectToGoogleLogin = async () => {
