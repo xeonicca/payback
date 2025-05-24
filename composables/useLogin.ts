@@ -2,7 +2,7 @@ import type {
   AuthError,
   User,
 } from 'firebase/auth'
-import type { AppUser, SessionUser } from '~/types'
+import type { AppUser } from '~/types'
 import {
   getIdToken,
   getRedirectResult,
@@ -29,6 +29,7 @@ export default function useLogin() {
   const currentUser = useCurrentUser()
   const provider = new GoogleAuthProvider()
   const authError = ref<AuthError | null>(null)
+  const auth = useFirebaseAuth()!
 
   const isCurrentUserLoaded = useIsCurrentUserLoaded()
   const isUserLoggedIn = computed(() => {
