@@ -38,14 +38,12 @@ export default defineNuxtConfig({
   runtimeConfig: {
     public: {
       firebase: {
-        apiKey: '',
-        authDomain: '',
-        projectId: '',
-        appId: '',
-        storageBucket: '',
-        messagingSenderId: '',
-        authCookieName: '',
-        authCookieExpires: '',
+        apiKey: process.env.NUXT_PUBLIC_FIREBASE_API_KEY,
+        authDomain: process.env.NUXT_PUBLIC_FIREBASE_AUTH_DOMAIN || process.env.VERCEL_URL,
+        projectId: process.env.NUXT_PUBLIC_FIREBASE_PROJECT_ID,
+        appId: process.env.NUXT_PUBLIC_FIREBASE_APP_ID,
+        storageBucket: process.env.NUXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
+        messagingSenderId: process.env.NUXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
       },
     },
     authCookieName: process.env.NUXT_PUBLIC_FIREBASE_AUTH_COOKIE_NAME,
@@ -57,7 +55,7 @@ export default defineNuxtConfig({
     auth: true,
     config: {
       apiKey: process.env.NUXT_PUBLIC_FIREBASE_API_KEY,
-      authDomain: process.env.NUXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
+      authDomain: process.env.NUXT_PUBLIC_FIREBASE_AUTH_DOMAIN || process.env.VERCEL_URL,
       projectId: process.env.NUXT_PUBLIC_FIREBASE_PROJECT_ID,
       appId: process.env.NUXT_PUBLIC_FIREBASE_APP_ID,
       storageBucket: process.env.NUXT_PUBLIC_FIREBASE_STORAGE_BUCKET,

@@ -6,8 +6,10 @@ import { getAuth as getAdminAuth } from 'firebase-admin/auth'
 let app: App
 
 export function getFirebaseAdminAuth() {
+  console.log(getApps())
   if (!getApps().length) {
     const config = useRuntimeConfig()
+    console.log('config', config)
     const serviceAccount = JSON.parse(config.serviceAccount as string)
 
     app = initializeApp({
