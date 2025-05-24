@@ -1,0 +1,8 @@
+{
+  "rewrites": [
+    {
+      "source": "/__/:match*",
+      "destination": "https://payback-travel-mate.firebaseapp.com/__/:match*"
+    }
+  ]
+}
