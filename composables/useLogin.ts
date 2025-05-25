@@ -20,7 +20,6 @@ interface ReturnUser {
   user: AppUser
 }
 
-
 export default function useLogin() {
   const sessionUser = useSessionUser()
   const currentUser = useCurrentUser()

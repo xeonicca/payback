@@ -7,6 +7,11 @@ const trips = useCollection(collection(db, 'trips'), {
   once: true,
 })
 
+const router = useRouter()
+function navigateTo(path: string) {
+  router.push(path)
+}
+
 definePageMeta({
   middleware: ['auth'],
 })
@@ -19,9 +24,9 @@ definePageMeta({
         行程一覽
       </h1>
       <ui-button
-        to="/trips/add"
         color="primary"
         size="sm"
+        @click="navigateTo('/trips/new')"
       >
         <Icon name="lucide-plus" size="20" />
         新增行程

@@ -40,3 +40,8 @@ export interface Expense {
   createdAt: Timestamp
   imageUrls?: string[] // URLs of uploaded images
 }
+
+export interface Currency {
+  code: string
+  name: string
+}

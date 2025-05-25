@@ -1,6 +1,6 @@
 import type { App } from 'firebase-admin/app'
 import type { H3Event } from 'h3'
-import { cert, getApp, getApps, initializeApp } from 'firebase-admin/app'
+import { cert, getApps, initializeApp } from 'firebase-admin/app'
 import { getAuth as getAdminAuth } from 'firebase-admin/auth'
 
 let app: App
@@ -8,7 +8,8 @@ let app: App
 export function getFirebaseAdminAuth() {
   if (getApps().length) {
     app = getApps()[0]
-  } else {
+  }
+  else {
     const config = useRuntimeConfig()
     console.log('config', config)
     const serviceAccount = JSON.parse(config.serviceAccount as string)
