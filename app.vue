@@ -21,5 +21,5 @@ onMounted(() => {
     <NuxtPage />
     <NuxtPwaManifest />
   </NuxtLayout>
-  <toaster />
+  <ui-toaster />
 </template>

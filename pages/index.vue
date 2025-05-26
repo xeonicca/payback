@@ -63,22 +63,24 @@ definePageMeta({
         </ui-card-content>
 
         <ui-card-footer class="flex justify-end gap-2">
-          <ui-button
-            :to="`/trips/${trip.id}`"
-            color="gray"
-            variant="ghost"
-            icon="i-lucide-eye"
-          >
-            View
-          </ui-button>
-          <ui-button
-            :to="`/trips/${trip.id}/edit`"
-            color="primary"
-            variant="ghost"
-            icon="i-lucide-edit"
-          >
-            Edit
-          </ui-button>
+          <nuxt-link :to="`/trips/${trip.id}`">
+            <ui-button
+              color="gray"
+              variant="outline"
+            >
+              <Icon name="lucide-eye" class="text-gray-500" />
+              查看
+            </ui-button>
+          </nuxt-link>
+          <!-- <nuxt-link :to="`/trips/${trip.id}/edit`">
+            <ui-button
+              color="primary"
+              variant="ghost"
+              icon="i-lucide-edit"
+            >
+              Edit
+            </ui-button>
+          </nuxt-link> -->
         </ui-card-footer>
       </ui-card>
     </div>

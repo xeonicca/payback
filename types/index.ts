@@ -26,7 +26,7 @@ export interface TripMember extends Omit<NewTripMember, 'createdAt'> {
 export interface NewTrip {
   name: string
   tripCurrency: string // e.g., 'USD', 'JPY'
-  exchangeRateToTWD: number
+  exchangeRate: number
   defaultCurrency: string
   userId: string
   createdAt: Timestamp | FieldValue

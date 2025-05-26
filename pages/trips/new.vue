@@ -3,7 +3,7 @@ import type { NewTrip, NewTripMember } from '@/types'
 import { toTypedSchema } from '@vee-validate/zod'
 import { addDoc, collection, serverTimestamp } from 'firebase/firestore'
 import { useForm } from 'vee-validate'
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { toast } from 'vue-sonner'
 import { useFirestore } from 'vuefire'
@@ -22,10 +22,10 @@ import { CurrencyCode, supportedCurrencies } from '@/constants'
 const formSchema = toTypedSchema(z.object({
   name: z.string().min(2).max(50),
   tripCurrency: z.string().default(CurrencyCode.TWD),
-  exchangeRate: z.number(),
+  exchangeRate: z.number().default(1),
 }))
 
-const { values, isFieldDirty, handleSubmit } = useForm({
+const { values, isFieldDirty, handleSubmit, setFieldValue } = useForm({
   validationSchema: formSchema,
 })
 
@@ -36,6 +36,7 @@ interface TwdCurrency {
 }
 
 const { data: twdCurrency } = await useAsyncData('twdCurrency', async () => {
+  console.log('fetching twdCurrency')
   const data = await $fetch<TwdCurrency>('https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/twd.json')
   return data.twd
 })
@@ -64,7 +65,7 @@ const onSubmit = handleSubmit(async (values) => {
     const tripData = {
       name: values.name,
       tripCurrency: values.tripCurrency,
-      exchangeRateToTWD: values.tripCurrency === CurrencyCode.TWD ? 1 : values.exchangeRate,
+      exchangeRate: values.tripCurrency === CurrencyCode.TWD ? 1 : values.exchangeRate,
       defaultCurrency: CurrencyCode.TWD,
       createdAt: serverTimestamp(),
       userId: sessionUser.value!.uid,
@@ -87,6 +88,10 @@ const onSubmit = handleSubmit(async (values) => {
   finally {
     isSubmitting.value = false
   }
+})
+
+watch(() => values.tripCurrency, () => {
+  setFieldValue('exchangeRate', exchangeRateToTwd.value)
 })
 
 async function writeTrip(tripData: NewTrip) {
@@ -150,7 +155,7 @@ async function writeTripMembers(tripId: string, member: NewTripMember) {
             <ui-input type="number" step=".01" :placeholder="exchangeRateToTwd" v-bind="componentField" />
           </ui-form-control>
           <ui-form-description>
-            一元台幣可換得 {{ values.tripCurrency }} {{ exchangeRateFromTwd }}。
+            1 {{ values.tripCurrency }} = {{ exchangeRateToTwd }} TWD
           </ui-form-description>
           <ui-form-message />
         </ui-form-item>
