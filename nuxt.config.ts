@@ -4,14 +4,7 @@ export default defineNuxtConfig({
   compatibilityDate: '2025-05-15',
   devtools: { enabled: true },
 
-  modules: [
-    '@nuxt/eslint',
-    '@nuxt/fonts',
-    '@nuxt/icon',
-    '@nuxt/image',
-    'nuxt-vuefire',
-    'shadcn-nuxt',
-  ],
+  modules: ['@nuxt/eslint', '@nuxt/fonts', '@nuxt/icon', '@nuxt/image', 'nuxt-vuefire', 'shadcn-nuxt', '@vite-pwa/nuxt'],
 
   app: {
     head: {
@@ -73,5 +66,35 @@ export default defineNuxtConfig({
      * @default "./components/ui"
      */
     componentDir: './components/ui',
+  },
+
+  pwa: {
+    strategies: 'generateSW',
+    registerType: 'prompt',
+    manifest: {
+      name: 'Payback',
+      short_name: 'Payback',
+      description: 'Payback Travel Mate',
+      theme_color: '#171717',
+      background_color: '#EBEBEB',
+      icons: [
+        {
+          src: '/192.png',
+          sizes: '192x192',
+          type: 'image/png',
+        },
+        // {
+        //   src: 'pwa-512x512.png',
+        //   sizes: '512x512',
+        //   type: 'image/png',
+        // },
+        // {
+        //   src: 'pwa-512x512.png',
+        //   sizes: '512x512',
+        //   type: 'image/png',
+        //   purpose: 'any maskable',
+        // },
+      ],
+    },
   },
 })
