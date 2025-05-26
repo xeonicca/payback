@@ -76,7 +76,9 @@ export default function useLogin() {
 
   const checkRedirectResult = async () => {
     if (import.meta.env.MODE === 'development') {
-      await getCurrentUser()
+      const user = await getCurrentUser()
+      if (user)
+        await setSession(user)
       return sessionUser.value
     }
     try {

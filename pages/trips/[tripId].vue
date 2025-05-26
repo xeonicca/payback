@@ -1,5 +1,38 @@
+<script setup lang="ts">
+import type { Trip, TripMember } from '@/types'
+import { collection, doc } from 'firebase/firestore'
+import { useDocument, useFirestore } from 'vuefire'
+import { tripConverter, tripMemberConverter } from '@/utils/converter'
+
+const db = useFirestore()
+const { tripId } = useRoute().params
+
+const trip = useDocument<Trip>(doc(db, 'trips', tripId as string).withConverter(tripConverter))
+const tripMembers = useCollection<TripMember>(collection(db, 'trips', tripId as string, 'members').withConverter(tripMemberConverter))
+</script>
+
 <template>
-  <div>
-    <h1>Trip</h1>
+  <h1 class="text-2xl font-bold text-indigo-700">
+    {{ trip?.name }}
+  </h1>
+  <div v-for="member in tripMembers" :key="member.id">
+    <div class="flex items-center gap-2">
+      <div class="text-sm text-gray-500">
+        {{ member.name }}
+      </div>
+    </div>
   </div>
+
+  <ui-drawer>
+    <ui-drawer-trigger as-child>
+      <ui-button variant="outline" class="fixed bottom-6 right-6 w-14 h-14 bg-indigo-600 text-white rounded-full shadow-lg hover:bg-indigo-700 transition-colors flex items-center justify-center">
+        <Icon name="mdi:plus" size="24" />
+      </ui-button>
+    </ui-drawer-trigger>
+    <ui-drawer-content>
+      <div class="mx-auto w-full max-w-sm">
+        <add-trip-expense-form :trip="trip" />
+      </div>
+    </ui-drawer-content>
+  </ui-drawer>
 </template>

@@ -1,4 +1,4 @@
-import type { Timestamp } from 'firebase/firestore'
+import type { FieldValue, Timestamp } from 'firebase/firestore'
 
 export interface SessionUser {
   uid: string
@@ -11,21 +11,30 @@ export interface AppUser {
   uid: string
 }
 
-export interface TripMember {
-  id: string // Firestore document ID
+export interface NewTripMember {
   name: string
-  avatarEmoji: string // e.g., '🐅'
+  avatarEmoji: string
+  createdAt: Timestamp | FieldValue
+  spending: number
+}
+
+export interface TripMember extends Omit<NewTripMember, 'createdAt'> {
+  id: string
   createdAt: Timestamp
 }
 
-export interface Trip {
-  id: string // Firestore document ID
+export interface NewTrip {
   name: string
   tripCurrency: string // e.g., 'USD', 'JPY'
   exchangeRateToTWD: number
   defaultCurrency: string
+  userId: string
+  createdAt: Timestamp | FieldValue
+}
+
+export interface Trip extends Omit<NewTrip, 'createdAt'> {
+  id: string
   createdAt: Timestamp
-  userId?: string
 }
 
 export interface Expense {
