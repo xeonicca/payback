@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { Trip } from '@/types'
+import type { Trip, TripMember } from '@/types'
 import { DateFormatter, getLocalTimeZone, parseDate, today } from '@internationalized/date'
 import { toTypedSchema } from '@vee-validate/zod'
 import { addDoc, collection } from 'firebase/firestore'
@@ -12,21 +12,28 @@ import { cn } from '@/lib/utils'
 
 const props = defineProps<{
   trip: Trip
+  tripMembers: TripMember[]
+  hostMember: TripMember
 }>()
 
 const formSchema = toTypedSchema(z.object({
   description: z.string().min(2).max(50),
-  amount: z.number(),
+  grandTotal: z.number(),
   paidAt: z.string(),
+  paidByMemberId: z.string(),
+  sharedWithMemberIds: z.array(z.string()).refine(value => value.some(item => item), {
+    message: '至少選擇一個人',
+  }),
   // category: z.string(),
-  // paidByMemberId: z.string(),
-  // paidByMemberName: z.string(),
-  // sharedWithMemberIds: z.array(z.string()),
   // imageUrls: z.array(z.string()),
 }))
 
 const { values, isFieldDirty, setFieldValue, handleSubmit } = useForm({
   validationSchema: formSchema,
+  initialValues: {
+    sharedWithMemberIds: [props.hostMember.id],
+    paidByMemberId: props.hostMember.id,
+  },
 })
 
 const df = new DateFormatter('en-US', {
@@ -36,7 +43,10 @@ const df = new DateFormatter('en-US', {
 const onSubmit = handleSubmit(async (values) => {
   const db = useFirestore()
   try {
-    await addDoc(collection(db, 'trips', props.trip.id, 'expenses'), values)
+    await addDoc(collection(db, 'trips', props.trip.id, 'expenses'), {
+      ...values,
+      isProcessing: false,
+    })
     toast.success('已新增支出')
   }
   catch (error) {
@@ -52,9 +62,9 @@ const paidAtDate = computed({
 })
 
 onMounted(() => {
-  const amountInput = document.getElementById('amountInput')
-  if (amountInput) {
-    amountInput.focus()
+  const grandTotalInput = document.getElementById('grandTotalInput')
+  if (grandTotalInput) {
+    grandTotalInput.focus()
   }
 })
 </script>
@@ -65,12 +75,12 @@ onMounted(() => {
     <ui-drawer-description>輸入支出資訊</ui-drawer-description>
   </ui-drawer-header>
   <div class="space-y-4 px-4">
-    <ui-form-field v-slot="{ componentField }" name="amount" :validate-on-blur="!isFieldDirty">
+    <ui-form-field v-slot="{ componentField }" name="grandTotal" :validate-on-blur="!isFieldDirty">
       <ui-form-item>
         <ui-form-label>支出金額</ui-form-label>
         <ui-form-control>
           <div class="relative">
-            <ui-input id="amountInput" class="pl-12" type="number" v-bind="componentField" step="0.01" />
+            <ui-input id="grandTotalInput" class="pl-12" type="number" v-bind="componentField" step="0.01" />
             <ui-badge class="absolute start-0 inset-y-0 flex items-center justify-center ml-1 my-1 px-2">
               {{ trip.tripCurrency }}
             </ui-badge>
@@ -93,7 +103,7 @@ onMounted(() => {
       </ui-form-item>
     </ui-form-field>
 
-    <ui-form-field name="dob">
+    <ui-form-field name="paidAt">
       <ui-form-item class="flex flex-col">
         <ui-form-label>支出日期</ui-form-label>
         <ui-popover>
@@ -128,6 +138,61 @@ onMounted(() => {
             />
           </ui-popover-content>
         </ui-popover>
+        <ui-form-message />
+      </ui-form-item>
+    </ui-form-field>
+
+    <ui-separator />
+    <ui-form-field name="sharedWithMemberIds">
+      <div class="mb-4">
+        <ui-form-label class="text-sm">
+          選擇平分的成員
+        </ui-form-label>
+      </div>
+      <ui-form-field
+        v-for="member in tripMembers"
+        v-slot="{ value, handleChange }"
+        :key="member.id"
+        name="sharedWithMemberIds"
+        type="checkbox"
+        :value="member.id"
+        :unchecked-value="false"
+      >
+        <ui-form-item class="flex flex-row items-center space-x-2 space-y-0">
+          <ui-form-control>
+            <ui-checkbox
+              :model-value="value.includes(member.id)"
+              @update:model-value="handleChange"
+            />
+          </ui-form-control>
+          <ui-form-label class="font-normal flex items-center gap-1">
+            <span class="text-sm">{{ member.avatarEmoji }}</span>
+            <span class="text-sm">{{ member.name }}</span>
+          </ui-form-label>
+          <ui-form-message />
+        </ui-form-item>
+      </ui-form-field>
+    </ui-form-field>
+    <ui-separator />
+    <ui-form-field v-slot="{ componentField }" type="radio" name="paidByMemberId">
+      <ui-form-item class="space-y-3">
+        <ui-form-label>選擇付款人</ui-form-label>
+        <ui-form-control>
+          <ui-radio-group
+            class="flex flex-col space-y-1"
+            v-bind="componentField"
+          >
+            <ui-form-item v-for="member in tripMembers" :key="member.id" class="flex items-center space-y-0 gap-x-3">
+              <ui-form-control>
+                <ui-radio-group-item :value="member.id" />
+              </ui-form-control>
+              <ui-form-label class="font-normal flex items-center gap-1">
+                <span class="text-sm">{{ member.avatarEmoji }}</span>
+                <span class="text-sm">{{ member.name }}</span>
+              </ui-form-label>
+            </ui-form-item>
+          </ui-radio-group>
+        </ui-form-control>
         <ui-form-message />
       </ui-form-item>
     </ui-form-field>

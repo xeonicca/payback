@@ -53,7 +53,7 @@ export const expenseConverter: FirestoreDataConverter<Expense> = {
     return {
       id: snapshot.id,
       description: data.description,
-      amount: data.amount,
+      grandTotal: data.grandTotal,
       date: data.date,
       category: data.category,
       paidByMemberId: data.paidByMemberId,
@@ -62,6 +62,7 @@ export const expenseConverter: FirestoreDataConverter<Expense> = {
       createdAt: data.createdAt,
       paidAt: data.paidAt,
       imageUrls: data.imageUrls || [],
+      isProcessing: data.isProcessing,
     } as Expense
   },
 }

@@ -36,7 +36,6 @@ interface TwdCurrency {
 }
 
 const { data: twdCurrency } = await useAsyncData('twdCurrency', async () => {
-  console.log('fetching twdCurrency')
   const data = await $fetch<TwdCurrency>('https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/twd.json')
   return data.twd
 })

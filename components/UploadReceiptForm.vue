@@ -19,8 +19,8 @@ const emit = defineEmits<{
   (e: 'close'): void
 }>()
 
-const fileInput = ref<HTMLInputElement | null>(null)
 const isUploading = ref(false)
+const selectedFile = ref<File | null>(null)
 
 const formSchema = toTypedSchema(z.object({
   paidByMemberId: z.string(),
@@ -38,12 +38,11 @@ const { handleSubmit } = useForm({
 })
 
 const submit = handleSubmit(async (values) => {
-  if (!fileInput.value?.files?.length) {
+  if (!selectedFile.value) {
     toast.error('請上傳收據')
     return
   }
 
-  const file = fileInput.value.files[0]
   isUploading.value = true
 
   try {
@@ -53,19 +52,20 @@ const submit = handleSubmit(async (values) => {
     // Create expense entry
     const expense: Omit<NewExpense, 'paidAt'> = {
       description: 'Receipt Upload',
-      amount: 0, // Default amount
+      grandTotal: 0, // Default amount
       paidByMemberId: props.hostMember.id,
       paidByMemberName: props.hostMember.name,
       sharedWithMemberIds: values.sharedWithMemberIds,
       createdAt: serverTimestamp(),
+      isProcessing: true,
     }
 
     const expenseDoc = await addDoc(collection(db, 'trips', props.trip.id, 'expenses'), expense)
 
     // Upload file to Firebase Storage
-    const fileRef = storageRef(storage, `trips/${props.trip.id}/expenses/${expenseDoc.id}/${file.name}`)
+    const fileRef = storageRef(storage, `trips/${props.trip.id}/expenses/${expenseDoc.id}/${selectedFile.value.name}`)
     const { upload, url } = useStorageFile(fileRef)
-    await upload(file)
+    await upload(selectedFile.value)
 
     if (url.value) {
       await updateDoc(expenseDoc, {
@@ -97,9 +97,9 @@ const submit = handleSubmit(async (values) => {
       </ui-label>
       <ui-input
         id="picture"
-        ref="fileInput"
         type="file"
         accept="image/*"
+        @change="(e: Event) => selectedFile = (e.target as HTMLInputElement).files?.[0] ?? null"
       />
     </div>
     <ui-separator />

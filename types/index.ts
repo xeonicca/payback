@@ -38,7 +38,7 @@ export interface Trip extends NewTrip {
 
 export interface NewExpense {
   description: string
-  amount: number // In trip's currency
+  grandTotal: number // In trip's currency
   paidAt: Timestamp
   category?: string
   paidByMemberId: string
@@ -46,6 +46,7 @@ export interface NewExpense {
   sharedWithMemberIds: string[]
   createdAt: Timestamp | FieldValue
   imageUrls?: string[] // URLs of uploaded images
+  isProcessing: boolean
 }
 
 export interface Expense extends NewExpense {
