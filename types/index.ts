@@ -16,11 +16,11 @@ export interface NewTripMember {
   avatarEmoji: string
   createdAt: Timestamp | FieldValue
   spending: number
+  isHost: boolean
 }
 
-export interface TripMember extends Omit<NewTripMember, 'createdAt'> {
+export interface TripMember extends NewTripMember {
   id: string
-  createdAt: Timestamp
 }
 
 export interface NewTrip {
@@ -32,22 +32,24 @@ export interface NewTrip {
   createdAt: Timestamp | FieldValue
 }
 
-export interface Trip extends Omit<NewTrip, 'createdAt'> {
+export interface Trip extends NewTrip {
   id: string
-  createdAt: Timestamp
 }
 
-export interface Expense {
-  id: string // Firestore document ID
+export interface NewExpense {
   description: string
   amount: number // In trip's currency
-  date: Timestamp
-  category: string
+  paidAt: Timestamp
+  category?: string
   paidByMemberId: string
   paidByMemberName: string
   sharedWithMemberIds: string[]
-  createdAt: Timestamp
+  createdAt: Timestamp | FieldValue
   imageUrls?: string[] // URLs of uploaded images
+}
+
+export interface Expense extends NewExpense {
+  id: string
 }
 
 export interface Currency {

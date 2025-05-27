@@ -18,7 +18,7 @@ export const tripConverter: FirestoreDataConverter<Trip> = {
       id: snapshot.id,
       name: data.name,
       tripCurrency: data.tripCurrency,
-      exchangeRateToTWD: data.exchangeRateToTWD,
+      exchangeRate: data.exchangeRate,
       defaultCurrency: data.defaultCurrency || 'TWD',
       createdAt: data.createdAt,
       userId: data.userId,
@@ -38,6 +38,7 @@ export const tripMemberConverter: FirestoreDataConverter<TripMember> = {
       name: data.name,
       avatarEmoji: data.avatarEmoji,
       createdAt: data.createdAt,
+      isHost: data.isHost,
     } as TripMember
   },
 }
@@ -59,6 +60,7 @@ export const expenseConverter: FirestoreDataConverter<Expense> = {
       paidByMemberName: data.paidByMemberName,
       sharedWithMemberIds: data.sharedWithMemberIds || [],
       createdAt: data.createdAt,
+      paidAt: data.paidAt,
       imageUrls: data.imageUrls || [],
     } as Expense
   },

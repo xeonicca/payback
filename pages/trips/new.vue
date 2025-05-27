@@ -77,6 +77,7 @@ const onSubmit = handleSubmit(async (values) => {
       avatarEmoji: '🐭',
       createdAt: serverTimestamp(),
       spending: 0,
+      isHost: true,
     })
     toast.success('Trip created successfully!')
     router.push(`/trips/${docRef.id}`)

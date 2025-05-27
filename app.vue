@@ -3,13 +3,12 @@ import { toast } from 'vue-sonner'
 import 'vue-sonner/style.css' // vue-sonner v2 requires this import
 
 const { $pwa } = useNuxtApp()
-
 onMounted(() => {
-  if ($pwa.needRefresh) {
+  if ($pwa!.needRefresh) {
     toast.success('App ready to work offline', {
       action: {
         label: 'Undo',
-        onClick: () => $pwa.updateServiceWorker(),
+        onClick: () => $pwa!.updateServiceWorker(),
       },
     })
   }
@@ -21,5 +20,5 @@ onMounted(() => {
     <NuxtPage />
     <NuxtPwaManifest />
   </NuxtLayout>
-  <ui-toaster />
+  <ui-toaster position="top-right" />
 </template>
