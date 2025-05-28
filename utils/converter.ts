@@ -6,6 +6,7 @@ import type {
   WithFieldValue,
 } from 'firebase/firestore'
 import type { Expense, Trip, TripMember } from '@/types'
+import { formatFirebaseTimestamp } from '@/utils/date'
 
 export const tripConverter: FirestoreDataConverter<Trip> = {
   toFirestore(trip: WithFieldValue<Trip>): DocumentData {
@@ -21,6 +22,7 @@ export const tripConverter: FirestoreDataConverter<Trip> = {
       exchangeRate: data.exchangeRate,
       defaultCurrency: data.defaultCurrency || 'TWD',
       createdAt: data.createdAt,
+      createdAtString: formatFirebaseTimestamp(data.createdAt),
       userId: data.userId,
     } as Trip
   },
@@ -38,7 +40,8 @@ export const tripMemberConverter: FirestoreDataConverter<TripMember> = {
       name: data.name,
       avatarEmoji: data.avatarEmoji,
       createdAt: data.createdAt,
-      isHost: data.isHost,
+      createdAtString: formatFirebaseTimestamp(data.createdAt),
+      isHost: data.isHost || false,
     } as TripMember
   },
 }
@@ -60,9 +63,12 @@ export const expenseConverter: FirestoreDataConverter<Expense> = {
       paidByMemberName: data.paidByMemberName,
       sharedWithMemberIds: data.sharedWithMemberIds || [],
       createdAt: data.createdAt,
+      createdAtString: formatFirebaseTimestamp(data.createdAt),
       paidAt: data.paidAt,
+      paidAtString: formatFirebaseTimestamp(data.paidAt),
       imageUrls: data.imageUrls || [],
       isProcessing: data.isProcessing,
+      items: data.items || [],
     } as Expense
   },
 }

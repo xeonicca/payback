@@ -14,7 +14,24 @@ const model = 'gemini-2.0-flash-lite' // Or the latest stable vision model
 const vertexAI = new VertexAI({ project, location })
 
 // Updated prompt for Gemini
-const PROMPT_TEXT = `
+function PROMPT_TEXT(currency) {
+  const languageMap = {
+    JPY: 'Japanese',
+    USD: 'English',
+    EUR: 'English',
+    GBP: 'English',
+    AUD: 'English',
+    CAD: 'English',
+    CNY: 'Chinese',
+    KRW: 'Korean',
+    SGD: 'English',
+    HKD: 'English',
+    TWD: 'Chinese',
+  }
+
+  const language = languageMap[currency] || 'English'
+
+  return `
 Analyze the provided receipt image and extract the following information.
 Return the information strictly as a JSON object. Do not include any explanatory text before or after the JSON.
 The JSON object should have the following structure:
@@ -22,7 +39,7 @@ The JSON object should have the following structure:
 {
   "grandTotal": <number | null>,
   "paidAtString": "<string: YYYY-MM-DD | null>",
-  "currency": "<string | null>",
+  "currency": "${currency || 'null'}",
   "items": [
     {
       "name": "<string>",
@@ -42,17 +59,19 @@ Details for extraction:
     - 'price': Final price paid for that item after any item-specific discounts.
 - For 'description': Generate a concise (1-2 sentences) summary of the purchase. Mention the store name if identifiable. Example: "Purchase of food and drinks from Lawson."
 - If any numeric or date string field cannot be reliably extracted, use 'null'. For arrays, use an empty array. For strings, use 'null' or an empty string.
+
+Please analyze the receipt in ${language} if possible, but ensure the response is in English.
 `
+}
 
 // Define the Cloud Function using onObjectFinalized
 exports.analyzeReceiptAndUpdateExpense = onObjectFinalized({
-  bucket: process.env.GCLOUD_STORAGE_BUCKET, // Or your specific bucket name if not default
-  // You can add other options like memory, timeoutSeconds, cpu, region etc. here
-  region: 'us-west1', // Example
+  bucket: process.env.GCLOUD_STORAGE_BUCKET,
+  region: 'us-west1',
 }, async (event) => {
-  const fileBucket = event.data.bucket // Bucket that contains the file.
-  const filePath = event.data.name // File path in the bucket.
-  const contentType = event.data.contentType // File content type.
+  const fileBucket = event.data.bucket
+  const filePath = event.data.name
+  const contentType = event.data.contentType
 
   logger.info(`New file: ${filePath} in bucket: ${fileBucket}, content type: ${contentType}`)
 
@@ -61,12 +80,29 @@ exports.analyzeReceiptAndUpdateExpense = onObjectFinalized({
 
   if (!match) {
     logger.log(`File path ${filePath} does not match expected structure. Skipping.`)
-    return // In 2nd gen, just return to signify completion.
+    return
   }
 
   const tripId = match[1]
   const expenseId = match[2]
   logger.info(`Extracted tripId: ${tripId}, expenseId: ${expenseId}`)
+
+  // Fetch trip document to get defaultCurrency
+  let defaultCurrency = null
+  try {
+    const tripDoc = await db.doc(`trips/${tripId}`).get()
+    if (tripDoc.exists) {
+      defaultCurrency = tripDoc.data().defaultCurrency
+      logger.info(`Retrieved defaultCurrency: ${defaultCurrency} from trip document`)
+    }
+    else {
+      logger.warn(`Trip document ${tripId} does not exist`)
+      defaultCurrency = 'TWD'
+    }
+  }
+  catch (error) {
+    logger.error(`Error fetching trip document: ${error}`)
+  }
 
   if (!contentType || !contentType.startsWith('image/')) {
     logger.log('File is not an image. Skipping analysis.', { contentType })
@@ -90,7 +126,7 @@ exports.analyzeReceiptAndUpdateExpense = onObjectFinalized({
   try {
     const generativeModel = vertexAI.getGenerativeModel({ model })
     const imagePart = { fileData: { mimeType: contentType, fileUri: gcsImageUri } }
-    const textPart = { text: PROMPT_TEXT }
+    const textPart = { text: PROMPT_TEXT(defaultCurrency) }
     const request = { contents: [{ role: 'user', parts: [imagePart, textPart] }] }
 
     logger.log('Sending request to Gemini API...')
