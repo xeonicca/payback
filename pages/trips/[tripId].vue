@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import type { Trip } from '@/types'
+import type { Expense, Trip } from '@/types'
 import { doc } from 'firebase/firestore'
 import { toast } from 'vue-sonner'
 import { useDocument, useFirestore } from 'vuefire'
+import { cn } from '@/lib/utils'
 import { tripConverter } from '@/utils/converter'
 
 const db = useFirestore()
@@ -10,8 +11,12 @@ const { tripId } = useRoute().params
 
 const trip = useDocument<Trip>(doc(db, 'trips', tripId as string).withConverter(tripConverter))
 const { tripMembers, hostMember } = useTripMembers(tripId as string)
+const { tripExpenses } = useTripExpenses(tripId as string)
 
 const openUploadReceiptDrawer = ref(false)
+const totalExpenses = computed(() => tripExpenses.value?.reduce((acc, expense) => acc + expense.grandTotal, 0))
+
+const expenseMembers = computed(() => (expense: Expense) => tripMembers.value?.filter(member => expense.sharedWithMemberIds.includes(member.id)))
 
 if (!trip.value) {
   toast.error('行程不存在')
@@ -20,16 +25,52 @@ if (!trip.value) {
 </script>
 
 <template>
-  <h1 class="text-2xl font-bold text-indigo-700">
-    {{ trip?.name }}
-  </h1>
-  <div v-for="member in tripMembers" :key="member.id">
-    <div class="flex items-center gap-2">
-      <div class="text-sm text-gray-500">
-        {{ member.name }}
+  <div class="flex items-start justify-between gap-2 bg-slate-200 p-4">
+    <h1 class="text-2xl font-bold text-indigo-700">
+      {{ trip?.name }}
+    </h1>
+    <div class="font-bold flex flex-col items-end">
+      <span class="text-xl">{{ trip?.tripCurrency }} {{ totalExpenses }}</span>
+      <span class="text-sm text-gray-500">{{ tripExpenses.length }} 筆</span>
+    </div>
+  </div>
+  <div v-for="member in tripMembers" :key="member.id" class="mt-1 space-y-2">
+    <div class="flex items-center justify-between gap-2">
+      <div class="text-sm text-gray-500 flex items-center gap-2">
+        <span>{{ member.avatarEmoji }}</span>
+        <span class="font-bold">{{ member.name }}</span>
       </div>
     </div>
   </div>
+
+  <section class="mt-4">
+    <h2 class="text-xl font-bold text-indigo-700">
+      支出紀錄
+    </h2>
+    <div class="mt-2 pb-4 px-4 pt-2 space-y-1 bg-white rounded-sm">
+      <template v-for="expense in tripExpenses" :key="expense.id">
+        <div class="flex gap-4 pt-3 pb-2">
+          <div class="flex flex-col justify-center gap-2 flex-1">
+            <p class="text-sm font-bold">
+              {{ expense.description }}
+            </p>
+            <p class="text-xs text-gray-500">
+              {{ expense.paidAt }}
+            </p>
+          </div>
+          <div class="flex flex-col justify-between gap-2">
+            <div class="text-lg text-gray-500 self-end">
+              <span v-for="member in expenseMembers(expense)" :key="member.id" class="font-bold">{{ member.avatarEmoji }}</span>
+            </div>
+            <div class="text-base font-bold w-[100px] text-right self-end">
+              {{ trip?.tripCurrency }} {{ expense.grandTotal }}
+            </div>
+          </div>
+        </div>
+        <ui-separator />
+      </template>
+    </div>
+  </section>
 
   <ui-drawer>
     <ui-drawer-trigger as-child>

@@ -88,7 +88,9 @@ const submit = handleSubmit(async (values) => {
 
 <template>
   <ui-drawer-header>
-    <ui-drawer-description>快速建立支出</ui-drawer-description>
+    <ui-drawer-title class="flex items-center gap-1 text-indigo-500 font-bold">
+      <Icon name="lucide:zap" class="w-4 h-4" /> 快速建立支出
+    </ui-drawer-title>
   </ui-drawer-header>
   <div class="space-y-4 px-4 py-4">
     <div class="grid w-full max-w-sm items-center gap-1.5">

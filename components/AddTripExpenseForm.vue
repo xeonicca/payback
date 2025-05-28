@@ -71,8 +71,10 @@ onMounted(() => {
 
 <template>
   <ui-drawer-header>
-    <!-- <ui-drawer-title>新增支出</ui-drawer-title> -->
-    <ui-drawer-description>輸入支出資訊</ui-drawer-description>
+    <ui-drawer-title class="text-indigo-500 font-bold">
+      新增支出
+    </ui-drawer-title>
+    <!-- <ui-drawer-description>輸入支出資訊</ui-drawer-description> -->
   </ui-drawer-header>
   <div class="space-y-4 px-4">
     <ui-form-field v-slot="{ componentField }" name="grandTotal" :validate-on-blur="!isFieldDirty">

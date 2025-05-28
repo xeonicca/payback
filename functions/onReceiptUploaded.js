@@ -9,7 +9,7 @@ const db = admin.firestore()
 // Configure Vertex AI
 const project = process.env.GCLOUD_PROJECT || admin.instanceId().app.options.projectId // More robust way to get project ID
 const location = 'us-west1' // Or your preferred Vertex AI region
-const model = 'gemini-1.0-pro-vision-001' // Or the latest stable vision model
+const model = 'gemini-2.0-flash-lite' // Or the latest stable vision model
 
 const vertexAI = new VertexAI({ project, location })
 
@@ -70,7 +70,7 @@ exports.analyzeReceiptAndUpdateExpense = onObjectFinalized({
 
   if (!contentType || !contentType.startsWith('image/')) {
     logger.log('File is not an image. Skipping analysis.', { contentType })
-    const expenseDocRefError = db.doc(`trips/${tripId}/expense/${expenseId}`)
+    const expenseDocRefError = db.doc(`trips/${tripId}/expenses/${expenseId}`)
     try {
       await expenseDocRefError.update({
         isProcessing: false,
@@ -164,14 +164,14 @@ exports.analyzeReceiptAndUpdateExpense = onObjectFinalized({
         logger.warn('paidAtTimestamp is null, \'paidAt\' field will not be set or will be explicitly null if uncommented.')
       }
 
-      const expenseDocRef = db.doc(`trips/${tripId}/expense/${expenseId}`)
+      const expenseDocRef = db.doc(`trips/${tripId}/expenses/${expenseId}`)
       await expenseDocRef.update(firestoreUpdateData)
-      logger.info(`Successfully updated Firestore document: trips/${tripId}/expense/${expenseId}`)
+      logger.info(`Successfully updated Firestore document: trips/${tripId}/expenses/${expenseId}`)
     }
     catch (jsonError) {
       logger.error('Error parsing JSON from Gemini response:', jsonError)
       logger.error('Raw non-JSON response from Gemini:', { rawResponse: aggregatedResponseText })
-      const expenseDocRefFailure = db.doc(`trips/${tripId}/expense/${expenseId}`)
+      const expenseDocRefFailure = db.doc(`trips/${tripId}/expenses/${expenseId}`)
       try {
         await expenseDocRefFailure.update({
           isProcessing: false,
@@ -190,7 +190,7 @@ exports.analyzeReceiptAndUpdateExpense = onObjectFinalized({
     if (error.response)
       logger.error('Gemini API Error Response:', error.response.data)
 
-    const expenseDocRefGeneralError = db.doc(`trips/${tripId}/expense/${expenseId}`)
+    const expenseDocRefGeneralError = db.doc(`trips/${tripId}/expenses/${expenseId}`)
     try {
       await expenseDocRefGeneralError.update({
         isProcessing: false,
