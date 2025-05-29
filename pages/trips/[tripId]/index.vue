@@ -31,12 +31,10 @@ if (!trip.value) {
       <span class="text-sm text-gray-500">{{ tripExpenses.length }} 筆</span>
     </div>
   </div>
-  <div v-for="member in tripMembers" :key="member.id" class="mt-1 space-y-2">
-    <div class="flex items-center justify-between gap-2">
-      <div class="text-sm text-gray-500 flex items-center gap-2">
-        <span>{{ member.avatarEmoji }}</span>
-        <span class="font-bold">{{ member.name }}</span>
-      </div>
+  <div class="mt-1 flex gap-2 items-center">
+    <div v-for="member in tripMembers" :key="member.id" class="text-sm text-gray-500 flex items-center gap-1">
+      <span>{{ member.avatarEmoji }}</span>
+      <span class="font-bold">{{ member.name }}</span>
     </div>
   </div>
 
@@ -82,4 +80,6 @@ if (!trip.value) {
       </div>
     </ui-drawer-content>
   </ui-drawer>
+
+  <trip-bottom-bar :trip="trip!" />
 </template>

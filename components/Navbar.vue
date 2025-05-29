@@ -18,8 +18,8 @@ const sessionUser = useSessionUser()
         <NuxtImg
           src="/logo-transparent.png"
           alt="Payback Logo"
-          width="100"
-          height="100"
+          width="80"
+          height="80"
           class="rounded-full"
           loading="eager"
         />
@@ -31,12 +31,7 @@ const sessionUser = useSessionUser()
           </NuxtLink>
         </li>
         <li class="flex items-center">
-          <NuxtLink to="/expenses/add" class="hover:text-blue-200 p-2 rounded-full hover:bg-blue-500 transition-colors" title="Add Expense">
-            <Icon name="lucide:receipt" size="20" />
-          </NuxtLink>
-        </li>
-        <li class="flex items-center">
-          <NuxtLink to="/trips/add" class="hover:text-blue-200 p-2 rounded-full hover:bg-blue-500 transition-colors" title="Add Trip">
+          <NuxtLink to="/trips/latest" class="hover:text-blue-200 p-2 rounded-full hover:bg-blue-500 transition-colors" title="Add Trip">
             <Icon name="lucide:plane" size="20" />
           </NuxtLink>
         </li>

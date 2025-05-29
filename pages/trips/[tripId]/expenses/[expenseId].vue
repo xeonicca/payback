@@ -2,7 +2,7 @@
 import type { Expense, Trip, TripMember } from '@/types'
 import { doc } from 'firebase/firestore'
 import { toast } from 'vue-sonner'
-import { useDocument, useFirestore } from 'vuefire'
+import { useDocument, useFirestore, usePendingPromises } from 'vuefire'
 import { expenseConverter } from '@/utils/converter'
 
 const db = useFirestore()
@@ -11,6 +11,7 @@ const { tripId, expenseId } = useRoute().params
 const trip = useDocument<Trip>(doc(db, 'trips', tripId as string).withConverter(tripConverter))
 const expense = useDocument<Expense>(doc(db, 'trips', tripId as string, 'expenses', expenseId as string).withConverter(expenseConverter))
 const { tripMembers } = useTripMembers(tripId as string)
+await usePendingPromises()
 
 if (!trip.value || !expense.value) {
   toast.error('支出不存在')

@@ -22,11 +22,11 @@ function PROMPT_TEXT(currency) {
     GBP: 'English',
     AUD: 'English',
     CAD: 'English',
-    CNY: 'Chinese',
+    CNY: 'Simplified Chinese',
     KRW: 'Korean',
     SGD: 'English',
     HKD: 'English',
-    TWD: 'Chinese',
+    TWD: 'Traditional Chinese',
   }
 
   const language = languageMap[currency] || 'English'
@@ -57,10 +57,10 @@ Details for extraction:
     - List each distinct item.
     - 'name': Primary product name. Exclude quantities (e.g., '5コ', '3マイ'), original prices if discounted, and generic prefixes like "FF " or "Lm" unless part of the product identifier.
     - 'price': Final price paid for that item after any item-specific discounts.
-- For 'description': Generate a concise (1-2 sentences) summary of the purchase. Mention the store name if identifiable. Example: "Purchase of food and drinks from Lawson."
+- For 'description': Generate a concise (1-2 sentences) summary of the purchase. Mention the store name and type of purchase if identifiable. Example: "Purchase of food and drinks from Lawson."
 - If any numeric or date string field cannot be reliably extracted, use 'null'. For arrays, use an empty array. For strings, use 'null' or an empty string.
 
-Please analyze the receipt in ${language} if possible, but ensure the response is in English.
+Please analyze the receipt in its native language if possible, but ensure the response is in ${language}.
 `
 }
 
