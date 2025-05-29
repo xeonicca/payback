@@ -3,7 +3,6 @@ import type { Expense, Trip } from '@/types'
 import { doc } from 'firebase/firestore'
 import { toast } from 'vue-sonner'
 import { useDocument, useFirestore } from 'vuefire'
-import { cn } from '@/lib/utils'
 import { tripConverter } from '@/utils/converter'
 
 const db = useFirestore()
@@ -25,7 +24,7 @@ if (!trip.value) {
 </script>
 
 <template>
-  <div class="flex items-start justify-between gap-2 bg-slate-200 p-4">
+  <div class="flex items-start justify-between gap-2 bg-slate-200 py-4">
     <h1 class="text-2xl font-bold text-indigo-700">
       {{ trip?.name }}
     </h1>
@@ -55,7 +54,7 @@ if (!trip.value) {
               {{ expense.description }}
             </p>
             <p class="text-xs text-gray-500">
-              {{ expense.paidAt }}
+              {{ expense.paidAt?.toDate() }}
             </p>
           </div>
           <div class="flex flex-col justify-between gap-2">
