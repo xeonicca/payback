@@ -44,7 +44,6 @@ export interface NewExpense {
   paidAt: Timestamp
   category?: string
   paidByMemberId: string
-  paidByMemberName: string
   sharedWithMemberIds: string[]
   createdAt: Timestamp | FieldValue
   imageUrls?: string[] // URLs of uploaded images

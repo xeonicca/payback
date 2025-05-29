@@ -29,11 +29,11 @@ const sharedWithMembers = computed(() => tripMembers.value?.filter(member => exp
     </h1>
     <div class="font-bold flex flex-col items-end">
       <span class="text-xl">{{ trip?.tripCurrency }} {{ expense?.grandTotal }}</span>
-      <span class="text-sm text-gray-500">{{ expense?.paidAtString }}</span>
+      <span class="w-[100px] text-sm text-gray-500">{{ expense?.paidAtString }}</span>
     </div>
   </div>
 
-  <div class="mt-4 space-y-4 px-4">
+  <div class="mt-4 space-y-4 px-2">
     <div class="bg-white rounded-lg p-4 space-y-4">
       <div class="flex items-center justify-between">
         <div class="text-sm text-gray-500">
@@ -65,9 +65,9 @@ const sharedWithMembers = computed(() => tripMembers.value?.filter(member => exp
           購買項目
         </div>
         <div class="space-y-2 pl-4">
-          <div v-for="item in expense.items" :key="item.name" class="flex items-center justify-between gap-2">
+          <div v-for="item in expense.items" :key="item.name" class="flex items-center justify-between gap-4">
             <span class="font-bold text-xs">{{ item.name }}</span>
-            <span class="text-sm">{{ trip?.tripCurrency }} {{ item.price }}</span>
+            <span class="text-sm text-right font-mono">{{ trip?.tripCurrency }} {{ item.price }}</span>
           </div>
         </div>
       </div>

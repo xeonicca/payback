@@ -12,7 +12,7 @@ import { z } from 'zod'
 const props = defineProps<{
   trip: Trip
   tripMembers: TripMember[]
-  hostMember: TripMember
+  hostMember?: TripMember
 }>()
 
 const emit = defineEmits<{
@@ -32,8 +32,8 @@ const formSchema = toTypedSchema(z.object({
 const { handleSubmit } = useForm({
   validationSchema: formSchema,
   initialValues: {
-    sharedWithMemberIds: [props.hostMember.id],
-    paidByMemberId: props.hostMember.id,
+    sharedWithMemberIds: props.hostMember?.id ? [props.hostMember.id] : [],
+    paidByMemberId: props.hostMember?.id,
   },
 })
 
@@ -53,8 +53,7 @@ const submit = handleSubmit(async (values) => {
     const expense: Omit<NewExpense, 'paidAt'> = {
       description: 'Receipt Upload',
       grandTotal: 0, // Default amount
-      paidByMemberId: props.hostMember.id,
-      paidByMemberName: props.hostMember.name,
+      paidByMemberId: values.paidByMemberId,
       sharedWithMemberIds: values.sharedWithMemberIds,
       createdAt: serverTimestamp(),
       isProcessing: true,
