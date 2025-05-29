@@ -10,7 +10,7 @@ const { tripId } = useRoute().params
 
 const trip = useDocument<Trip>(doc(db, 'trips', tripId as string).withConverter(tripConverter))
 const { tripMembers, hostMember } = useTripMembers(tripId as string)
-const { tripExpenses } = useTripExpenses(tripId as string)
+const { tripExpenses } = useTripExpenses(tripId as string, 3)
 
 const openUploadReceiptDrawer = ref(false)
 const totalExpenses = computed(() => tripExpenses.value?.reduce((acc, expense) => acc + expense.grandTotal, 0))
