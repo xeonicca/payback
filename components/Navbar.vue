@@ -1,25 +1,5 @@
 <script setup lang="ts">
-const { logout } = useLogin()
 const sessionUser = useSessionUser()
-const router = useRouter()
-
-async function handleSignOut() {
-  try {
-    await logout()
-    await router.push('/login')
-  }
-  catch (error) {
-    console.error('Error signing out:', error)
-  }
-}
-
-const dropdownItems = [
-  {
-    label: 'Sign out',
-    icon: 'i-lucide-log-out',
-    click: handleSignOut,
-  },
-]
 </script>
 
 <template>

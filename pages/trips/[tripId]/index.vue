@@ -15,8 +15,6 @@ const { tripExpenses } = useTripExpenses(tripId as string)
 const openUploadReceiptDrawer = ref(false)
 const totalExpenses = computed(() => tripExpenses.value?.reduce((acc, expense) => acc + expense.grandTotal, 0))
 
-const expenseMembers = computed(() => (expense: Expense) => tripMembers.value?.filter(member => expense.sharedWithMemberIds.includes(member.id)))
-
 if (!trip.value) {
   toast.error('行程不存在')
   navigateTo('/trips')
@@ -48,24 +46,7 @@ if (!trip.value) {
     </h2>
     <div class="mt-2 pb-4 px-4 pt-2 space-y-1 bg-white rounded-sm">
       <template v-for="expense in tripExpenses" :key="expense.id">
-        <div class="flex gap-4 pt-3 pb-2">
-          <div class="flex flex-col justify-center gap-2 flex-1">
-            <p class="text-sm font-bold">
-              {{ expense.description }}
-            </p>
-            <p class="text-xs text-gray-500">
-              {{ expense.paidAt?.toDate() }}
-            </p>
-          </div>
-          <div class="flex flex-col justify-between gap-2">
-            <div class="text-lg text-gray-500 self-end">
-              <span v-for="member in expenseMembers(expense)" :key="member.id" class="font-bold">{{ member.avatarEmoji }}</span>
-            </div>
-            <div class="text-base font-bold w-[100px] text-right self-end">
-              {{ trip?.tripCurrency }} {{ expense.grandTotal }}
-            </div>
-          </div>
-        </div>
+        <expense-item :expense="expense" :trip-members="tripMembers" :trip="trip!" />
         <ui-separator />
       </template>
     </div>

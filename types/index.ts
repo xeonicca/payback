@@ -15,12 +15,13 @@ export interface NewTripMember {
   name: string
   avatarEmoji: string
   createdAt: Timestamp | FieldValue
-  spending: number
+  spending?: number
   isHost: boolean
 }
 
 export interface TripMember extends NewTripMember {
   id: string
+  createdAtString: string
 }
 
 export interface NewTrip {
@@ -34,6 +35,7 @@ export interface NewTrip {
 
 export interface Trip extends NewTrip {
   id: string
+  createdAtString: string
 }
 
 export interface NewExpense {
@@ -47,10 +49,16 @@ export interface NewExpense {
   createdAt: Timestamp | FieldValue
   imageUrls?: string[] // URLs of uploaded images
   isProcessing: boolean
+  items?: Array<{
+    name: string
+    price: number
+  }>
 }
 
 export interface Expense extends NewExpense {
   id: string
+  paidAtString: string
+  createdAtString: string
 }
 
 export interface Currency {
