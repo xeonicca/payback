@@ -105,11 +105,11 @@ const submit = handleSubmit(async (values) => {
     </div>
     <ui-separator />
     <ui-form-field name="sharedWithMemberIds">
-      <div class="mb-4">
+      <ui-form-item class="mb-4">
         <ui-form-label class="text-sm">
           選擇平分的成員
         </ui-form-label>
-      </div>
+      </ui-form-item>
       <ui-form-field
         v-for="member in tripMembers"
         v-slot="{ value, handleChange }"

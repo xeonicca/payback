@@ -43,6 +43,8 @@ The JSON object should have the following structure:
   "items": [
     {
       "name": "<string>",
+      "translatedName": "<string | null>",
+      "quantity": <number | null>,
       "price": <number>
     }
   ],
@@ -57,7 +59,9 @@ Details for extraction:
     - List each distinct item.
     - 'name': Primary product name. Exclude quantities (e.g., '5コ', '3マイ'), original prices if discounted, and generic prefixes like "FF " or "Lm" unless part of the product identifier.
     - 'price': Final price paid for that item after any item-specific discounts.
-- For 'description': Generate a concise (1-2 sentences) summary of the purchase. Mention the store name and type of purchase if identifiable. Example: "Purchase of food and drinks from Lawson."
+    - 'translatedName': Translated name of the item in ${language}.
+    - 'quantity': Quantity of the item. Default to 1 if not provided.
+- For 'description': Generate a concise (1-2 sentences) summary of the purchase. Use phrase for the first sentence to quickly describe the purchase, then details for further clarification but no need to mention the cost here. Mention the store name and type of purchase if identifiable. Example: "Purchase of food and drinks from Lawson."
 - If any numeric or date string field cannot be reliably extracted, use 'null'. For arrays, use an empty array. For strings, use 'null' or an empty string.
 
 Please analyze the receipt in its native language if possible, but ensure the response is in ${language}.
@@ -188,6 +192,7 @@ exports.analyzeReceiptAndUpdateExpense = onObjectFinalized({
         isProcessing: false,
         processedAt: admin.firestore.FieldValue.serverTimestamp(),
         processingError: null,
+        receiptImageUrl: filePath,
       }
 
       if (paidAtTimestamp !== null) {

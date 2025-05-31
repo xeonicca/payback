@@ -58,6 +58,7 @@ export interface Expense extends NewExpense {
   id: string
   paidAtString: string
   createdAtString: string
+  receiptImageUrl?: string
 }
 
 export interface Currency {

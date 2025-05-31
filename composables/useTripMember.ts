@@ -8,8 +8,14 @@ export function useTripMembers(tripId: string) {
   const tripMembers = useCollection<TripMember>(collection(db, 'trips', tripId, 'members').withConverter(tripMemberConverter))
   const hostMember = computed(() => tripMembers.value?.find(member => member.isHost))
 
+  const tripMembersMap = computed(() => tripMembers.value?.reduce((acc, member) => {  
+    acc[member.id] = member
+    return acc
+  }, {} as Record<string, TripMember>))
+
   return {
     tripMembers,
     hostMember,
+    tripMembersMap,
   }
 }

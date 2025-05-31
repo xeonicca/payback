@@ -1,18 +1,18 @@
 <script setup lang="ts">
-import type { Expense, Trip } from '@/types'
-import { doc } from 'firebase/firestore'
 import { toast } from 'vue-sonner'
-import { useDocument, useFirestore } from 'vuefire'
-import { tripConverter } from '@/utils/converter'
+import { usePendingPromises } from 'vuefire'
 
-const db = useFirestore()
+definePageMeta({
+  layout: 'default-with-bottom-bar',
+})
+
 const { tripId } = useRoute().params
 
-const trip = useDocument<Trip>(doc(db, 'trips', tripId as string).withConverter(tripConverter))
+const { trip } = useTrip(tripId as string)
 const { tripMembers, hostMember } = useTripMembers(tripId as string)
 const { tripExpenses } = useTripExpenses(tripId as string, 3)
+await usePendingPromises()
 
-const openUploadReceiptDrawer = ref(false)
 const openAddExpenseDrawer = ref(false)
 const totalExpenses = computed(() => tripExpenses.value?.reduce((acc, expense) => acc + expense.grandTotal, 0))
 
@@ -57,11 +57,16 @@ if (!trip.value) {
           <icon name="lucide:plus" size="16" />
         </ui-button>
       </div>
-      <div class="mt-2 pb-4 px-4 pt-2 space-y-1 bg-white rounded-sm">
+      <div v-if="tripExpenses.length > 0" class="mt-2 pb-4 px-4 pt-2 space-y-1 bg-white rounded-sm">
         <template v-for="expense in tripExpenses" :key="expense.id">
           <expense-item :expense="expense" :trip-members="tripMembers" :trip="trip!" />
           <ui-separator />
         </template>
+      </div>
+      <div v-else class="mt-2 px-4 py-6 bg-white rounded-sm">
+        <p class="text-sm text-gray-500">
+          尚未有支出紀錄
+        </p>
       </div>
     </section>
 
@@ -71,24 +76,6 @@ if (!trip.value) {
           <add-trip-expense-form :trip="trip" :trip-members="tripMembers" :host-member="hostMember" />
         </div>
       </ui-drawer-content>
-    </ui-drawer>
-
-    <ui-drawer v-model:open="openUploadReceiptDrawer">
-      <ui-drawer-content>
-        <div class="mx-auto w-full max-w-sm">
-          <upload-receipt-form
-            :trip="trip"
-            :trip-members="tripMembers"
-            :host-member="hostMember"
-            @close="openUploadReceiptDrawer = false"
-          />
-        </div>
-      </ui-drawer-content>
-    </ui-drawer>
-
-    <trip-bottom-bar
-      :trip="trip"
-      @open-upload-receipt-drawer="openUploadReceiptDrawer = true"
-    />
+    </ui-drawer>    
   </template>
 </template>

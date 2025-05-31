@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { collection } from 'firebase/firestore'
 import { useCollection, useFirestore } from 'vuefire'
+import { tripConverter } from '@/utils/converter'
 
 const db = useFirestore()
-const trips = useCollection(collection(db, 'trips'), {
+const trips = useCollection(collection(db, 'trips').withConverter(tripConverter), {
   once: true,
 })
 
@@ -37,13 +38,13 @@ definePageMeta({
       <ui-card
         v-for="trip in trips"
         :key="trip.id"
-        class="transition-all duration-200 hover:shadow-lg hover:scale-[1.02]"
+        class="transition-all duration-200 hover:shadow-lg hover:scale-[1.02] rounded-sm"
       >
         <ui-card-header class="flex flex-row items-start justify-between space-y-0 pb-2">
           <ui-card-title class="text-lg font-semibold">
             <div class="flex items-center gap-2">
-              <Icon name="lucide-map-pin" class="text-gray-500" />
-              <span class="text-dark">{{ trip.name }}</span>
+              <Icon name="lucide-map-pin" class="text-indigo-700" />
+              <span class="text-indigo-700">{{ trip.name }}</span>
             </div>
           </ui-card-title>
           <ui-badge>
@@ -54,7 +55,7 @@ definePageMeta({
         <ui-card-content class="space-y-2">
           <div class="flex items-center gap-2">
             <Icon name="lucide-calendar" class="text-gray-500" />
-            <span>{{ trip.createdAt.toDate().toLocaleDateString() }}</span>
+            <span class="text-sm text-gray-500">{{ trip.createdAtString }}</span>
           </div>
           <!-- <div class="flex items-center gap-2">
             <ui-icon name="i-lucide-receipt" class="text-gray-500" />

@@ -1,21 +1,13 @@
 <script setup lang="ts">
-import type { TripMember } from '@/types'
+import type { NewTripMember, TripMember } from '@/types'
 import { useForm } from 'vee-validate'
 import { toast } from 'vue-sonner'
 import * as z from 'zod'
-import {
-  FormControl as UiFormControl,
-  FormDescription as UiFormDescription,
-  FormField as UiFormField,
-  FormItem as UiFormItem,
-  FormLabel as UiFormLabel,
-  FormMessage as UiFormMessage,
-} from '@/components/ui/form'
 import { animalEmojis } from '@/constants'
 
 const props = defineProps<{
-  members: TripMember[]
-  onMembersChange: (updatedMembers: TripMember[]) => void
+  members: NewTripMember[]
+  onMembersChange: (updatedMembers: NewTripMember[]) => void
 }>()
 
 const formSchema = z.object({
@@ -52,11 +44,11 @@ const onSubmit = form.handleSubmit((values: FormValues) => {
     return
   }
 
-  const newMember: TripMember = {
-    id: Date.now().toString(),
+  const newMember: NewTripMember = {
     name: trimmedName,
     avatarEmoji: values.avatar,
     createdAt: new Date() as any,
+    isHost: false,
   }
 
   const updated = [...props.members, newMember]
@@ -79,9 +71,9 @@ function handleRemoveMemberFromList(id: string) {
 </script>
 
 <template>
-  <div class="space-y-6 pt-6 border-t">
-    <h3 class="text-xl font-semibold text-gray-700">
-      Trip Members
+  <div class="space-y-6">
+    <h3 class="m-0 text-lg font-semibold text-gray-700 pb-3">
+      行程成員
     </h3>
     <div class="p-4 border border-gray-200 rounded-lg space-y-4 bg-gray-50">
       <form :validation-schema="formSchema" class="grid grid-cols-1 md:grid-cols-2 gap-4 items-end" @submit.prevent="onSubmit">
@@ -91,7 +83,7 @@ function handleRemoveMemberFromList(id: string) {
               <ui-form-control>
                 <div class="relative flex-1">
                   <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <Icon name="lucide:user-circle" :size="16" class="text-gray-400" />
+                    <Icon name="lucide:circle-user" :size="16" class="text-gray-400" />
                   </div>
                   <ui-input
                     v-bind="componentField"
@@ -160,7 +152,7 @@ function handleRemoveMemberFromList(id: string) {
             title="Remove member"
             @click="handleRemoveMemberFromList(member.id)"
           >
-            <XCircle :size="20" />
+            <icon name="lucide:circle-x" :size="20" />
           </ui-button>
         </li>
       </ul>

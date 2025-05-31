@@ -21,7 +21,7 @@ onMounted(() => {
 </script>
 
 <template>
-  <div>
-    <h1>Latest Trips</h1>
+  <div class="flex items-center justify-center h-screen">
+    <icon name="lucide:loader-circle" class="text-indigo-700 animate-spin -mt-20" size="40" />
   </div>
 </template>

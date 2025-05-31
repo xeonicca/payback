@@ -57,6 +57,15 @@ const db = useFirestore()
 const sessionUser = useSessionUser()
 const router = useRouter()
 
+const defaultMembers: NewTripMember[] = [
+  {
+    name: sessionUser.value!.displayName || 'User 1',
+    avatarEmoji: '🐭',
+    isHost: true,
+    createdAt: serverTimestamp(),
+  },
+]
+
 const onSubmit = handleSubmit(async (values) => {
   try {
     isSubmitting.value = true
@@ -103,11 +112,15 @@ async function writeTripMembers(tripId: string, member: NewTripMember) {
   const docRef = await addDoc(collection(db, 'trips', tripId, 'members'), member)
   return docRef
 }
+
+const onMembersChange = (updatedMembers: NewTripMember[]) => {
+  console.log(updatedMembers)
+}
 </script>
 
 <template>
-  <form class="max-w-2xl mx-auto bg-white p-8 rounded-lg shadow-xl space-y-8" @submit.prevent="onSubmit">
-    <h2 class="text-lg font-semibold text-gray-700 border-b pb-4">
+  <form class="max-w-2xl mx-auto bg-white p-8 rounded-lg shadow-xl space-y-6" @submit.prevent="onSubmit">
+    <h2 class="text-lg font-semibold text-gray-700 pb-4 m-0">
       新增行程
     </h2>
     <div class="space-y-4">
@@ -152,7 +165,7 @@ async function writeTripMembers(tripId: string, member: NewTripMember) {
         <ui-form-item>
           <ui-form-label>對台幣的匯率</ui-form-label>
           <ui-form-control>
-            <ui-input type="number" step=".01" :placeholder="exchangeRateToTwd" v-bind="componentField" />
+            <ui-input type="number" step=".00001" :placeholder="exchangeRateToTwd" v-bind="componentField" />
           </ui-form-control>
           <ui-form-description>
             1 {{ values.tripCurrency }} = {{ exchangeRateToTwd }} TWD
@@ -162,10 +175,10 @@ async function writeTripMembers(tripId: string, member: NewTripMember) {
       </ui-form-field>
     </div>
 
-    <!-- <AddTripMembersForm
-      :members="members"
-      :on-members-change="handleMembersChange"
-    /> -->
+    <add-trip-members-form
+      :members="defaultMembers"
+      :on-members-change="onMembersChange"
+    />
 
     <ui-button
       type="submit"

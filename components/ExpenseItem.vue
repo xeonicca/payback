@@ -28,7 +28,7 @@ const expenseMembers = computed(() => (expense: Expense) => props.tripMembers.fi
         >
           {{ member.avatarEmoji }}</span>
       </div>
-      <div class="text-base font-bold w-[100px] text-right self-end">
+      <div class="text-base font-mono w-[100px] text-right self-end text-green-600">
         {{ trip.tripCurrency }} {{ expense.grandTotal }}
       </div>
     </div>
