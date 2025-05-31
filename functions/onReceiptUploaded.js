@@ -59,7 +59,7 @@ Details for extraction:
     - List each distinct item.
     - 'name': Primary product name. Exclude quantities (e.g., '5コ', '3マイ'), original prices if discounted, and generic prefixes like "FF " or "Lm" unless part of the product identifier.
     - 'price': Final price paid for that item after any item-specific discounts.
-    - 'translatedName': Translated name of the item in ${language}.
+    - 'translatedName': REQUIRED - Translate the item name to ${language}. If the item is already in ${language}, use the same name. Do not leave this field null.
     - 'quantity': Quantity of the item. Default to 1 if not provided.
 - For 'description': Generate a concise (1-2 sentences) summary of the purchase. Use phrase for the first sentence to quickly describe the purchase, then details for further clarification but no need to mention the cost here. Mention the store name and type of purchase if identifiable. Example: "Purchase of food and drinks from Lawson."
 - If any numeric or date string field cannot be reliably extracted, use 'null'. For arrays, use an empty array. For strings, use 'null' or an empty string.
