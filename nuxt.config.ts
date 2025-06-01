@@ -8,10 +8,10 @@ export default defineNuxtConfig({
 
   app: {
     head: {
-      // link: [
-      //   { rel: 'icon', href: '/favicon.ico', sizes: 'any' },
-      //   { rel: 'apple-touch-icon', href: '/images/app-icons/ios-app-icons-180x180.png' },
-      // ],
+      link: [
+        { rel: 'icon', href: '/favicon.ico', sizes: 'any' },
+        { rel: 'apple-touch-icon', href: '/163.png' },
+      ],
       meta: [
         { name: 'viewport', content: 'width=device-width, initial-scale=1, user-scalable=no, maximum-scale=1, viewport-fit=cover' },
         { name: 'mobile-web-app-capable', content: 'yes' },
@@ -77,6 +77,7 @@ export default defineNuxtConfig({
       description: 'Payback Travel Mate',
       theme_color: '#314158',
       background_color: '#314158',
+      orientation: 'portrait',
       icons: [
         {
           src: '/192.png',
