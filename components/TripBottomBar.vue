@@ -10,7 +10,7 @@ const openUploadReceiptDrawer = ref(false)
 </script>
 
 <template>
-  <div class="fixed bottom-4 left-1/2 -translate-x-1/2 bg-slate-700 rounded-2xl shadow-lg flex items-center justify-between pb-safe px-6 py-3 w-[calc(100vw_-_4rem)]">
+  <div class="fixed bottom-safe-4 bottom-4 left-1/2 -translate-x-1/2 bg-slate-700 rounded-2xl shadow-lg flex items-center justify-between px-6 py-3 w-[calc(100vw_-_4rem)]">
     <nuxt-link class="size-10 flex items-center justify-center" :to="`/trips/${tripId}`">
       <icon name="lucide:house" size="20" class="text-slate-200" />
     </nuxt-link>

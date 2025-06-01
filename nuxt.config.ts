@@ -75,19 +75,19 @@ export default defineNuxtConfig({
       name: 'Payback',
       short_name: 'Payback',
       description: 'Payback Travel Mate',
-      theme_color: '#171717',
-      background_color: '#EBEBEB',
+      theme_color: '#314158',
+      background_color: '#314158',
       icons: [
         {
           src: '/192.png',
           sizes: '192x192',
           type: 'image/png',
         },
-        // {
-        //   src: 'pwa-512x512.png',
-        //   sizes: '512x512',
-        //   type: 'image/png',
-        // },
+        {
+          src: '/512.png',
+          sizes: '512x512',
+          type: 'image/png',
+        },
         // {
         //   src: 'pwa-512x512.png',
         //   sizes: '512x512',
