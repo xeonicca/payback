@@ -5,9 +5,9 @@ import 'vue-sonner/style.css' // vue-sonner v2 requires this import
 const { $pwa } = useNuxtApp()
 onMounted(() => {
   if ($pwa!.needRefresh) {
-    toast.success('App ready to work offline', {
+    toast.success('App content updated', {
       action: {
-        label: 'Undo',
+        label: 'Refresh',
         onClick: () => $pwa!.updateServiceWorker(),
       },
     })
