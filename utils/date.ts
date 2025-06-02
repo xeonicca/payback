@@ -61,3 +61,32 @@ export function formatFirebaseTime(timestamp: Timestamp | null | undefined): str
     hour12: false,
   }).format(date)
 }
+
+export function formatFirebaseDateAndTime(timestamp: Timestamp | null | undefined): {
+  year: string
+  month: string
+  day: string
+  hour: string
+  minute: string
+} {
+  if (!timestamp) {
+    return {
+      year: '',
+      month: '',
+      day: '',
+      hour: '',
+      minute: '',
+    }
+  }
+
+  const milliseconds = timestamp.toMillis()
+  const date = new Date(milliseconds)
+
+  return {
+    year: date.getFullYear().toString(),
+    month: (date.getMonth() + 1).toString(),
+    day: date.getDate().toString(),
+    hour: date.getHours().toString(),
+    minute: date.getMinutes().toString(),
+  }
+}

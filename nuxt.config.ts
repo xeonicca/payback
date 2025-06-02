@@ -8,6 +8,7 @@ export default defineNuxtConfig({
 
   app: {
     head: {
+      title: 'Payback',
       link: [
         { rel: 'icon', href: '/favicon.ico', sizes: 'any' },
         { rel: 'apple-touch-icon', href: '/163.png' },

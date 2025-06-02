@@ -2,9 +2,9 @@
 import type { Expense, Trip } from '@/types'
 import { computedAsync } from '@vueuse/core'
 import { doc } from 'firebase/firestore'
-import { getDownloadURL, ref as storageRef } from "firebase/storage";
+import { getDownloadURL, ref as storageRef } from 'firebase/storage'
 import { toast } from 'vue-sonner'
-import { useDocument, useFirestore, usePendingPromises, useFirebaseStorage, useStorageFile } from 'vuefire'
+import { useDocument, useFirebaseStorage, useFirestore, usePendingPromises } from 'vuefire'
 import { expenseConverter } from '@/utils/converter'
 
 definePageMeta({
@@ -35,18 +35,18 @@ const receiptImageUrl = computedAsync(async () => {
 </script>
 
 <template>
-  <div class="flex items-end justify-between gap-2 bg-slate-200 p-4">
-    <div class="font-bold flex flex-col items-end text-left">
-      <span class="w-[150px] text-sm text-gray-500">{{ expense?.paidAtString }}</span>
-    </div>
+  <div class="flex items-end justify-between gap-2 bg-slate-200 p-4 scroll-mt-4">
     <h1 class="text-2xl font-bold text-indigo-700">
       {{ trip?.tripCurrency }} {{ expense?.grandTotal }}
     </h1>
   </div>
 
-  <p class="flex items-center px-6 text-sm">
-    {{ expense?.description }}
-  </p>
+  <div class="px-4 text-sm">
+    <span class="w-[150px] text-sm text-gray-500">{{ expense?.paidAtString }}</span>
+    <p class="text-sm">
+      {{ expense?.description }}
+    </p>
+  </div>
 
   <div class="mt-4 space-y-4 px-2">
     <div class="bg-white rounded-lg p-4 space-y-4">
@@ -92,13 +92,19 @@ const receiptImageUrl = computedAsync(async () => {
           <ui-table-header>
             <ui-table-row>
               <ui-table-head>名稱</ui-table-head>
-              <ui-table-head class="text-right">價格</ui-table-head>
+              <ui-table-head class="text-right">
+                價格
+              </ui-table-head>
             </ui-table-row>
           </ui-table-header>
           <ui-table-body>
             <ui-table-row v-for="item in expense.items" :key="item.name">
-              <ui-table-cell class="font-medium whitespace-break-spaces text-sm">{{ item.name }}</ui-table-cell>
-              <ui-table-cell class="text-right font-mono w-[100px] text-green-600">{{ trip?.tripCurrency }} {{ item.price }}</ui-table-cell>
+              <ui-table-cell class="font-medium whitespace-break-spaces text-sm">
+                {{ item.name }}
+              </ui-table-cell>
+              <ui-table-cell class="text-right font-mono w-[100px] text-green-600">
+                {{ trip?.tripCurrency }} {{ item.price }}
+              </ui-table-cell>
             </ui-table-row>
           </ui-table-body>
         </ui-table>
@@ -109,7 +115,7 @@ const receiptImageUrl = computedAsync(async () => {
           收據圖片
         </div>
         <div class="grid gap-2">
-          <img :src="receiptImageUrl" class="w-full h-full object-cover" />
+          <img :src="receiptImageUrl" class="w-full h-full object-cover">
         </div>
       </div>
     </div>

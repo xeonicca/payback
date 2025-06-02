@@ -21,7 +21,7 @@ definePageMeta({
 <template>
   <div>
     <div class="flex justify-between items-center mb-6">
-      <h1 class="text-xl font-bold text-primary">
+      <h1 class="scroll-m-4 text-xl font-extrabold text-primary">
         行程一覽
       </h1>
       <ui-button
@@ -57,10 +57,10 @@ definePageMeta({
             <Icon name="lucide-calendar" class="text-gray-500" />
             <span class="text-sm text-gray-500">{{ trip.createdAtString }}</span>
           </div>
-          <!-- <div class="flex items-center gap-2">
-            <ui-icon name="i-lucide-receipt" class="text-gray-500" />
-            <span>${{ trip.totalExpenses.toLocaleString() }}</span>
-          </div> -->
+          <div class="flex items-center gap-2">
+            <Icon name="lucide:receipt" class="text-gray-500" />
+            <span class="text-base font-extrabold">{{ trip.tripCurrency }} {{ trip.totalExpenses.toLocaleString() }}</span>
+          </div>
         </ui-card-content>
 
         <ui-card-footer class="flex justify-end gap-2">
