@@ -3,8 +3,7 @@ import tailwindcss from '@tailwindcss/vite'
 export default defineNuxtConfig({
   compatibilityDate: '2025-05-15',
   devtools: { enabled: false },
-
-  modules: ['@nuxt/eslint', '@nuxt/fonts', '@nuxt/icon', '@nuxt/image', 'nuxt-vuefire', 'shadcn-nuxt', '@vite-pwa/nuxt'],
+  modules: ['@nuxt/eslint', '@nuxt/fonts', '@nuxt/icon', '@nuxt/image', 'nuxt-vuefire', 'shadcn-nuxt', '@vite-pwa/nuxt', '@sentry/nuxt/module'],
 
   app: {
     head: {
@@ -98,5 +97,18 @@ export default defineNuxtConfig({
         // },
       ],
     },
+  },
+
+  sentry: {
+    sourceMapsUploadOptions: {
+      org: 'personal-projects-wv',
+      project: 'payback-nuxt',
+    },
+
+    autoInjectServerSentry: 'top-level-import',
+  },
+
+  sourcemap: {
+    client: 'hidden',
   },
 })

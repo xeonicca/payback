@@ -25,3 +25,5 @@ logs
 
 # Service account
 service-account.json
+# Sentry Config File
+.env.sentry-build-plugin
