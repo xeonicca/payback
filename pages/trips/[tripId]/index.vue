@@ -37,7 +37,7 @@ if (!trip.value) {
         {{ trip.name }}
       </h1>
       <div class="font-bold flex flex-col items-end">
-        <span class="text-xl">{{ trip.tripCurrency }} {{ totalExpenses }}</span>
+        <span class="text-xl">{{ trip.tripCurrency }} {{ trip.totalExpenses }}</span>
         <span class="text-sm text-slate-600">{{ trip.expenseCount }} 筆</span>
       </div>
     </div>

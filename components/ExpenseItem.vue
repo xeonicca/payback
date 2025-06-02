@@ -16,22 +16,23 @@ const expenseMembers = computed(() => (expense: Expense) => props.tripMembers.fi
       <p class="text-sm font-bold">
         {{ expense.description }}
       </p>
-      <p class="text-xs text-gray-500">
-        {{ expense.paidAtString }}
-      </p>
-    </div>
-    <div class="flex flex-col justify-between gap-2">
-      <div class="text-2xl font-extrabold text-slate-800 text-right">
-        {{ expense.paidAtObject.month }}/{{ expense.paidAtObject.day }}
-      </div>
-      <div class="text-lg text-gray-500 self-end relative flex flex-wrap gap-1 justify-end">
+      <div class="text-lg text-gray-500 self-start relative flex flex-wrap gap-1 justify-end">
         <span
           v-for="member in expenseMembers(expense)" :key="member.id"
           class="font-bold rounded-full p-1 w-6 h-6 flex items-center justify-center"
         >
           {{ member.avatarEmoji }}</span>
       </div>
-      <div class="text-base font-mono w-[100px] text-right self-end text-green-600">
+      <p class="text-xs text-gray-500">
+        {{ expense.paidAtString }}
+      </p>
+    </div>
+    <div class="flex flex-col justify-between gap-2">
+      <div class="text-xl font-extrabold text-slate-800 text-right">
+        {{ expense.paidAtObject.month }}/{{ expense.paidAtObject.day }}
+      </div>
+      
+      <div class="text-lg font-mono w-[100px] text-right self-end text-green-600">
         {{ trip.tripCurrency }} {{ expense.grandTotal }}
       </div>
     </div>
