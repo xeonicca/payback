@@ -7,7 +7,7 @@ import { expenseConverter } from '@/utils/converter'
 export function useTripExpenses(tripId: string, hasLimit = 0) {
   const db = useFirestore()
   const queryConditions = <QueryNonFilterConstraint[]>[
-    orderBy('createdAt', 'desc'),
+    orderBy('paidAt', 'desc'),
   ]
   if (hasLimit > 0) {
     queryConditions.push(limit(hasLimit))

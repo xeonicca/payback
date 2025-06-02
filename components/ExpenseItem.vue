@@ -11,7 +11,7 @@ const expenseMembers = computed(() => (expense: Expense) => props.tripMembers.fi
 </script>
 
 <template>
-  <nuxt-link :to="`/trips/${trip.id}/expenses/${expense.id}`" class="flex gap-4 pt-3 pb-2 px-2">
+  <nuxt-link :to="`/trips/${trip.id}/expenses/${expense.id}`" class="flex gap-3 pt-3 pb-2 px-2">
     <div class="flex flex-col justify-center gap-2 flex-1">
       <p class="text-sm font-bold">
         {{ expense.description }}
@@ -21,6 +21,9 @@ const expenseMembers = computed(() => (expense: Expense) => props.tripMembers.fi
       </p>
     </div>
     <div class="flex flex-col justify-between gap-2">
+      <div class="text-2xl font-extrabold text-slate-800 text-right">
+        {{ expense.paidAtObject.month }}/{{ expense.paidAtObject.day }}
+      </div>
       <div class="text-lg text-gray-500 self-end relative flex flex-wrap gap-1 justify-end">
         <span
           v-for="member in expenseMembers(expense)" :key="member.id"

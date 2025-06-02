@@ -10,7 +10,7 @@ const { tripId } = useRoute().params
 
 const { trip } = useTrip(tripId as string)
 const { tripMembers, hostMember } = useTripMembers(tripId as string)
-const { tripExpenses } = useTripExpenses(tripId as string, 3)
+const { tripExpenses } = useTripExpenses(tripId as string, 5)
 await usePendingPromises()
 
 const openAddExpenseDrawer = ref(false)
@@ -76,6 +76,6 @@ if (!trip.value) {
           <add-trip-expense-form :trip="trip" :trip-members="tripMembers" :host-member="hostMember" />
         </div>
       </ui-drawer-content>
-    </ui-drawer>    
+    </ui-drawer>
   </template>
 </template>
