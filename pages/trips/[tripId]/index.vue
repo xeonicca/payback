@@ -51,7 +51,7 @@ if (!trip.value) {
     <section class="mt-4">
       <div class="flex items-center justify-between pl-2">
         <h2 class="text-xl font-bold text-indigo-700">
-          支出紀錄
+          近期支出紀錄
         </h2>
         <ui-button size="icon" @click="openAddExpenseDrawer = true">
           <icon name="lucide:plus" size="16" />
@@ -62,6 +62,12 @@ if (!trip.value) {
           <expense-item :expense="expense" :trip-members="tripMembers" :trip="trip!" />
           <ui-separator />
         </template>
+        <div class="flex items-center justify-end mt-4">
+          <nuxt-link class="flex items-center gap-1 text-sm text-gray-500" :to="`/trips/${tripId}/expenses`">
+            查看所有支出
+            <icon name="lucide:arrow-right" size="16" />
+          </nuxt-link>
+        </div>
       </div>
       <div v-else class="mt-2 px-4 py-6 bg-white rounded-sm">
         <p class="text-sm text-gray-500">

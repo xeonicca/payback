@@ -80,6 +80,17 @@
   --sidebar-border: oklch(0.929 0.013 255.508);
   --sidebar-ring: oklch(0.704 0.04 256.788);
   --radius: 0.5rem;
+  /* charts */
+  --vis-tooltip-background-color: none !important;
+  --vis-tooltip-border-color: none !important;
+  --vis-tooltip-text-color: none !important;
+  --vis-tooltip-shadow-color: none !important;
+  --vis-tooltip-backdrop-filter: none !important;
+  --vis-tooltip-padding: none !important;
+
+  --vis-primary-color: var(--primary);
+  /* change to any hsl value you want */
+  --vis-secondary-color: var(--chart-2);
 }
 
 .dark {

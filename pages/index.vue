@@ -68,6 +68,7 @@ definePageMeta({
             <ui-button
               color="gray"
               variant="outline"
+              size="sm"
             >
               <Icon name="lucide-eye" class="text-gray-500" />
               查看
