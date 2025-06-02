@@ -38,7 +38,7 @@ if (!trip.value) {
       </h1>
       <div class="font-bold flex flex-col items-end">
         <span class="text-xl">{{ trip.tripCurrency }} {{ totalExpenses }}</span>
-        <span class="text-sm text-slate-600">{{ tripExpenses.length }} 筆</span>
+        <span class="text-sm text-slate-600">{{ trip.expenseCount }} 筆</span>
       </div>
     </div>
     <div class="mt-1 flex gap-2 items-center">
@@ -53,7 +53,7 @@ if (!trip.value) {
         <h2 class="text-xl font-bold text-indigo-700">
           近期支出紀錄
         </h2>
-        <ui-button size="icon" @click="openAddExpenseDrawer = true">
+        <ui-button size="sm" @click="openAddExpenseDrawer = true">
           <icon name="lucide:plus" size="16" />
         </ui-button>
       </div>

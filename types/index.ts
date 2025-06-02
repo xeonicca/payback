@@ -28,6 +28,7 @@ export interface NewTrip {
   name: string
   tripCurrency: string // e.g., 'USD', 'JPY'
   totalExpenses: number
+  expenseCount: number
   exchangeRate: number
   defaultCurrency: string
   userId: string

@@ -32,6 +32,34 @@ async function updateTripTotal(tripId, amountChange) {
   }
 }
 
+// Helper function to update expense count
+async function updateExpenseCount(tripId, countChange) {
+  const tripRef = db.doc(`trips/${tripId}`)
+
+  try {
+    await db.runTransaction(async (transaction) => {
+      const tripDoc = await transaction.get(tripRef)
+      if (!tripDoc.exists) {
+        throw new Error('Trip document does not exist')
+      }
+
+      const currentCount = tripDoc.data().expenseCount || 0
+      const newCount = currentCount + countChange
+
+      transaction.update(tripRef, {
+        expenseCount: newCount,
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      })
+    })
+
+    logger.info(`Successfully updated expense count for trip ${tripId}`)
+  }
+  catch (error) {
+    logger.error(`Error updating expense count: ${error}`)
+    throw error
+  }
+}
+
 // Trigger on expense creation
 exports.onExpenseCreated = onDocumentCreated('trips/{tripId}/expenses/{expenseId}', async (event) => {
   const { tripId } = event.params
@@ -39,7 +67,10 @@ exports.onExpenseCreated = onDocumentCreated('trips/{tripId}/expenses/{expenseId
 
   // Only update if the expense is not in processing state
   if (!expenseData.isProcessing) {
-    await updateTripTotal(tripId, expenseData.grandTotal)
+    await Promise.all([
+      updateTripTotal(tripId, expenseData.grandTotal),
+      updateExpenseCount(tripId, 1)
+    ])
   }
 })
 
@@ -51,7 +82,10 @@ exports.onExpenseUpdated = onDocumentUpdated('trips/{tripId}/expenses/{expenseId
 
   // Only process if the expense is no longer in processing state
   if (oldData.isProcessing && !newData.isProcessing) {
-    await updateTripTotal(tripId, newData.grandTotal)
+    await Promise.all([
+      updateTripTotal(tripId, newData.grandTotal),
+      updateExpenseCount(tripId, 1)
+    ])
   }
   // Handle amount changes for non-processing expenses
   else if (!oldData.isProcessing && !newData.isProcessing) {
@@ -69,6 +103,9 @@ exports.onExpenseDeleted = onDocumentDeleted('trips/{tripId}/expenses/{expenseId
 
   // Only subtract if the expense was not in processing state
   if (!expenseData.isProcessing) {
-    await updateTripTotal(tripId, -expenseData.grandTotal)
+    await Promise.all([
+      updateTripTotal(tripId, -expenseData.grandTotal),
+      updateExpenseCount(tripId, -1)
+    ])
   }
 })

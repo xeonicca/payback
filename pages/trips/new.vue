@@ -77,6 +77,8 @@ const onSubmit = handleSubmit(async (values) => {
       defaultCurrency: CurrencyCode.TWD,
       createdAt: serverTimestamp(),
       userId: sessionUser.value!.uid,
+      totalExpenses: 0,
+      expenseCount: 0,
     }
 
     const docRef = await writeTrip(tripData)

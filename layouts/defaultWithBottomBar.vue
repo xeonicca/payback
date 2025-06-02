@@ -1,6 +1,5 @@
 <script setup lang="ts">
 const { tripId } = useRoute().params
-const { trip } = useTrip(tripId as string)
 </script>
 
 <template>
@@ -9,7 +8,6 @@ const { trip } = useTrip(tripId as string)
     <main class="container mx-auto px-6 pb-30">
       <slot />
     </main>
-    
   </div>
-  <trip-bottom-bar v-if="tripId" :trip-id="tripId" />
+  <trip-bottom-bar v-if="tripId" :trip-id="tripId as string" />
 </template>

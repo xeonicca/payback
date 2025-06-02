@@ -137,7 +137,7 @@ function handleRemoveMemberFromList(id: string) {
       <ul class="divide-y divide-gray-200 border rounded-md max-h-60 overflow-y-auto">
         <li
           v-for="member in members"
-          :key="member.id"
+          :key="member.name"
           class="p-3 flex items-center justify-between hover:bg-gray-50"
         >
           <div class="flex items-center space-x-3">

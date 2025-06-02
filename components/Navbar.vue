@@ -26,11 +26,11 @@ const sessionUser = useSessionUser()
         />
       </NuxtLink>
       <ul class="flex place-items-center space-x-4">
-        <li>
+        <!-- <li>
           <NuxtLink to="/" class="flex items-center hover:text-blue-200 p-2 rounded-full hover:bg-blue-500 transition-colors" title="Dashboard">
             <Icon name="lucide:house" size="20" />
           </NuxtLink>
-        </li>
+        </li> -->
         <li>
           <NuxtLink to="/trips/latest" class="flex items-center hover:text-blue-200 p-2 rounded-full hover:bg-blue-500 transition-colors" title="Add Trip">
             <Icon name="lucide:plane" size="20" />
