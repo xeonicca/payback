@@ -1,11 +1,8 @@
-const { initializeApp } = require('firebase-admin/app')
-const { getFirestore } = require('firebase-admin/firestore')
+const admin = require('firebase-admin')
 const logger = require('firebase-functions/logger')
 const { onDocumentCreated, onDocumentUpdated, onDocumentDeleted } = require('firebase-functions/v2/firestore')
 
-// Initialize Firebase Admin
-initializeApp()
-const db = getFirestore()
+const db = admin.firestore()
 
 // Helper function to update trip total
 async function updateTripTotal(tripId, amountChange) {
@@ -23,7 +20,7 @@ async function updateTripTotal(tripId, amountChange) {
 
       transaction.update(tripRef, {
         totalExpenses: newTotal,
-        updatedAt: getFirestore.FieldValue.serverTimestamp(),
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
       })
     })
 

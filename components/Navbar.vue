@@ -6,6 +6,7 @@ const sessionUser = useSessionUser()
   <nav
     class="border-0
       bg-gradient-to-b
+      scroll-mt-0
       from-slate-700
       from-10%
       to-slate-200
@@ -27,12 +28,12 @@ const sessionUser = useSessionUser()
       <ul class="flex place-items-center space-x-4">
         <li>
           <NuxtLink to="/" class="flex items-center hover:text-blue-200 p-2 rounded-full hover:bg-blue-500 transition-colors" title="Dashboard">
-            <Icon name="lucide:plane" size="20" />
+            <Icon name="lucide:house" size="20" />
           </NuxtLink>
         </li>
         <li>
           <NuxtLink to="/trips/latest" class="flex items-center hover:text-blue-200 p-2 rounded-full hover:bg-blue-500 transition-colors" title="Add Trip">
-            <Icon name="lucide:tickets-plane" size="20" />
+            <Icon name="lucide:plane" size="20" />
           </NuxtLink>
         </li>
         <li class="flex items-center">

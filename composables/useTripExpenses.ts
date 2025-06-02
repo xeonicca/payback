@@ -8,6 +8,7 @@ export function useTripExpenses(tripId: string, hasLimit = 0) {
   const db = useFirestore()
   const queryConditions = <QueryNonFilterConstraint[]>[
     orderBy('paidAt', 'desc'),
+    orderBy('createdAt', 'desc'),
   ]
   if (hasLimit > 0) {
     queryConditions.push(limit(hasLimit))

@@ -2,7 +2,7 @@
 import type { Trip, TripMember } from '@/types'
 import { DateFormatter, getLocalTimeZone, parseDate, today } from '@internationalized/date'
 import { toTypedSchema } from '@vee-validate/zod'
-import { addDoc, collection } from 'firebase/firestore'
+import { addDoc, collection, Timestamp } from 'firebase/firestore'
 import { toDate } from 'reka-ui/date'
 import { useForm } from 'vee-validate'
 import { toast } from 'vue-sonner'
@@ -16,6 +16,12 @@ const props = defineProps<{
   hostMember?: TripMember
 }>()
 
+const emit = defineEmits<{
+  (e: 'close'): void
+}>()
+
+const timezone = getLocalTimeZone()
+
 const formSchema = toTypedSchema(z.object({
   description: z.string().min(2).max(50),
   grandTotal: z.number(),
@@ -28,12 +34,21 @@ const formSchema = toTypedSchema(z.object({
   // imageUrls: z.array(z.string()),
 }))
 
+const paidAtPlaceholder = ref()
+
+
 const { values, isFieldDirty, setFieldValue, handleSubmit } = useForm({
   validationSchema: formSchema,
   initialValues: {
     sharedWithMemberIds: props.hostMember?.id ? [props.hostMember.id] : [],
     paidByMemberId: props.hostMember?.id,
+    paidAt: today(timezone).toString(),
   },
+})
+
+const paidAtDate = computed({
+  get: () => values.paidAt ? parseDate(values.paidAt) : today(timezone),
+  set: val => val,
 })
 
 const df = new DateFormatter('en-US', {
@@ -45,9 +60,13 @@ const onSubmit = handleSubmit(async (values) => {
   try {
     await addDoc(collection(db, 'trips', props.trip.id, 'expenses'), {
       ...values,
+      // convert values.paidAt to firestore timestamp
+      paidAt: Timestamp.fromDate(parseDate(values.paidAt).toDate(timezone)),
+      createdAt: Timestamp.fromDate(new Date()),
       isProcessing: false,
     })
     toast.success('已新增支出')
+    emit('close')
   }
   catch (error) {
     console.error(error)
@@ -55,11 +74,7 @@ const onSubmit = handleSubmit(async (values) => {
   }
 })
 
-const paidAtPlaceholder = ref()
-const paidAtDate = computed({
-  get: () => values.paidAt ? parseDate(values.paidAt) : today(getLocalTimeZone()),
-  set: val => val,
-})
+
 
 onMounted(() => {
   const grandTotalInput = document.getElementById('grandTotalInput')

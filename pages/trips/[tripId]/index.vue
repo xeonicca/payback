@@ -79,7 +79,12 @@ if (!trip.value) {
     <ui-drawer v-model:open="openAddExpenseDrawer">
       <ui-drawer-content>
         <div class="mx-auto w-full max-w-sm">
-          <add-trip-expense-form :trip="trip" :trip-members="tripMembers" :host-member="hostMember" />
+          <add-trip-expense-form
+            :trip="trip"
+            :trip-members="tripMembers"
+            :host-member="hostMember"
+            @close="openAddExpenseDrawer = false"
+          />
         </div>
       </ui-drawer-content>
     </ui-drawer>

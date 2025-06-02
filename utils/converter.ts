@@ -54,6 +54,7 @@ export const expenseConverter: FirestoreDataConverter<Expense> = {
   },
   fromFirestore(snapshot: QueryDocumentSnapshot, options: SnapshotOptions): Expense {
     const data = snapshot.data(options)
+
     return {
       id: snapshot.id,
       description: data.description,
