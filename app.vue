@@ -20,5 +20,10 @@ onMounted(() => {
     <NuxtPage />
     <NuxtPwaManifest />
   </NuxtLayout>
-  <ui-toaster position="top-right" class="pt-safe" />
+  <ui-toaster 
+    position="top-right"
+    :toastOptions="{
+      class: 'top-safe',
+    }"
+  />
 </template>
