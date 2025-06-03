@@ -99,8 +99,9 @@ const receiptImageUrl = computedAsync(async () => {
           </ui-table-header>
           <ui-table-body>
             <ui-table-row v-for="item in expense.items" :key="item.name">
-              <ui-table-cell class="font-medium whitespace-break-spaces text-sm">
-                {{ item.name }}
+              <ui-table-cell class="font-medium whitespace-break-spaces text-sm space-y-1">
+                <p>{{ item.name }} <span v-if="item.quantity" class="font-mono text-xs text-gray-500">x{{ item.quantity }}</span></p>
+                <p v-if="item.translatedName" class="text-xs text-gray-500">翻譯: {{ item.translatedName }}</p>
               </ui-table-cell>
               <ui-table-cell class="text-right font-mono w-[100px] text-green-600">
                 {{ trip?.tripCurrency }} {{ item.price }}

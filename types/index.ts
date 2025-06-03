@@ -53,6 +53,8 @@ export interface NewExpense {
   items?: Array<{
     name: string
     price: number
+    quantity?: number
+    translatedName?: string
   }>
 }
 
