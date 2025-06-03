@@ -3,7 +3,16 @@ import tailwindcss from '@tailwindcss/vite'
 export default defineNuxtConfig({
   compatibilityDate: '2025-05-15',
   devtools: { enabled: false },
-  modules: ['@nuxt/eslint', '@nuxt/fonts', '@nuxt/icon', '@nuxt/image', 'nuxt-vuefire', 'shadcn-nuxt', '@vite-pwa/nuxt', '@sentry/nuxt/module'],
+  modules: [
+    '@nuxt/eslint', 
+    '@nuxt/fonts', 
+    '@nuxt/icon', 
+    '@nuxt/image', 
+    'nuxt-vuefire', 
+    'shadcn-nuxt', 
+    '@vite-pwa/nuxt', 
+    // '@sentry/nuxt/module' // comment out for now until https://github.com/getsentry/sentry-javascript/pull/16444 is released
+  ],
 
   app: {
     head: {
