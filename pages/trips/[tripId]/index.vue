@@ -38,7 +38,7 @@ if (!trip.value) {
     </div>
   </template>
   <template v-else>
-    <div class="flex items-start justify-between gap-2 bg-slate-200 py-4">
+    <div class="flex items-start justify-between gap-2 bg-slate-200 pb-4">
       <h1 class="text-2xl font-bold text-indigo-700">
         {{ trip.name }}
         <p class="text-sm text-slate-600">

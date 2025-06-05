@@ -42,7 +42,7 @@ const convertToDefaultCurrency = computed(() => {
 </script>
 
 <template>
-  <div class="flex items-end justify-between gap-2 bg-slate-200 p-4 scroll-mt-4">
+  <div class="flex items-end justify-between gap-2 bg-slate-200 px-4 scroll-mt-4 mb-2">
     <h1 class="text-2xl font-bold text-indigo-700">
       {{ trip?.tripCurrency }} {{ expense?.grandTotal }}
       <p class="text-sm text-slate-700 inline-flex items-center gap-1">
@@ -53,7 +53,7 @@ const convertToDefaultCurrency = computed(() => {
 
   <div class="px-4 text-sm">
     <span class="w-[150px] text-sm text-gray-500">{{ expense?.paidAtString }}</span>
-    <p class="text-sm">
+    <p class="text-sm mt-2">
       {{ expense?.description }}
     </p>
   </div>

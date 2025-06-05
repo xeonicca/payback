@@ -31,8 +31,8 @@ const expenseMembers = computed(() => (expense: Expense) => props.tripMembers.fi
       <div class="text-xl font-extrabold text-slate-800 text-right">
         {{ expense.paidAtObject.month }}/{{ expense.paidAtObject.day }}
       </div>
-      
-      <div class="text-lg font-mono w-[100px] text-right self-end text-green-600">
+
+      <div class="text-base font-mono w-[100px] text-right self-end text-green-600">
         {{ trip.tripCurrency }} {{ expense.grandTotal }}
       </div>
     </div>
