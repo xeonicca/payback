@@ -14,7 +14,13 @@ const { tripExpenses } = useTripExpenses(tripId as string, 5)
 await usePendingPromises()
 
 const openAddExpenseDrawer = ref(false)
-const totalExpenses = computed(() => tripExpenses.value?.reduce((acc, expense) => acc + expense.grandTotal, 0))
+
+const convertToDefaultCurrency = computed(() => {
+  if (!trip.value?.totalExpenses || !trip.value?.exchangeRate)
+    return 0
+
+  return Math.round(trip.value.totalExpenses * trip.value.exchangeRate * 100) / 100
+})
 
 if (!trip.value) {
   toast.error('行程不存在')
@@ -35,10 +41,16 @@ if (!trip.value) {
     <div class="flex items-start justify-between gap-2 bg-slate-200 py-4">
       <h1 class="text-2xl font-bold text-indigo-700">
         {{ trip.name }}
+        <p class="text-sm text-slate-600">
+          {{ trip.expenseCount }} 筆
+        </p>
       </h1>
       <div class="font-bold flex flex-col items-end">
         <span class="text-xl">{{ trip.tripCurrency }} {{ trip.totalExpenses }}</span>
-        <span class="text-sm text-slate-600">{{ trip.expenseCount }} 筆</span>
+        <span class="text-sm text-slate-600 inline-flex items-center gap-1">
+          <Icon name="lucide:equal-approximately" class="text-slate-600" size="16" />
+          {{ trip.defaultCurrency }} {{ convertToDefaultCurrency }}
+        </span>
       </div>
     </div>
     <div class="mt-1 flex gap-2 items-center">
