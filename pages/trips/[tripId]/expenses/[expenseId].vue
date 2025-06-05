@@ -32,12 +32,22 @@ const receiptImageUrl = computedAsync(async () => {
   const ref = storageRef(storage, expense.value?.receiptImageUrl)
   return await getDownloadURL(ref)
 }, null)
+
+const convertToDefaultCurrency = computed(() => {
+  if (!expense.value?.grandTotal || !trip.value?.exchangeRate)
+    return 0
+
+  return expense.value.grandTotal * trip.value.exchangeRate
+})
 </script>
 
 <template>
   <div class="flex items-end justify-between gap-2 bg-slate-200 p-4 scroll-mt-4">
     <h1 class="text-2xl font-bold text-indigo-700">
       {{ trip?.tripCurrency }} {{ expense?.grandTotal }}
+      <p class="text-sm text-slate-700 inline-flex items-center gap-1">
+        <Icon name="lucide:equal-approximately" class="text-slate-700" /> {{ trip?.defaultCurrency }} {{ convertToDefaultCurrency }}
+      </p>
     </h1>
   </div>
 
@@ -101,7 +111,9 @@ const receiptImageUrl = computedAsync(async () => {
             <ui-table-row v-for="item in expense.items" :key="item.name">
               <ui-table-cell class="font-medium whitespace-break-spaces text-sm space-y-1">
                 <p>{{ item.name }} <span v-if="item.quantity" class="font-mono text-xs text-gray-500">x{{ item.quantity }}</span></p>
-                <p v-if="item.translatedName" class="text-xs text-gray-500">翻譯: {{ item.translatedName }}</p>
+                <p v-if="item.translatedName" class="text-xs text-gray-500">
+                  翻譯: {{ item.translatedName }}
+                </p>
               </ui-table-cell>
               <ui-table-cell class="text-right font-mono w-[100px] text-green-600">
                 {{ trip?.tripCurrency }} {{ item.price }}

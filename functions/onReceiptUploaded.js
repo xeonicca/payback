@@ -53,7 +53,7 @@ The JSON object should have the following structure:
 
 Details for extraction:
 - For 'grandTotal': The final total amount paid.
-- For 'paidAtString': Extract the date of purchase from the receipt as a string in YYYY-MM-DD format. Ignore time. If unable to extract, use the current server date.
+- For 'paidAtString': Extract the date and time of purchase from the receipt as a string in YYYY-MM-DD HH:MM format. If unable to extract, use the current server date.
 - For 'currency': Currency code (e.g., "JPY", "USD"). For Lawson (Japan), it's "JPY".
 - For 'items':
     - List each distinct item.

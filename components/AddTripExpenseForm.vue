@@ -36,7 +36,6 @@ const formSchema = toTypedSchema(z.object({
 
 const paidAtPlaceholder = ref()
 
-
 const { values, isFieldDirty, setFieldValue, handleSubmit } = useForm({
   validationSchema: formSchema,
   initialValues: {
@@ -58,10 +57,15 @@ const df = new DateFormatter('en-US', {
 const onSubmit = handleSubmit(async (values) => {
   const db = useFirestore()
   try {
+    // Create a date object from the selected date
+    const selectedDate = parseDate(values.paidAt).toDate(timezone)
+    // Set the current time to the selected date
+    const now = new Date()
+    selectedDate.setHours(now.getHours(), now.getMinutes(), now.getSeconds())
+
     await addDoc(collection(db, 'trips', props.trip.id, 'expenses'), {
       ...values,
-      // convert values.paidAt to firestore timestamp
-      paidAt: Timestamp.fromDate(parseDate(values.paidAt).toDate(timezone)),
+      paidAt: Timestamp.fromDate(selectedDate),
       createdAt: Timestamp.fromDate(new Date()),
       isProcessing: false,
     })
@@ -73,8 +77,6 @@ const onSubmit = handleSubmit(async (values) => {
     toast.error('新增支出失敗')
   }
 })
-
-
 
 onMounted(() => {
   const grandTotalInput = document.getElementById('grandTotalInput')
