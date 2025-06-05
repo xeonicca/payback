@@ -1,10 +1,11 @@
 <script setup lang="ts">
-import { collection } from 'firebase/firestore'
+import { collection, orderBy, query } from 'firebase/firestore'
 import { useCollection, useFirestore } from 'vuefire'
 import { tripConverter } from '@/utils/converter'
 
 const db = useFirestore()
-const trips = useCollection(collection(db, 'trips').withConverter(tripConverter), {
+const tripQuery = query(collection(db, 'trips'), orderBy('createdAt', 'desc'))
+const trips = useCollection(tripQuery.withConverter(tripConverter), {
   once: true,
 })
 
@@ -68,7 +69,6 @@ definePageMeta({
             <ui-button
               color="gray"
               variant="outline"
-              size="sm"
             >
               <Icon name="lucide-eye" class="text-gray-500" />
               查看
