@@ -2,11 +2,11 @@
 import type { NewExpense, Trip, TripMember } from '@/types'
 import { toTypedSchema } from '@vee-validate/zod'
 import { addDoc, collection, serverTimestamp, updateDoc } from 'firebase/firestore'
-import { ref as storageRef } from 'firebase/storage'
+import { getDownloadURL, getStorage, ref as storageRef, uploadBytes } from 'firebase/storage'
 import { useForm } from 'vee-validate'
 import { ref } from 'vue'
 import { toast } from 'vue-sonner'
-import { useFirebaseStorage, useFirestore, useStorageFile } from 'vuefire'
+import { useFirestore } from 'vuefire'
 import { z } from 'zod'
 
 const props = defineProps<{
@@ -47,7 +47,7 @@ const submit = handleSubmit(async (values) => {
 
   try {
     const db = useFirestore()
-    const storage = useFirebaseStorage()
+    const storage = getStorage()
 
     // Create expense entry
     const expense: Omit<NewExpense, 'paidAt'> = {
@@ -63,14 +63,13 @@ const submit = handleSubmit(async (values) => {
 
     // Upload file to Firebase Storage
     const fileRef = storageRef(storage, `trips/${props.trip.id}/expenses/${expenseDoc.id}/${selectedFile.value.name}`)
-    const { upload, url } = useStorageFile(fileRef)
-    await upload(selectedFile.value)
+    uploadBytes(fileRef, selectedFile.value)
+    // const downloadURL = await getDownloadURL(snapshot.ref)
 
-    if (url.value) {
-      await updateDoc(expenseDoc, {
-        imageUrls: [url.value],
-      })
-    }
+    // // Update the expense document with the download URL
+    // await updateDoc(expenseDoc, {
+    //   imageUrls: [downloadURL],
+    // })
 
     emit('close')
     toast.success('收據上傳成功，正在解析收據中...')
