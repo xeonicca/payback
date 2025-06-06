@@ -4,13 +4,13 @@ export default defineNuxtConfig({
   compatibilityDate: '2025-05-15',
   devtools: { enabled: false },
   modules: [
-    '@nuxt/eslint', 
-    '@nuxt/fonts', 
-    '@nuxt/icon', 
-    '@nuxt/image', 
-    'nuxt-vuefire', 
-    'shadcn-nuxt', 
-    '@vite-pwa/nuxt', 
+    '@nuxt/eslint',
+    '@nuxt/fonts',
+    '@nuxt/icon',
+    '@nuxt/image',
+    'nuxt-vuefire',
+    'shadcn-nuxt',
+    '@vite-pwa/nuxt',
     // '@sentry/nuxt/module' // comment out for now until https://github.com/getsentry/sentry-javascript/pull/16444 is released
   ],
 
@@ -106,16 +106,55 @@ export default defineNuxtConfig({
         // },
       ],
     },
-  },
-
-  sentry: {
-    sourceMapsUploadOptions: {
-      org: 'personal-projects-wv',
-      project: 'payback-nuxt',
+    workbox: {
+      globPatterns: ['**/*.{js,css,html,png,svg,ico}'],
+      navigateFallback: '/login',
+      navigateFallbackDenylist: [/^\/api/],
+      cleanupOutdatedCaches: true,
+      runtimeCaching: [
+        {
+          urlPattern: /\.(?:js|css)$/,
+          handler: 'StaleWhileRevalidate',
+          options: {
+            cacheName: 'static-resources',
+            expiration: {
+              maxEntries: 60,
+              maxAgeSeconds: 30 * 24 * 60 * 60, // 30 days
+            },
+          },
+        },
+        {
+          urlPattern: /\.(?:png|svg|ico)$/,
+          handler: 'CacheFirst',
+          options: {
+            cacheName: 'images',
+            expiration: {
+              maxEntries: 60,
+              maxAgeSeconds: 30 * 24 * 60 * 60, // 30 days
+            },
+          },
+        },
+      ],
     },
-
-    autoInjectServerSentry: 'top-level-import',
+    injectManifest: {
+      globPatterns: ['**/*.{js,css,html,png,svg,ico}'],
+    },
+    client: {
+      installPrompt: true,
+      // you don't need to include this: only for testing purposes
+      // if enabling periodic sync for update use 1 hour or so (periodicSyncForUpdates: 3600)
+      periodicSyncForUpdates: 20,
+    },
   },
+
+  // sentry: {
+  //   sourceMapsUploadOptions: {
+  //     org: 'personal-projects-wv',
+  //     project: 'payback-nuxt',
+  //   },
+
+  //   autoInjectServerSentry: 'top-level-import',
+  // },
 
   sourcemap: {
     client: 'hidden',
