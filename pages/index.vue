@@ -22,7 +22,7 @@ definePageMeta({
 <template>
   <div>
     <div class="flex justify-between items-center mb-6">
-      <h1 class="scroll-m-4 text-xl font-extrabold text-primary">
+      <h1 class="text-xl font-extrabold text-primary">
         行程一覽
       </h1>
       <ui-button

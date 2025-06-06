@@ -1,16 +1,10 @@
 <script setup lang="ts">
-import { toast } from 'vue-sonner'
-import 'vue-sonner/style.css' // vue-sonner v2 requires this import
-
 const { $pwa } = useNuxtApp()
+const showUpdateDialog = ref(false)
+
 onMounted(() => {
   if ($pwa!.needRefresh) {
-    toast.success('App content updated', {
-      action: {
-        label: 'Refresh',
-        onClick: () => $pwa!.updateServiceWorker(),
-      },
-    })
+    showUpdateDialog.value = true
   }
 })
 </script>
@@ -20,10 +14,20 @@ onMounted(() => {
     <NuxtPage />
     <NuxtPwaManifest />
   </NuxtLayout>
-  <ui-toaster 
-    position="top-right"
-    :toastOptions="{
-      class: 'top-safe',
-    }"
-  />
+
+  <ui-alert-dialog v-model:open="showUpdateDialog">
+    <ui-alert-dialog-content>
+      <ui-alert-dialog-header>
+        <ui-alert-dialog-title>App Update Available</ui-alert-dialog-title>
+        <ui-alert-dialog-description>
+          A new version of the app is available.
+        </ui-alert-dialog-description>
+      </ui-alert-dialog-header>
+      <ui-alert-dialog-footer>
+        <ui-alert-dialog-action @click="$pwa!.updateServiceWorker()">
+          Update Now
+        </ui-alert-dialog-action>
+      </ui-alert-dialog-footer>
+    </ui-alert-dialog-content>
+  </ui-alert-dialog>
 </template>

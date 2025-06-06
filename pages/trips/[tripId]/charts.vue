@@ -1,28 +1,8 @@
-<template>
-  <div class="p-4">
-    <h1 class="text-2xl font-bold text-indigo-700 mb-4">支出統計</h1>
-    <div class="bg-white rounded-lg p-4">
-      under construction
-      <!-- <ui-bar-chart
-        :data="chartData"
-        :categories="['total']"
-        index="date"
-        :colors="['#4f46e5']"
-        :show-x-axis="true"
-        :show-y-axis="true"
-        :show-tooltip="true"
-        :show-legend="false"
-        :show-grid-line="true"
-        :rounded-corners="4"
-      /> -->
-    </div>
-  </div>
-</template>
-
 <script setup lang="ts">
 import type { Expense } from '@/types'
 
 definePageMeta({
+  middleware: ['auth'],
   layout: 'default-with-bottom-bar',
 })
 
@@ -47,3 +27,26 @@ const chartData = computed(() => {
   }))
 })
 </script>
+
+<template>
+  <div class="p-4">
+    <h1 class="text-2xl font-bold text-indigo-700 mb-4">
+      支出統計
+    </h1>
+    <div class="bg-white rounded-lg p-4">
+      under construction
+      <!-- <ui-bar-chart
+        :data="chartData"
+        :categories="['total']"
+        index="date"
+        :colors="['#4f46e5']"
+        :show-x-axis="true"
+        :show-y-axis="true"
+        :show-tooltip="true"
+        :show-legend="false"
+        :show-grid-line="true"
+        :rounded-corners="4"
+      /> -->
+    </div>
+  </div>
+</template>

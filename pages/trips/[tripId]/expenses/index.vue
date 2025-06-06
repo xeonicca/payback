@@ -5,6 +5,7 @@ import { useDocument, useFirestore } from 'vuefire'
 import { tripConverter } from '@/utils/converter'
 
 definePageMeta({
+  middleware: ['auth'],
   layout: 'default-with-bottom-bar',
 })
 

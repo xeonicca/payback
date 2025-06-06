@@ -3,6 +3,7 @@ import { toast } from 'vue-sonner'
 import { usePendingPromises } from 'vuefire'
 
 definePageMeta({
+  middleware: ['auth'],
   layout: 'default-with-bottom-bar',
 })
 

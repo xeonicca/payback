@@ -8,6 +8,7 @@ import { useDocument, useFirebaseStorage, useFirestore, usePendingPromises } fro
 import { expenseConverter } from '@/utils/converter'
 
 definePageMeta({
+  middleware: ['auth'],
   layout: 'default-with-bottom-bar',
 })
 
@@ -42,7 +43,7 @@ const convertToDefaultCurrency = computed(() => {
 </script>
 
 <template>
-  <div class="flex items-end justify-between gap-2 bg-slate-200 px-4 scroll-mt-4 mb-2">
+  <div class="flex items-end justify-between gap-2 bg-slate-200 px-4 mb-2">
     <h1 class="text-2xl font-bold text-indigo-700">
       {{ trip?.tripCurrency }} {{ expense?.grandTotal }}
       <p class="text-sm text-slate-700 inline-flex items-center gap-1">
