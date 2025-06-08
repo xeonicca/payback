@@ -43,13 +43,14 @@ export interface Trip extends NewTrip {
 export interface NewExpense {
   description: string
   grandTotal: number // In trip's currency
-  paidAt: Timestamp
+  paidAt: Timestamp | FieldValue
   category?: string
   paidByMemberId: string
   sharedWithMemberIds: string[]
   createdAt: Timestamp | FieldValue
   imageUrls?: string[] // URLs of uploaded images
   isProcessing: boolean
+  enabled: boolean // New field with default value true
   items?: Array<{
     name: string
     price: number

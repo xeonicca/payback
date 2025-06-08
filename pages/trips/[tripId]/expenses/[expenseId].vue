@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { Expense, Trip } from '@/types'
 import { computedAsync } from '@vueuse/core'
-import { doc } from 'firebase/firestore'
+import { doc, updateDoc } from 'firebase/firestore'
 import { getDownloadURL, ref as storageRef } from 'firebase/storage'
 import { toast } from 'vue-sonner'
 import { useDocument, useFirebaseStorage, useFirestore, usePendingPromises } from 'vuefire'
@@ -40,6 +40,22 @@ const convertToDefaultCurrency = computed(() => {
 
   return expense.value.grandTotal * trip.value.exchangeRate
 })
+
+async function updateExpense(newValue: boolean) {
+  if (!expense.value)
+    return
+
+  await updateDoc(doc(db, 'trips', tripId as string, 'expenses', expenseId as string), {
+    enabled: newValue,
+  })
+
+  if (newValue) {
+    toast.success('支出已顯示')
+  }
+  else {
+    toast.error('支出已隱藏')
+  }
+}
 </script>
 
 <template>
@@ -59,6 +75,15 @@ const convertToDefaultCurrency = computed(() => {
     </p>
   </div>
 
+  <div class="space-x-2 px-2 my-4">
+    <div class="p-2 flex-1 flex justify-end items-center space-x-2 bg-slate-500 rounded-lg">
+      <ui-label for="enabled" class="text-white">
+        顯示這筆支出
+      </ui-label>
+      <ui-switch id="enabled" :model-value="expense?.enabled ?? true" @update:model-value="updateExpense" />
+    </div>
+  </div>
+
   <div class="mt-4 space-y-4 px-2">
     <div class="bg-white rounded-lg p-4 space-y-4">
       <!-- <div class="flex items-start justify-between">
@@ -69,6 +94,7 @@ const convertToDefaultCurrency = computed(() => {
           {{ expense?.description }}
         </div>
       </div> -->
+
       <div class="flex items-center justify-between">
         <div class="text-sm text-gray-500 min-w-[100px]">
           付款人

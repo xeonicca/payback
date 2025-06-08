@@ -20,6 +20,8 @@
     "@sentry/nuxt": "^9",
     "@tailwindcss/vite": "^4.1.7",
     "@tanstack/vue-table": "^8.21.3",
+    "@unovis/ts": "^1.5.2",
+    "@unovis/vue": "^1.5.2",
     "@vee-validate/zod": "^4.15.0",
     "@vite-pwa/nuxt": "1.0.1",
     "@vueuse/core": "^13.2.0",

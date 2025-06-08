@@ -68,6 +68,7 @@ const onSubmit = handleSubmit(async (values) => {
       paidAt: Timestamp.fromDate(selectedDate),
       createdAt: Timestamp.fromDate(new Date()),
       isProcessing: false,
+      enabled: true,
     })
     toast.success('已新增支出')
     emit('close')

@@ -50,13 +50,15 @@ const submit = handleSubmit(async (values) => {
     const storage = getStorage()
 
     // Create expense entry
-    const expense: Omit<NewExpense, 'paidAt'> = {
-      description: 'Receipt Upload',
+    const expense: NewExpense = {
+      description: 'Receipt Uploaded, processing',
       grandTotal: 0, // Default amount
       paidByMemberId: values.paidByMemberId,
       sharedWithMemberIds: values.sharedWithMemberIds,
       createdAt: serverTimestamp(),
+      paidAt: serverTimestamp(),
       isProcessing: true,
+      enabled: true,
     }
 
     const expenseDoc = await addDoc(collection(db, 'trips', props.trip.id, 'expenses'), expense)

@@ -74,6 +74,7 @@ export const expenseConverter: FirestoreDataConverter<Expense> = {
       receiptImageUrl: data.receiptImageUrl,
       isProcessing: data.isProcessing,
       items: data.items || [],
+      enabled: data.enabled ?? true,
     } as Expense
   },
 }
