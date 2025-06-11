@@ -1,4 +1,5 @@
 const { VertexAI } = require('@google-cloud/vertexai')
+const dayjs = require('dayjs')
 const admin = require('firebase-admin')
 const { logger } = require('firebase-functions/v2') // 2nd gen logger
 // Import 2nd gen specific modules
@@ -38,7 +39,7 @@ The JSON object should have the following structure:
 
 {
   "grandTotal": <number | null>,
-  "paidAtString": "<string: YYYY-MM-DD | null>",
+  "paidAtString": "<string: YYYY-MM-DD HH:mm | null>",
   "currency": "${currency || 'null'}",
   "items": [
     {
@@ -162,23 +163,18 @@ exports.analyzeReceiptAndUpdateExpense = onObjectFinalized({
       let paidAtTimestamp = null
       if (parsedDataFromAI.paidAtString) {
         try {
-          // Ensure the date string includes time if needed, or parse as local date
-          // new Date('YYYY-MM-DD') is interpreted as UTC. For local date midnight:
-          const dateParts = parsedDataFromAI.paidAtString.split('-')
-          if (dateParts.length === 3) {
-            const year = Number.parseInt(dateParts[0], 10)
-            const month = Number.parseInt(dateParts[1], 10) - 1 // JS months are 0-indexed
-            const day = Number.parseInt(dateParts[2], 10)
-            const dateObj = new Date(year, month, day)
-            if (!Number.isNaN(dateObj.getTime())) {
-              paidAtTimestamp = admin.firestore.Timestamp.fromDate(dateObj)
-            }
-            else {
-              logger.warn('Invalid date components from paidAtString:', parsedDataFromAI.paidAtString)
-            }
+          // Parse the date string using dayjs
+          const parsedDate = dayjs(parsedDataFromAI.paidAtString, 'YYYY-MM-DD HH:mm')
+
+          if (parsedDate.isValid()) {
+            paidAtTimestamp = admin.firestore.Timestamp.fromDate(parsedDate.toDate())
+            logger.info('Successfully converted paidAtString to Timestamp:', {
+              original: parsedDataFromAI.paidAtString,
+              timestamp: paidAtTimestamp,
+            })
           }
           else {
-            logger.warn('paidAtString not in YYYY-MM-DD format:', parsedDataFromAI.paidAtString)
+            logger.warn('Invalid date format from paidAtString:', parsedDataFromAI.paidAtString)
           }
         }
         catch (dateError) {

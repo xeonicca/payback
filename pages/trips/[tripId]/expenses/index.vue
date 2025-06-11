@@ -25,8 +25,8 @@ const displayedExpenses = computed(() => {
 </script>
 
 <template>
-  <nuxt-link :to="`/trips/${tripId}/expenses`" class="text-sm text-gray-500 flex items-center gap-1 mb-2">
-    <icon name="lucide:arrow-left" size="16" /> 回到支出列表
+  <nuxt-link :to="`/trips/${tripId}`" class="text-sm text-gray-500 flex items-center gap-1 mb-2">
+    <icon name="lucide:arrow-left" size="16" /> 回到旅程
   </nuxt-link>
   <div v-if="tripExpenses.length" class="space-y-2 bg-white rounded-sm p-4">
     <div class="flex justify-between items-center">
