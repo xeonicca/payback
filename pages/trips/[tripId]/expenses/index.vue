@@ -6,24 +6,43 @@ import { tripConverter } from '@/utils/converter'
 
 definePageMeta({
   middleware: ['auth'],
-  layout: 'default-with-bottom-bar',
 })
 
 const db = useFirestore()
 const { tripId } = useRoute().params
+const showHiddenExpenses = ref(false)
 
 const trip = useDocument<Trip>(doc(db, 'trips', tripId as string).withConverter(tripConverter))
-const { tripExpenses } = useTripExpenses(tripId as string)
+const { tripExpenses, enabledExpenses } = useTripExpenses(tripId as string)
 const { tripMembers } = useTripMembers(tripId as string)
+
+const displayedExpenses = computed(() => {
+  if (showHiddenExpenses.value) {
+    return tripExpenses.value
+  }
+  return enabledExpenses.value
+})
 </script>
 
 <template>
+  <nuxt-link :to="`/trips/${tripId}/expenses`" class="text-sm text-gray-500 flex items-center gap-1 mb-2">
+    <icon name="lucide:arrow-left" size="16" /> 回到支出列表
+  </nuxt-link>
   <div v-if="tripExpenses.length" class="space-y-2 bg-white rounded-sm p-4">
-    <div class="text-sm text-gray-500 min-w-[100px]">
-      購買明細 ({{ tripExpenses.length }} 筆)
+    <div class="flex justify-between items-center">
+      <div class="text-sm text-gray-500 min-w-[100px]">
+        購買明細 ({{ tripExpenses.length }} 筆)
+      </div>
+      <div class="flex items-center gap-2">
+        <ui-label for="enabled">
+          顯示隱藏支出
+        </ui-label>
+        <ui-switch id="enabled" :model-value="showHiddenExpenses" @update:model-value="showHiddenExpenses = !showHiddenExpenses" />
+      </div>
     </div>
+
     <div>
-      <template v-for="expense in tripExpenses" :key="expense.id">
+      <template v-for="expense in displayedExpenses" :key="expense.id">
         <expense-item :expense="expense" :trip-members="tripMembers" :trip="trip!" />
         <ui-separator />
       </template>

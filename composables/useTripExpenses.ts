@@ -18,7 +18,12 @@ export function useTripExpenses(tripId: string, hasLimit = 0) {
     ssrKey: `trip-expenses-${tripId}`,
   })
 
+  const enabledExpenses = computed(() => {
+    return tripExpenses.value.filter(expense => expense.enabled)
+  })
+
   return {
     tripExpenses,
+    enabledExpenses,
   }
 }

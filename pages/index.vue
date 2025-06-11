@@ -7,6 +7,7 @@ const db = useFirestore()
 const tripQuery = query(collection(db, 'trips'), orderBy('createdAt', 'desc'))
 const trips = useCollection(tripQuery.withConverter(tripConverter), {
   once: true,
+  ssrKey: 'trips-index',
 })
 
 const router = useRouter()

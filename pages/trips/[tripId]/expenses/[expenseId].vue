@@ -75,8 +75,11 @@ async function updateExpense(newValue: boolean) {
     </p>
   </div>
 
-  <div class="space-x-2 px-2 my-4">
-    <div class="p-2 flex-1 flex justify-end items-center space-x-2 bg-slate-500 rounded-lg">
+  <div class="space-x-2 px-2 mx-2 my-4 flex justify-between items-center bg-slate-500 rounded-lg">
+    <div class="flex items-center gap-2 pl-2">
+      <icon name="lucide:eye" class="text-white" size="20" />
+    </div>
+    <div class="p-2 flex-1 flex justify-end items-center space-x-2">
       <ui-label for="enabled" class="text-white">
         顯示這筆支出
       </ui-label>
