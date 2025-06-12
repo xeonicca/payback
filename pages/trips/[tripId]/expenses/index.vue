@@ -11,6 +11,7 @@ definePageMeta({
 const db = useFirestore()
 const { tripId } = useRoute().params
 const showHiddenExpenses = ref(false)
+const router = useRouter()
 
 const trip = useDocument<Trip>(doc(db, 'trips', tripId as string).withConverter(tripConverter))
 const { tripExpenses, enabledExpenses } = useTripExpenses(tripId as string)
@@ -25,9 +26,14 @@ const displayedExpenses = computed(() => {
 </script>
 
 <template>
-  <nuxt-link :to="`/trips/${tripId}`" class="text-sm text-gray-500 flex items-center gap-1 mb-2">
+  <ui-button
+    class="text-gray-500 flex items-center gap-1 mb-2 px-0"
+    variant="link"
+    size="sm"
+    @click="router.push(`/trips/${tripId}`)"
+  >
     <icon name="lucide:arrow-left" size="16" /> 回到旅程
-  </nuxt-link>
+  </ui-button>
   <div v-if="tripExpenses.length" class="space-y-2 bg-white rounded-sm p-4">
     <div class="flex justify-between items-center">
       <div class="text-sm text-gray-500 min-w-[100px]">

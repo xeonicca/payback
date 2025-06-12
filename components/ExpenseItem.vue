@@ -11,10 +11,11 @@ const expenseMembers = computed(() => (expense: Expense) => props.tripMembers.fi
 </script>
 
 <template>
-  <nuxt-link :to="`/trips/${trip.id}/expenses/${expense.id}`" class="flex gap-3 pt-3 pb-2 px-2">
+  <nuxt-link :to="`/trips/${trip.id}/expenses/${expense.id}`" :class="{ 'opacity-50': !expense.enabled }" class="flex gap-3 pt-3 pb-2 px-2">
     <div class="flex flex-col justify-center gap-2 flex-1">
-      <p class="text-sm font-bold">
-        {{ expense.description }}
+      <p class="text-sm font-bold flex items-center gap-2">
+        <span>{{ expense.description }}</span>
+        <Icon v-if="!expense.enabled" name="lucide:eye-off" class="w-4 h-4 text-gray-500" />
       </p>
       <div class="text-lg text-gray-500 self-start relative flex flex-wrap gap-1 justify-end">
         <span

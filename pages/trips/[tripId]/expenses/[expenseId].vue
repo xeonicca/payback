@@ -59,7 +59,7 @@ async function updateExpense(newValue: boolean) {
 </script>
 
 <template>
-  <div class="flex items-end justify-between gap-2 bg-slate-200 px-4 mb-2">
+  <div class="flex items-end justify-between gap-2 bg-slate-200 mb-2">
     <h1 class="text-2xl font-bold text-indigo-700">
       {{ trip?.tripCurrency }} {{ expense?.grandTotal }}
       <p class="text-sm text-slate-700 inline-flex items-center gap-1">
@@ -68,14 +68,14 @@ async function updateExpense(newValue: boolean) {
     </h1>
   </div>
 
-  <div class="px-4 text-sm">
+  <div class="text-sm">
     <span class="w-[150px] text-sm text-gray-500">{{ expense?.paidAtString }}</span>
     <p class="text-sm mt-2">
       {{ expense?.description }}
     </p>
   </div>
 
-  <div class="space-x-2 px-2 mx-2 my-4 flex justify-between items-center bg-slate-500 rounded-lg">
+  <div class="space-x-2 px-2 my-4 flex justify-between items-center bg-slate-500 rounded-lg">
     <div class="flex items-center gap-2 pl-2">
       <icon name="lucide:eye" class="text-white" size="20" />
     </div>
@@ -87,7 +87,7 @@ async function updateExpense(newValue: boolean) {
     </div>
   </div>
 
-  <div class="mt-4 space-y-4 px-2">
+  <div class="mt-4 space-y-4">
     <div class="bg-white rounded-lg p-4 space-y-4">
       <!-- <div class="flex items-start justify-between">
         <div class="text-sm text-gray-500 min-w-[100px] pt-1">

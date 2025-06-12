@@ -1,5 +1,7 @@
 <script setup lang="ts">
 const route = useRoute()
+const router = useRouter()
+
 const shouldShowBackButton = computed(() => {
   return route.name !== 'trips-tripId'
 })
@@ -11,11 +13,19 @@ const tripId = computed(() => {
 
 <template>
   <div class="min-h-screen bg-slate-200 pt-safe">
-    <navbar />
+    <keep-alive>
+      <navbar />
+    </keep-alive>
     <main class="container mx-auto px-6 pb-30">
-      <nuxt-link v-if="shouldShowBackButton" :to="`/trips/${tripId}`" class="text-sm text-gray-500 flex items-center gap-1 mb-2">
-        <icon name="lucide:arrow-left" size="16" /> 回到行程
-      </nuxt-link>
+      <ui-button
+        v-if="shouldShowBackButton"
+        class="text-gray-500 flex items-center gap-1 mb-2 px-0"
+        variant="link"
+        size="sm"
+        @click="router.back()"
+      >
+        <icon name="lucide:arrow-left" size="16" /> 上一頁
+      </ui-button>
       <slot />
     </main>
   </div>

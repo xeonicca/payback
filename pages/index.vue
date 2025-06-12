@@ -61,7 +61,7 @@ definePageMeta({
           </div>
           <div class="flex items-center gap-2">
             <Icon name="lucide:receipt" class="text-gray-500" />
-            <span class="text-base font-extrabold">{{ trip.tripCurrency }} {{ trip.totalExpenses.toLocaleString() }}</span>
+            <span class="text-base font-extrabold">{{ trip.tripCurrency }} {{ trip.enabledTotalExpenses.toLocaleString() }}</span>
           </div>
         </ui-card-content>
 

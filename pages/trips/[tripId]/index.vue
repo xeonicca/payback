@@ -11,16 +11,16 @@ const { tripId } = useRoute().params
 
 const { trip } = useTrip(tripId as string)
 const { tripMembers, hostMember } = useTripMembers(tripId as string)
-const { tripExpenses } = useTripExpenses(tripId as string, 5)
+const { enabledExpenses } = useTripExpenses(tripId as string, 5)
 await usePendingPromises()
 
 const openAddExpenseDrawer = ref(false)
 
 const convertToDefaultCurrency = computed(() => {
-  if (!trip.value?.totalExpenses || !trip.value?.exchangeRate)
+  if (!trip.value?.enabledTotalExpenses || !trip.value?.exchangeRate)
     return 0
 
-  return Math.round(trip.value.totalExpenses * trip.value.exchangeRate * 100) / 100
+  return Math.round(trip.value.enabledTotalExpenses * trip.value.exchangeRate * 100) / 100
 })
 
 if (!trip.value) {
@@ -47,7 +47,7 @@ if (!trip.value) {
         </p>
       </h1>
       <div class="font-bold flex flex-col items-end">
-        <span class="text-xl">{{ trip.tripCurrency }} {{ trip.totalExpenses }}</span>
+        <span class="text-xl">{{ trip.tripCurrency }} {{ trip.enabledTotalExpenses }}</span>
         <span class="text-sm text-slate-600 inline-flex items-center gap-1">
           <Icon name="lucide:equal-approximately" class="text-slate-600" size="16" />
           {{ trip.defaultCurrency }} {{ convertToDefaultCurrency }}
@@ -70,8 +70,8 @@ if (!trip.value) {
           <icon name="lucide:plus" size="16" />
         </ui-button>
       </div>
-      <div v-if="tripExpenses.length > 0" class="mt-2 pb-4 px-4 pt-2 space-y-1 bg-white rounded-sm">
-        <template v-for="expense in tripExpenses" :key="expense.id">
+      <div v-if="enabledExpenses.length > 0" class="mt-2 pb-4 px-4 pt-2 space-y-1 bg-white rounded-sm">
+        <template v-for="expense in enabledExpenses" :key="expense.id">
           <expense-item :expense="expense" :trip-members="tripMembers" :trip="trip!" />
           <ui-separator />
         </template>
