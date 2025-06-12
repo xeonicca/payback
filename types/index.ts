@@ -27,7 +27,6 @@ export interface TripMember extends NewTripMember {
 export interface NewTrip {
   name: string
   tripCurrency: string // e.g., 'USD', 'JPY'
-  totalExpenses: number
   expenseCount: number
   exchangeRate: number
   defaultCurrency: string
@@ -38,6 +37,9 @@ export interface NewTrip {
 export interface Trip extends NewTrip {
   id: string
   createdAtString: string
+  totalExpenses: number
+  enabledTotalExpenses: number
+  disabledTotalExpenses: number
 }
 
 export interface NewExpense {

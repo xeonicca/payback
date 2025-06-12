@@ -4,8 +4,8 @@ const { onDocumentCreated, onDocumentUpdated, onDocumentDeleted } = require('fir
 
 const db = admin.firestore()
 
-// Helper function to update trip total
-async function updateTripTotal(tripId, amountChange) {
+// Helper function to add or remove expense amount from trip totals
+async function addOrRemoveExpenseAmount(tripId, amount, isEnabled) {
   const tripRef = db.doc(`trips/${tripId}`)
 
   try {
@@ -15,19 +15,89 @@ async function updateTripTotal(tripId, amountChange) {
         throw new Error('Trip document does not exist')
       }
 
-      const currentTotal = tripDoc.data().totalExpenses || 0
-      const newTotal = currentTotal + amountChange
+      const {
+        totalExpenses: currentTotal = 0,
+        enabledTotalExpenses: currentEnabledTotal = 0,
+        disabledTotalExpenses: currentDisabledTotal = 0,
+      } = tripDoc.data()
+
+      const newTotal = currentTotal + amount
+      const newEnabledTotal = isEnabled ? currentEnabledTotal + amount : currentEnabledTotal
+      const newDisabledTotal = !isEnabled ? currentDisabledTotal + amount : currentDisabledTotal
 
       transaction.update(tripRef, {
         totalExpenses: newTotal,
+        enabledTotalExpenses: newEnabledTotal,
+        disabledTotalExpenses: newDisabledTotal,
         updatedAt: admin.firestore.FieldValue.serverTimestamp(),
       })
     })
 
-    logger.info(`Successfully updated total expenses for trip ${tripId}`)
+    logger.info(`Successfully added/removed expense amount for trip ${tripId}`)
   }
   catch (error) {
-    logger.error(`Error updating trip total: ${error}`)
+    logger.error(`Error adding/removing expense amount: ${error}`)
+    throw error
+  }
+}
+
+// Helper function to handle expense updates (amount changes and enabled state changes)
+async function handleExpenseUpdate(tripId, oldData, newData) {
+  const tripRef = db.doc(`trips/${tripId}`)
+
+  try {
+    await db.runTransaction(async (transaction) => {
+      const tripDoc = await transaction.get(tripRef)
+      if (!tripDoc.exists) {
+        throw new Error('Trip document does not exist')
+      }
+
+      const {
+        totalExpenses: currentTotal = 0,
+        enabledTotalExpenses: currentEnabledTotal = 0,
+        disabledTotalExpenses: currentDisabledTotal = 0,
+      } = tripDoc.data()
+
+      let newTotal = currentTotal
+      let newEnabledTotal = currentEnabledTotal
+      let newDisabledTotal = currentDisabledTotal
+
+      // Handle enabled state changes
+      if (oldData.enabled !== newData.enabled) {
+        if (oldData.enabled) {
+          newEnabledTotal -= oldData.grandTotal
+          newDisabledTotal += oldData.grandTotal
+        }
+        else {
+          newEnabledTotal += oldData.grandTotal
+          newDisabledTotal -= oldData.grandTotal
+        }
+      }
+
+      // Handle amount changes
+      const amountChange = newData.grandTotal - oldData.grandTotal
+      if (amountChange !== 0) {
+        newTotal += amountChange
+        if (newData.enabled) {
+          newEnabledTotal += amountChange
+        }
+        else {
+          newDisabledTotal += amountChange
+        }
+      }
+
+      transaction.update(tripRef, {
+        totalExpenses: newTotal,
+        enabledTotalExpenses: newEnabledTotal,
+        disabledTotalExpenses: newDisabledTotal,
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      })
+    })
+
+    logger.info(`Successfully handled expense update for trip ${tripId}`)
+  }
+  catch (error) {
+    logger.error(`Error handling expense update: ${error}`)
     throw error
   }
 }
@@ -68,8 +138,8 @@ exports.onExpenseCreated = onDocumentCreated('trips/{tripId}/expenses/{expenseId
   // Only update if the expense is not in processing state
   if (!expenseData.isProcessing) {
     await Promise.all([
-      updateTripTotal(tripId, expenseData.grandTotal),
-      updateExpenseCount(tripId, 1)
+      addOrRemoveExpenseAmount(tripId, expenseData.grandTotal, expenseData.enabled),
+      updateExpenseCount(tripId, 1),
     ])
   }
 })
@@ -83,15 +153,17 @@ exports.onExpenseUpdated = onDocumentUpdated('trips/{tripId}/expenses/{expenseId
   // Only process if the expense is no longer in processing state
   if (oldData.isProcessing && !newData.isProcessing) {
     await Promise.all([
-      updateTripTotal(tripId, newData.grandTotal),
-      updateExpenseCount(tripId, 1)
+      addOrRemoveExpenseAmount(tripId, newData.grandTotal, newData.enabled),
+      updateExpenseCount(tripId, 1),
     ])
   }
-  // Handle amount changes for non-processing expenses
+  // Handle amount changes and enabled state changes for non-processing expenses
   else if (!oldData.isProcessing && !newData.isProcessing) {
     const amountChange = newData.grandTotal - oldData.grandTotal
-    if (amountChange !== 0) {
-      await updateTripTotal(tripId, amountChange)
+    const enabledStateChanged = oldData.enabled !== newData.enabled
+
+    if (amountChange !== 0 || enabledStateChanged) {
+      await handleExpenseUpdate(tripId, oldData, newData)
     }
   }
 })
@@ -104,8 +176,8 @@ exports.onExpenseDeleted = onDocumentDeleted('trips/{tripId}/expenses/{expenseId
   // Only subtract if the expense was not in processing state
   if (!expenseData.isProcessing) {
     await Promise.all([
-      updateTripTotal(tripId, -expenseData.grandTotal),
-      updateExpenseCount(tripId, -1)
+      addOrRemoveExpenseAmount(tripId, -expenseData.grandTotal, expenseData.enabled),
+      updateExpenseCount(tripId, -1),
     ])
   }
 })

@@ -1,7 +1,11 @@
 <script setup lang="ts">
 import type { Expense } from '@/types'
-import { VisStackedBar, VisXYContainer } from '@unovis/vue'
+import { Chart, registerables } from 'chart.js'
+import ChartDataLabels from 'chartjs-plugin-datalabels'
+import { onMounted, ref } from 'vue'
 import { usePendingPromises } from 'vuefire'
+
+Chart.register(...registerables, ChartDataLabels)
 
 definePageMeta({
   middleware: ['auth'],
@@ -13,14 +17,14 @@ const { tripExpenses } = useTripExpenses(tripId as string)
 await usePendingPromises()
 
 interface ChartDataPoint {
-  date: string
-  total: number
+  x: string
+  y: number
 }
 
-const chartData = computed(() => {
+const chartData = computed<ChartDataPoint[]>(() => {
   // Group expenses by date and calculate total for each date
   const groupedExpenses = tripExpenses.value.reduce((acc, expense) => {
-    const date = expense.paidAtString.split(' ')[0] // Get just the date part
+    const date = expense.paidAtString.split(' ')[0].replace(/,/g, '') // Remove any commas
     if (!acc[date]) {
       acc[date] = 0
     }
@@ -29,15 +33,80 @@ const chartData = computed(() => {
   }, {} as Record<string, number>)
 
   // Convert to array format required by Unovis
-  return Object.entries(groupedExpenses).map(([date, total]) => ({
+  return Object.entries(groupedExpenses).sort((a, b) => a[0].localeCompare(b[0])).map(([date, total]) => ({
     x: date,
     y: total,
   }))
 })
 
-// Accessor functions for Unovis
-const x = (d: ChartDataPoint) => d.date
-const y = (d: ChartDataPoint) => d.total
+const chartRef = ref<HTMLCanvasElement | null>(null)
+const chartInstance = ref<Chart | null>(null)
+
+onMounted(() => {
+  if (chartRef.value) {
+    const ctx = chartRef.value.getContext('2d')
+    if (ctx) {
+      chartInstance.value = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: chartData.value.map(point => point.x),
+          datasets: [{
+            label: 'Daily Expenses',
+            data: chartData.value.map(point => point.y),
+            backgroundColor: 'rgba(79, 70, 229, 0.5)', // indigo-600 with opacity
+            borderColor: 'rgb(79, 70, 229)', // indigo-600
+            borderWidth: 1,
+          }],
+        },
+        options: {
+          indexAxis: 'y',
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            datalabels: {
+              color: '#333',
+              anchor: 'center',
+              align: 'center',
+              formatter: (value) => {
+                if (value >= 1000) {
+                  return `${(value / 1000).toFixed(1)}k`
+                }
+                return value
+              },
+              font: {
+                weight: 'bold',
+              },
+            },
+          },
+          scales: {
+            y: {
+              beginAtZero: true,
+              title: {
+                display: true,
+                text: '日期',
+              },
+            },
+            x: {
+              title: {
+                display: true,
+                text: '支出',
+              },
+              ticks: {
+                callback: (value) => {
+                  const num = Number(value)
+                  if (num >= 1000) {
+                    return `${(num / 1000).toFixed(1)}k`
+                  }
+                  return num
+                },
+              },
+            },
+          },
+        },
+      })
+    }
+  }
+})
 </script>
 
 <template>
@@ -46,10 +115,8 @@ const y = (d: ChartDataPoint) => d.total
       支出統計
     </h1>
     <div class="bg-white rounded-lg p-4">
-      <div class="h-[400px]">
-        <vis-x-y-container :data="chartData">
-          <vis-stacked-bar :x="x" :y="y" />
-        </vis-x-y-container>
+      <div class="min-h-[60vh]">
+        <canvas ref="chartRef" />
       </div>
     </div>
   </div>

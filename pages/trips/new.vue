@@ -70,14 +70,13 @@ const onSubmit = handleSubmit(async (values) => {
   try {
     isSubmitting.value = true
 
-    const tripData = {
+    const tripData: NewTrip = {
       name: values.name,
       tripCurrency: values.tripCurrency,
       exchangeRate: values.tripCurrency === CurrencyCode.TWD ? 1 : values.exchangeRate,
       defaultCurrency: CurrencyCode.TWD,
       createdAt: serverTimestamp(),
       userId: sessionUser.value!.uid,
-      totalExpenses: 0,
       expenseCount: 0,
     }
 
@@ -115,7 +114,7 @@ async function writeTripMembers(tripId: string, member: NewTripMember) {
   return docRef
 }
 
-const onMembersChange = (updatedMembers: NewTripMember[]) => {
+function onMembersChange(updatedMembers: NewTripMember[]) {
   console.log(updatedMembers)
 }
 </script>

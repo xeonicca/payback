@@ -25,6 +25,8 @@ export const tripConverter: FirestoreDataConverter<Trip> = {
       createdAtString: formatFirebaseTimestamp(data.createdAt),
       userId: data.userId,
       totalExpenses: data.totalExpenses || 0,
+      enabledTotalExpenses: data.enabledTotalExpenses || 0,
+      disabledTotalExpenses: data.disabledTotalExpenses || 0,
       expenseCount: data.expenseCount || 0,
     } as Trip
   },

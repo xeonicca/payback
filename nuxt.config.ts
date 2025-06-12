@@ -10,8 +10,8 @@ export default defineNuxtConfig({
     '@nuxt/image',
     'nuxt-vuefire',
     'shadcn-nuxt',
-    '@vite-pwa/nuxt',
     // '@sentry/nuxt/module' // comment out for now until https://github.com/getsentry/sentry-javascript/pull/16444 is released
+    '@vite-pwa/nuxt',
   ],
 
   app: {
