@@ -42,6 +42,13 @@ export interface Trip extends NewTrip {
   disabledTotalExpenses: number
 }
 
+export interface ExpenseDetailItem {
+  name: string
+  price: number
+  quantity?: number
+  translatedName?: string
+  sharedByMemberIds?: string[]
+}
 export interface NewExpense {
   description: string
   grandTotal: number // In trip's currency
@@ -53,12 +60,7 @@ export interface NewExpense {
   imageUrls?: string[] // URLs of uploaded images
   isProcessing: boolean
   enabled: boolean // New field with default value true
-  items?: Array<{
-    name: string
-    price: number
-    quantity?: number
-    translatedName?: string
-  }>
+  items?: Array<ExpenseDetailItem>
 }
 
 export interface Expense extends NewExpense {

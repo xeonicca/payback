@@ -1,16 +1,8 @@
 <script setup lang="ts">
-import { computed } from 'vue'
-
-interface ExpenseItem {
-  name: string
-  price: number
-  quantity?: number
-  translatedName?: string
-  sharedByMemberId?: string[]
-}
+import type { ExpenseDetailItem } from '@/types'
 
 interface Props {
-  item: ExpenseItem
+  item: ExpenseDetailItem
   currency: string
   editMode?: boolean
   tripMembers?: Array<{
@@ -20,6 +12,12 @@ interface Props {
   }>
   exchangeRate?: number
   defaultCurrency?: string
+  sharedByMemberIds?: string[]
+  shareableMembers: Array<{
+    id: string
+    name: string
+    avatarEmoji: string
+  }>
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -27,27 +25,55 @@ const props = withDefaults(defineProps<Props>(), {
   tripMembers: () => [],
   exchangeRate: 1,
   defaultCurrency: 'TWD',
+  sharedByMemberIds: () => [],
 })
 
 const emit = defineEmits<{
-  (e: 'update:sharedByMemberId', memberIds: string[]): void
+  (e: 'update:sharedByMemberIds', memberIds: string[]): void
 }>()
 
-const selectedMemberIds = ref<string[]>(props.item.sharedByMemberId || [])
+// When sharedByMemberIds is empty/undefined, all members are selected
+// When it has values, only those specific members are selected
+const selectedMemberIds = computed({
+  get: () => {
+    // If sharedByMemberIds is empty/undefined, return all member IDs (meaning all members share)
+    if (!props.sharedByMemberIds || props.sharedByMemberIds.length === 0) {
+      return props.tripMembers.map(member => member.id)
+    }
+    // Otherwise return the specific selected member IDs
+    return props.sharedByMemberIds
+  },
+  set: (newSelection: string[]) => {
+    // If all members are selected, emit empty array (meaning all members share)
+    if (newSelection.length === props.tripMembers.length) {
+      emit('update:sharedByMemberIds', [])
+    }
+    else {
+      // Otherwise emit the specific selected member IDs
+      emit('update:sharedByMemberIds', newSelection)
+    }
+  },
+})
 
 function handleMemberToggle(memberId: string) {
-  const newSelection = selectedMemberIds.value.includes(memberId)
-    ? selectedMemberIds.value.filter(id => id !== memberId)
-    : [...selectedMemberIds.value, memberId]
+  const currentSelection = selectedMemberIds.value
+  const newSelection = currentSelection.includes(memberId)
+    ? currentSelection.filter(id => id !== memberId)
+    : [...currentSelection, memberId]
 
   selectedMemberIds.value = newSelection
-  emit('update:sharedByMemberId', newSelection)
 }
 
 const convertedPrice = computed(() => {
   if (!props.exchangeRate || props.exchangeRate === 1)
     return null
   return Math.round(props.item.price * props.exchangeRate * 100) / 100
+})
+
+const sharedByMemberAvatars = computed(() => {
+  if (!props.sharedByMemberIds || props.sharedByMemberIds.length === 0)
+    return props.shareableMembers.map(member => member.avatarEmoji)
+  return props.shareableMembers.filter(member => props.sharedByMemberIds?.includes(member.id)).map(member => member.avatarEmoji)
 })
 </script>
 
@@ -61,6 +87,11 @@ const convertedPrice = computed(() => {
       <p v-if="item.translatedName" class="text-xs text-gray-500 mt-1">
         翻譯: {{ item.translatedName }}
       </p>
+      <div v-if="!editMode" class="flex items-center gap-1">
+        <span v-for="memberAvatar in sharedByMemberAvatars" :key="memberAvatar">
+          {{ memberAvatar }}
+        </span>
+      </div>
     </div>
     <div class="text-right font-mono text-sm ml-4">
       <div class="text-green-600">
@@ -75,7 +106,7 @@ const convertedPrice = computed(() => {
     <!-- Member selection section when in edit mode -->
     <div v-if="editMode && tripMembers.length > 0" class="mt-3 w-full space-y-2 bg-slate-200 rounded-lg p-2">
       <p class="text-xs text-gray-600 font-medium">
-        分攤成員
+        明細分攤成員
       </p>
       <div class="flex flex-wrap gap-2">
         <div
