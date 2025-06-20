@@ -5,6 +5,7 @@ import { doc, updateDoc } from 'firebase/firestore'
 import { getDownloadURL, ref as storageRef } from 'firebase/storage'
 import { toast } from 'vue-sonner'
 import { useDocument, useFirebaseStorage, useFirestore, usePendingPromises } from 'vuefire'
+import ExpenseDetailItem from '@/components/ExpenseDetailItem.vue'
 import { expenseConverter } from '@/utils/converter'
 
 definePageMeta({
@@ -25,6 +26,8 @@ if (!trip.value || !expense.value) {
   navigateTo(`/trips/${tripId}`)
 }
 
+const isEditMode = ref(false)
+
 const paidByMember = computed(() => tripMembers.value?.find(member => member.id === expense.value?.paidByMemberId))
 const sharedWithMembers = computed(() => tripMembers.value?.filter(member => expense.value?.sharedWithMemberIds.includes(member.id)))
 
@@ -38,7 +41,7 @@ const convertToDefaultCurrency = computed(() => {
   if (!expense.value?.grandTotal || !trip.value?.exchangeRate)
     return 0
 
-  return expense.value.grandTotal * trip.value.exchangeRate
+  return Math.round(expense.value.grandTotal * trip.value.exchangeRate * 100) / 100
 })
 
 async function updateExpense(newValue: boolean) {
@@ -56,6 +59,10 @@ async function updateExpense(newValue: boolean) {
     toast.error('支出已隱藏')
   }
 }
+
+function toggleEditMode() {
+  isEditMode.value = !isEditMode.value
+}
 </script>
 
 <template>
@@ -66,6 +73,19 @@ async function updateExpense(newValue: boolean) {
         <Icon name="lucide:equal-approximately" class="text-slate-700" /> {{ trip?.defaultCurrency }} {{ convertToDefaultCurrency }}
       </p>
     </h1>
+    <ui-button
+      variant="outline"
+      size="sm"
+      class="flex items-center gap-2"
+      @click="toggleEditMode"
+    >
+      <Icon
+        :name="isEditMode ? 'lucide:check' : 'lucide:edit-3'"
+        :size="16"
+        class="text-gray-600"
+      />
+      {{ isEditMode ? '完成' : '編輯' }}
+    </ui-button>
   </div>
 
   <div class="text-sm">
@@ -127,30 +147,18 @@ async function updateExpense(newValue: boolean) {
         <div class="text-sm text-gray-500 min-w-[100px]">
           購買明細
         </div>
-        <ui-table class="table-auto">
-          <!-- <ui-table-caption>購買項目</ui-table-caption> -->
-          <ui-table-header>
-            <ui-table-row>
-              <ui-table-head>名稱</ui-table-head>
-              <ui-table-head class="text-right">
-                價格
-              </ui-table-head>
-            </ui-table-row>
-          </ui-table-header>
-          <ui-table-body>
-            <ui-table-row v-for="item in expense.items" :key="item.name">
-              <ui-table-cell class="font-medium whitespace-break-spaces text-sm space-y-1">
-                <p>{{ item.name }} <span v-if="item.quantity" class="font-mono text-xs text-gray-500">x{{ item.quantity }}</span></p>
-                <p v-if="item.translatedName" class="text-xs text-gray-500">
-                  翻譯: {{ item.translatedName }}
-                </p>
-              </ui-table-cell>
-              <ui-table-cell class="text-right font-mono w-[100px] text-green-600">
-                {{ trip?.tripCurrency }} {{ item.price }}
-              </ui-table-cell>
-            </ui-table-row>
-          </ui-table-body>
-        </ui-table>
+        <div class="space-y-1">
+          <expense-detail-item
+            v-for="item in expense.items"
+            :key="item.name"
+            :item="item"
+            :currency="trip?.tripCurrency || ''"
+            :exchange-rate="trip?.exchangeRate || 1"
+            :default-currency="trip?.defaultCurrency || 'TWD'"
+            :edit-mode="isEditMode"
+            :trip-members="tripMembers"
+          />
+        </div>
       </div>
 
       <div v-if="receiptImageUrl" class="space-y-2">
