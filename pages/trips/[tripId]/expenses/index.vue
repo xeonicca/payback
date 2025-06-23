@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { Expense, Trip } from '@/types'
+import type { Trip } from '@/types'
 import { doc } from 'firebase/firestore'
 import { useDocument, useFirestore } from 'vuefire'
 import { tripConverter } from '@/utils/converter'

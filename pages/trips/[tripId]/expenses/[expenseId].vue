@@ -5,8 +5,10 @@ import { doc, updateDoc } from 'firebase/firestore'
 import { getDownloadURL, ref as storageRef } from 'firebase/storage'
 import { toast } from 'vue-sonner'
 import { useDocument, useFirebaseStorage, useFirestore, usePendingPromises } from 'vuefire'
+import EditExpenseForm from '@/components/EditExpenseForm.vue'
 import ExpenseDetailItem from '@/components/ExpenseDetailItem.vue'
-import { expenseConverter } from '@/utils/converter'
+import { useTripMembers } from '@/composables/useTripMember'
+import { expenseConverter, tripConverter } from '@/utils/converter'
 
 definePageMeta({
   middleware: ['auth'],
@@ -26,7 +28,7 @@ if (!trip.value || !expense.value) {
   navigateTo(`/trips/${tripId}`)
 }
 
-const isEditMode = ref(false)
+const showEditDialog = ref(false)
 
 const paidByMember = computed(() => tripMembers.value?.find(member => member.id === expense.value?.paidByMemberId))
 const sharedWithMembers = computed(() => tripMembers.value?.filter(member => expense.value?.sharedWithMemberIds.includes(member.id)))
@@ -110,43 +112,12 @@ async function updateExpense(newValue: boolean) {
   }
 }
 
-async function toggleEditMode() {
-  if (isEditMode.value) {
-    // Save changes when exiting edit mode
-    await saveItemChanges()
-  }
-  isEditMode.value = !isEditMode.value
+function openEditDialog() {
+  showEditDialog.value = true
 }
 
-async function saveItemChanges() {
-  if (!expense.value?.items)
-    return
-
-  try {
-    await updateDoc(doc(db, 'trips', tripId as string, 'expenses', expenseId as string), {
-      items: expense.value.items,
-    })
-    toast.success('明細分攤設定已儲存')
-  }
-  catch (error) {
-    console.error('Error saving item changes:', error)
-    toast.error('儲存失敗，請重試')
-  }
-}
-
-function handleItemSharedByMemberIdsUpdate(itemIndex: number, memberIds: string[]) {
-  if (!expense.value?.items)
-    return
-
-  // Create a new array to avoid mutating the reactive object directly
-  const updatedItems = [...expense.value.items]
-  updatedItems[itemIndex] = {
-    ...updatedItems[itemIndex],
-    sharedByMemberIds: memberIds,
-  }
-
-  // Update the expense items
-  expense.value.items = updatedItems
+function closeEditDialog() {
+  showEditDialog.value = false
 }
 </script>
 
@@ -162,14 +133,14 @@ function handleItemSharedByMemberIdsUpdate(itemIndex: number, memberIds: string[
       variant="outline"
       size="sm"
       class="flex items-center gap-2"
-      @click="toggleEditMode"
+      @click="openEditDialog"
     >
       <Icon
-        :name="isEditMode ? 'lucide:check' : 'lucide:edit-3'"
+        name="lucide:edit-3"
         :size="16"
         class="text-gray-600"
       />
-      {{ isEditMode ? '完成' : '編輯' }}
+      編輯
     </ui-button>
   </div>
 
@@ -194,15 +165,6 @@ function handleItemSharedByMemberIdsUpdate(itemIndex: number, memberIds: string[
 
   <div class="mt-4 space-y-4">
     <div class="bg-white rounded-lg p-4 space-y-4">
-      <!-- <div class="flex items-start justify-between">
-        <div class="text-sm text-gray-500 min-w-[100px] pt-1">
-          支出說明
-        </div>
-        <div class="flex items-center gap-2 text-right">
-          {{ expense?.description }}
-        </div>
-      </div> -->
-
       <div class="flex items-center justify-between">
         <div class="text-sm text-gray-500 min-w-[100px]">
           付款人
@@ -239,27 +201,24 @@ function handleItemSharedByMemberIdsUpdate(itemIndex: number, memberIds: string[
           </div>
         </div>
       </div>
+      <ui-separator />
       <template v-if="expense?.items?.length">
-        <ui-separator />
-        <div class="space-y-2">
-          <div class="text-sm text-gray-500 min-w-[100px]">
-            購買明細
-          </div>
-          <div class="space-y-1">
-            <expense-detail-item
-              v-for="(item, index) in expense.items"
-              :key="item.name"
-              :item="item"
-              :currency="trip?.tripCurrency || ''"
-              :exchange-rate="trip?.exchangeRate || 1"
-              :default-currency="trip?.defaultCurrency || 'TWD'"
-              :edit-mode="isEditMode"
-              :trip-members="tripMembers"
-              :shareable-members="sharedWithMembers"
-              :shared-by-member-ids="item.sharedByMemberIds"
-              @update:shared-by-member-ids="(memberIds) => handleItemSharedByMemberIdsUpdate(index, memberIds)"
-            />
-          </div>
+        <div class="text-sm text-gray-500 min-w-[100px]">
+          購買明細
+        </div>
+        <div class="space-y-1">
+          <expense-detail-item
+            v-for="item in expense.items"
+            :key="item.name"
+            :item="item"
+            :currency="trip?.tripCurrency || ''"
+            :exchange-rate="trip?.exchangeRate || 1"
+            :default-currency="trip?.defaultCurrency || 'TWD'"
+            :edit-mode="false"
+            :trip-members="tripMembers"
+            :shareable-members="sharedWithMembers"
+            :shared-by-member-ids="item.sharedByMemberIds"
+          />
         </div>
       </template>
 
@@ -276,4 +235,19 @@ function handleItemSharedByMemberIdsUpdate(itemIndex: number, memberIds: string[
       </template>
     </div>
   </div>
+
+  <!-- Edit Expense Dialog -->
+  <ui-drawer v-model:open="showEditDialog">
+    <ui-drawer-content>
+      <div class="mx-auto w-full max-w-sm">
+        <edit-expense-form
+          v-if="expense && trip"
+          :expense="expense"
+          :trip="trip"
+          :trip-members="tripMembers"
+          @close="closeEditDialog"
+        />
+      </div>
+    </ui-drawer-content>
+  </ui-drawer>
 </template>

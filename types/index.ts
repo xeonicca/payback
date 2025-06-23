@@ -15,7 +15,7 @@ export interface NewTripMember {
   name: string
   avatarEmoji: string
   createdAt: Timestamp | FieldValue
-  spending?: number
+  spending: number
   isHost: boolean
 }
 
