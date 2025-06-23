@@ -61,6 +61,35 @@ if (!trip.value) {
       </div>
     </div>
 
+    <section class="mt-4 space-y-2">
+      <div class="flex items-center justify-between pl-2">
+        <h2 class="text-xl font-bold text-indigo-700">
+          成員支出
+        </h2>
+      </div>
+      <div class="space-y-2">
+        <div
+          v-for="member in tripMembers"
+          :key="member.id"
+          class="flex items-center justify-between py-2 px-3 bg-gray-50 rounded-lg"
+        >
+          <div class="flex items-center gap-2">
+            <span class="text-sm">{{ member.avatarEmoji }}</span>
+            <span class="text-sm font-medium">{{ member.name }}</span>
+          </div>
+          <div class="text-right">
+            <div class="text-sm font-mono text-green-600">
+              {{ trip?.tripCurrency }} {{ member.spending.toFixed(2) || '0.00' }}
+            </div>
+            <div v-if="trip?.exchangeRate && trip.exchangeRate !== 1" class="text-xs text-gray-500 inline-flex items-center gap-1">
+              <Icon name="lucide:equal-approximately" class="text-gray-500" size="12" />
+              <p>{{ trip?.defaultCurrency }} {{ (member.spending * trip.exchangeRate).toFixed(2) }}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
     <section class="mt-4">
       <div class="flex items-center justify-between pl-2">
         <h2 class="text-xl font-bold text-indigo-700">

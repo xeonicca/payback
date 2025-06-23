@@ -46,6 +46,7 @@ export const tripMemberConverter: FirestoreDataConverter<TripMember> = {
       createdAt: data.createdAt,
       createdAtString: formatFirebaseTimestamp(data.createdAt),
       isHost: data.isHost || false,
+      spending: data.spending || 0,
     } as TripMember
   },
 }
