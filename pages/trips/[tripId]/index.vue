@@ -47,7 +47,7 @@ if (!trip.value) {
         </p>
       </h1>
       <div class="font-bold flex flex-col items-end">
-        <span class="text-xl">{{ trip.tripCurrency }} {{ trip.enabledTotalExpenses }}</span>
+        <span class="text-xl text-indigo-700 font-bold">{{ trip.tripCurrency }} {{ trip.enabledTotalExpenses }}</span>
         <span class="text-sm text-slate-600 inline-flex items-center gap-1">
           <Icon name="lucide:equal-approximately" class="text-slate-600" size="16" />
           {{ trip.defaultCurrency }} {{ convertToDefaultCurrency }}

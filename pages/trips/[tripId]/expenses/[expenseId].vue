@@ -45,8 +45,15 @@ const convertToDefaultCurrency = computed(() => {
 })
 
 const sharedTotalByMember = computed(() => {
-  if (!expense.value?.items?.length || !tripMembers.value?.length)
-    return {}
+  if (!expense.value?.items?.length) {
+    return tripMembers.value.reduce((acc, member) => {
+      acc[member.id] = {
+        total: expense.value!.grandTotal / tripMembers.value.length,
+        convertedTotal: expense.value!.grandTotal / tripMembers.value.length * trip.value!.exchangeRate,
+      }
+      return acc
+    }, {} as Record<string, { total: number, convertedTotal: number }>)
+  }
 
   const memberTotals: Record<string, { total: number, convertedTotal: number }> = {}
 
@@ -232,37 +239,41 @@ function handleItemSharedByMemberIdsUpdate(itemIndex: number, memberIds: string[
           </div>
         </div>
       </div>
-      <ui-separator />
-      <div v-if="expense?.items?.length" class="space-y-2">
-        <div class="text-sm text-gray-500 min-w-[100px]">
-          購買明細
+      <template v-if="expense?.items?.length">
+        <ui-separator />
+        <div class="space-y-2">
+          <div class="text-sm text-gray-500 min-w-[100px]">
+            購買明細
+          </div>
+          <div class="space-y-1">
+            <expense-detail-item
+              v-for="(item, index) in expense.items"
+              :key="item.name"
+              :item="item"
+              :currency="trip?.tripCurrency || ''"
+              :exchange-rate="trip?.exchangeRate || 1"
+              :default-currency="trip?.defaultCurrency || 'TWD'"
+              :edit-mode="isEditMode"
+              :trip-members="tripMembers"
+              :shareable-members="sharedWithMembers"
+              :shared-by-member-ids="item.sharedByMemberIds"
+              @update:shared-by-member-ids="(memberIds) => handleItemSharedByMemberIdsUpdate(index, memberIds)"
+            />
+          </div>
         </div>
-        <div class="space-y-1">
-          <expense-detail-item
-            v-for="(item, index) in expense.items"
-            :key="item.name"
-            :item="item"
-            :currency="trip?.tripCurrency || ''"
-            :exchange-rate="trip?.exchangeRate || 1"
-            :default-currency="trip?.defaultCurrency || 'TWD'"
-            :edit-mode="isEditMode"
-            :trip-members="tripMembers"
-            :shareable-members="sharedWithMembers"
-            :shared-by-member-ids="item.sharedByMemberIds"
-            @update:shared-by-member-ids="(memberIds) => handleItemSharedByMemberIdsUpdate(index, memberIds)"
-          />
-        </div>
-      </div>
+      </template>
 
-      <ui-separator />
-      <div v-if="receiptImageUrl" class="space-y-2">
-        <div class="text-sm text-gray-500">
-          收據圖片
+      <template v-if="receiptImageUrl">
+        <ui-separator />
+        <div class="space-y-2">
+          <div class="text-sm text-gray-500">
+            收據圖片
+          </div>
+          <div class="grid gap-2">
+            <img :src="receiptImageUrl" class="w-full h-full object-cover">
+          </div>
         </div>
-        <div class="grid gap-2">
-          <img :src="receiptImageUrl" class="w-full h-full object-cover">
-        </div>
-      </div>
+      </template>
     </div>
   </div>
 </template>
