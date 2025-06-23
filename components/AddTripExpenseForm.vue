@@ -100,7 +100,7 @@ onMounted(() => {
         <ui-form-label>支出金額</ui-form-label>
         <ui-form-control>
           <div class="relative">
-            <ui-input id="grandTotalInput" class="pl-12" type="number" v-bind="componentField" step="0.01" />
+            <ui-input id="grandTotalInput" class="pl-12" type="tel" v-bind="componentField" step="0.01" />
             <ui-badge class="absolute start-0 inset-y-0 flex items-center justify-center ml-1 my-1 px-2">
               {{ trip.tripCurrency }}
             </ui-badge>
