@@ -80,17 +80,19 @@ const sharedByMemberAvatars = computed(() => {
 <template>
   <div class="flex flex-wrap items-start justify-between py-3 border-b border-gray-100 last:border-b-0">
     <div class="flex-1 min-w-0">
-      <div class="flex items-center gap-2">
+      <div class="flex flex-col items-start gap-1">
         <span class="font-medium text-sm">{{ item.name }}</span>
-        <span class="font-mono text-xs text-gray-500">
-          <template v-if="item.price !== 0">{{ currency }} {{ item.price }}</template>
-          <span v-if="item.quantity && item.quantity > 1" class="font-mono text-xs text-gray-500">x{{ item.quantity }}</span>
-        </span>
+        <div class="font-mono text-xs text-gray-500">
+          <span v-if="item.price !== 0">
+            {{ currency }} {{ item.price }}
+          </span>
+          <span>x{{ item.quantity ?? 1 }}</span>
+        </div>
       </div>
-      <p v-if="item.translatedName" class="text-xs text-gray-500 mt-1">
+      <p v-if="item.translatedName" class="text-xs text-gray-500 mt-2">
         翻譯: {{ item.translatedName }}
       </p>
-      <div v-if="!editMode" class="flex items-center gap-1">
+      <div v-if="!editMode" class="mt-2 flex items-center gap-1">
         <span v-for="memberAvatar in sharedByMemberAvatars" :key="memberAvatar">
           {{ memberAvatar }}
         </span>
