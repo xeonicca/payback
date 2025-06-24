@@ -21,6 +21,7 @@ const { tripId, expenseId } = useRoute().params
 const trip = useDocument<Trip>(doc(db, 'trips', tripId as string).withConverter(tripConverter))
 const expense = useDocument<Expense>(doc(db, 'trips', tripId as string, 'expenses', expenseId as string).withConverter(expenseConverter))
 const { tripMembers } = useTripMembers(tripId as string)
+const sharedMembers = computed(() => tripMembers.value?.filter(member => expense.value?.sharedWithMemberIds.includes(member.id)))
 await usePendingPromises()
 
 if (!trip.value || !expense.value) {
@@ -47,11 +48,12 @@ const convertToDefaultCurrency = computed(() => {
 })
 
 const sharedTotalByMember = computed(() => {
+  const sharedWithMemberIds = expense.value?.sharedWithMemberIds ?? []
   if (!expense.value?.items?.length) {
-    return tripMembers.value.reduce((acc, member) => {
-      acc[member.id] = {
-        total: expense.value!.grandTotal / tripMembers.value.length,
-        convertedTotal: expense.value!.grandTotal / tripMembers.value.length * trip.value!.exchangeRate,
+    return sharedWithMemberIds.reduce((acc, memberId) => {
+      acc[memberId] = {
+        total: expense.value!.grandTotal / sharedWithMemberIds.length,
+        convertedTotal: expense.value!.grandTotal / sharedWithMemberIds.length * trip.value!.exchangeRate,
       }
       return acc
     }, {} as Record<string, { total: number, convertedTotal: number }>)
@@ -60,8 +62,8 @@ const sharedTotalByMember = computed(() => {
   const memberTotals: Record<string, { total: number, convertedTotal: number }> = {}
 
   // Initialize all members with 0
-  tripMembers.value.forEach((member) => {
-    memberTotals[member.id] = {
+  sharedWithMemberIds.forEach((memberId) => {
+    memberTotals[memberId] = {
       total: 0,
       convertedTotal: 0,
     }
@@ -73,7 +75,7 @@ const sharedTotalByMember = computed(() => {
 
     // If item has no specific sharedByMemberIds, all members share it
     if (!item.sharedByMemberIds || item.sharedByMemberIds.length === 0) {
-      sharingMembers = tripMembers.value.map(member => member.id)
+      sharingMembers = sharedWithMemberIds
     }
     else {
       sharingMembers = item.sharedByMemberIds
@@ -84,7 +86,7 @@ const sharedTotalByMember = computed(() => {
       return
 
     // Calculate price per member for this item
-    const pricePerMember = item.price / sharingMembers.length
+    const pricePerMember = item.price * (item.quantity ?? 1) / sharingMembers.length
 
     // Add the price to each sharing member's total
     sharingMembers.forEach((memberId) => {
@@ -181,7 +183,7 @@ function closeEditDialog() {
         </div>
         <div class="space-y-2">
           <div
-            v-for="member in tripMembers"
+            v-for="member in sharedMembers"
             :key="member.id"
             class="flex items-center justify-between py-2 px-3 bg-gray-50 rounded-lg"
           >

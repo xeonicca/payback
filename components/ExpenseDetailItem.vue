@@ -67,7 +67,7 @@ function handleMemberToggle(memberId: string) {
 const convertedPrice = computed(() => {
   if (!props.exchangeRate || props.exchangeRate === 1)
     return null
-  return Math.round(props.item.price * props.exchangeRate * 100) / 100
+  return Math.round(props.item.price * (props.item.quantity ?? 1) * props.exchangeRate * 100) / 100
 })
 
 const sharedByMemberAvatars = computed(() => {
@@ -82,7 +82,10 @@ const sharedByMemberAvatars = computed(() => {
     <div class="flex-1 min-w-0">
       <div class="flex items-center gap-2">
         <span class="font-medium text-sm">{{ item.name }}</span>
-        <span v-if="item.quantity" class="font-mono text-xs text-gray-500">x{{ item.quantity }}</span>
+        <span class="font-mono text-xs text-gray-500">
+          <template v-if="item.price !== 0">{{ currency }} {{ item.price }}</template>
+          <span v-if="item.quantity && item.quantity > 1" class="font-mono text-xs text-gray-500">x{{ item.quantity }}</span>
+        </span>
       </div>
       <p v-if="item.translatedName" class="text-xs text-gray-500 mt-1">
         翻譯: {{ item.translatedName }}
@@ -95,7 +98,7 @@ const sharedByMemberAvatars = computed(() => {
     </div>
     <div class="text-right font-mono text-sm ml-4">
       <div class="text-green-600">
-        {{ currency }} {{ item.price }}
+        {{ currency }} {{ item.price * (item.quantity ?? 1) }}
       </div>
       <div v-if="convertedPrice" class="text-xs text-gray-500 inline-flex items-center gap-1">
         <Icon name="lucide:equal-approximately" class="text-gray-500" size="12" />
