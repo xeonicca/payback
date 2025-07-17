@@ -24,7 +24,7 @@ const timezone = getLocalTimeZone()
 
 const formSchema = toTypedSchema(z.object({
   description: z.string().min(2).max(50),
-  grandTotal: z.number(),
+  grandTotal: z.coerce.number().positive(),
   paidAt: z.string(),
   paidByMemberId: z.string(),
   sharedWithMemberIds: z.array(z.string()).refine(value => value.some(item => item), {

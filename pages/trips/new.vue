@@ -63,8 +63,11 @@ const defaultMembers: NewTripMember[] = [
     avatarEmoji: '🐭',
     isHost: true,
     createdAt: serverTimestamp(),
+    spending: 0,
   },
 ]
+
+const allMembers = ref<NewTripMember[]>([...defaultMembers])
 
 const onSubmit = handleSubmit(async (values) => {
   try {
@@ -81,13 +84,12 @@ const onSubmit = handleSubmit(async (values) => {
     }
 
     const docRef = await writeTrip(tripData)
-    await writeTripMembers(docRef.id, {
-      name: sessionUser.value!.displayName || 'User 1',
-      avatarEmoji: '🐭',
-      createdAt: serverTimestamp(),
-      spending: 0,
-      isHost: true,
-    })
+
+    // Save all trip members
+    for (const member of allMembers.value) {
+      await writeTripMembers(docRef.id, member)
+    }
+
     toast.success('Trip created successfully!')
     router.push(`/trips/${docRef.id}`)
   }
@@ -115,7 +117,7 @@ async function writeTripMembers(tripId: string, member: NewTripMember) {
 }
 
 function onMembersChange(updatedMembers: NewTripMember[]) {
-  console.log(updatedMembers)
+  allMembers.value = updatedMembers
 }
 </script>
 
@@ -177,7 +179,7 @@ function onMembersChange(updatedMembers: NewTripMember[]) {
     </div>
 
     <add-trip-members-form
-      :members="defaultMembers"
+      :members="allMembers"
       :on-members-change="onMembersChange"
     />
 

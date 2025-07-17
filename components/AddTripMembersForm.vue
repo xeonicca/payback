@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import type { NewTripMember, TripMember } from '@/types'
+import type { NewTripMember } from '@/types'
+import { toTypedSchema } from '@vee-validate/zod'
 import { useForm } from 'vee-validate'
 import { toast } from 'vue-sonner'
 import * as z from 'zod'
@@ -17,8 +18,8 @@ const formSchema = z.object({
 
 type FormValues = z.infer<typeof formSchema>
 
-const form = useForm<FormValues>({
-  validationSchema: formSchema,
+const form = useForm({
+  validationSchema: toTypedSchema(formSchema),
   initialValues: {
     name: '',
     avatar: animalEmojis[0],
@@ -48,6 +49,7 @@ const onSubmit = form.handleSubmit((values: FormValues) => {
     name: trimmedName,
     avatarEmoji: values.avatar,
     createdAt: new Date() as any,
+    spending: 0,
     isHost: false,
   }
 
@@ -61,9 +63,9 @@ const onSubmit = form.handleSubmit((values: FormValues) => {
   form.setFieldValue('avatar', nextAvailable || animalEmojis[0])
 })
 
-function handleRemoveMemberFromList(id: string) {
-  const toRemove = props.members.find(m => m.id === id)
-  const updated = props.members.filter(m => m.id !== id)
+function handleRemoveMemberFromList(name: string) {
+  const toRemove = props.members.find(m => m.name === name)
+  const updated = props.members.filter(m => m.name !== name)
   props.onMembersChange(updated)
   if (toRemove)
     toast.success(`Removed ${toRemove.name} from the trip`)
@@ -76,7 +78,7 @@ function handleRemoveMemberFromList(id: string) {
       行程成員
     </h3>
     <div class="p-4 border border-gray-200 rounded-lg space-y-4 bg-gray-50">
-      <form :validation-schema="formSchema" class="grid grid-cols-1 md:grid-cols-2 gap-4 items-end" @submit.prevent="onSubmit">
+      <form class="grid grid-cols-1 md:grid-cols-2 gap-4 items-end" @submit.prevent="onSubmit">
         <div class="flex gap-2">
           <ui-form-field v-slot="{ componentField }" name="name" class="flex-1">
             <ui-form-item class="flex-1">
@@ -132,7 +134,7 @@ function handleRemoveMemberFromList(id: string) {
 
     <div v-if="members.length > 0" class="space-y-3">
       <h4 class="text-sm font-medium text-gray-600">
-        Members to be added: ({{ members.length }})
+        Trip Members: ({{ members.length }})
       </h4>
       <ul class="divide-y divide-gray-200 border rounded-md max-h-60 overflow-y-auto">
         <li
@@ -142,18 +144,27 @@ function handleRemoveMemberFromList(id: string) {
         >
           <div class="flex items-center space-x-3">
             <span class="text-2xl">{{ member.avatarEmoji }}</span>
-            <span class="text-gray-800 font-medium">{{ member.name }}</span>
+            <div class="flex items-center gap-2">
+              <span class="text-gray-800 font-medium">{{ member.name }}</span>
+              <ui-badge v-if="member.isHost" variant="secondary" class="text-xs">
+                Host
+              </ui-badge>
+            </div>
           </div>
           <ui-button
+            v-if="!member.isHost"
             type="button"
             variant="ghost"
             size="icon"
             class="text-red-500 hover:text-red-700 hover:bg-red-100"
             title="Remove member"
-            @click="handleRemoveMemberFromList(member.id)"
+            @click="handleRemoveMemberFromList(member.name)"
           >
             <icon name="lucide:circle-x" :size="20" />
           </ui-button>
+          <div v-else class="w-10 h-10 flex items-center justify-center">
+            <Icon name="lucide:crown" :size="16" class="text-yellow-500" title="Trip Host" />
+          </div>
         </li>
       </ul>
     </div>

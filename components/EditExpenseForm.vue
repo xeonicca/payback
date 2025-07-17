@@ -24,7 +24,7 @@ const timezone = getLocalTimeZone()
 
 const formSchema = toTypedSchema(z.object({
   description: z.string().min(2).max(50),
-  grandTotal: z.number().min(0),
+  grandTotal: z.coerce.number().min(0),
   paidAt: z.string(),
   paidByMemberId: z.string(),
   sharedWithMemberIds: z.array(z.string()).refine(value => value.some(item => item), {
@@ -32,8 +32,8 @@ const formSchema = toTypedSchema(z.object({
   }),
   items: z.array(z.object({
     name: z.string(),
-    price: z.number().min(0),
-    quantity: z.number().optional(),
+    price: z.coerce.number().min(0),
+    quantity: z.coerce.number().optional(),
     translatedName: z.string().optional(),
     sharedByMemberIds: z.array(z.string()).optional(),
   })),
@@ -66,6 +66,11 @@ const df = new DateFormatter('en-US', {
 // Calculate total from items
 const calculatedTotal = computed(() => {
   return (values.items || []).reduce((sum, item) => sum + (item.price || 0), 0)
+})
+
+// Safe access to shared members
+const selectedSharedMembers = computed(() => {
+  return props.tripMembers.filter((m: TripMember) => (values.sharedWithMemberIds || []).includes(m.id))
 })
 
 // Update grandTotal when items change
@@ -106,33 +111,37 @@ function addItem() {
     quantity: 1,
     sharedByMemberIds: [],
   }
-  if (!values.items) {
-    values.items = []
-  }
-  values.items.push(newItem)
+  const currentItems = values.items || []
+  setFieldValue('items', [...currentItems, newItem])
 }
 
 function removeItem(index: number) {
   if (values.items) {
-    values.items.splice(index, 1)
+    const updatedItems = [...values.items]
+    updatedItems.splice(index, 1)
+    setFieldValue('items', updatedItems)
   }
 }
 
 function updateItem(index: number, field: keyof ExpenseDetailItem, value: any) {
   if (values.items) {
-    values.items[index] = {
-      ...values.items[index],
+    const updatedItems = [...values.items]
+    updatedItems[index] = {
+      ...updatedItems[index],
       [field]: value,
     }
+    setFieldValue('items', updatedItems)
   }
 }
 
 function updateItemSharing(index: number, memberIds: string[]) {
   if (values.items) {
-    values.items[index] = {
-      ...values.items[index],
+    const updatedItems = [...values.items]
+    updatedItems[index] = {
+      ...updatedItems[index],
       sharedByMemberIds: memberIds,
     }
+    setFieldValue('items', updatedItems)
   }
 }
 
@@ -393,7 +402,7 @@ onMounted(() => {
               </span>
               <div class="flex flex-wrap gap-2 mt-2">
                 <ui-button
-                  v-for="member in tripMembers"
+                  v-for="member in selectedSharedMembers"
                   :key="member.id"
                   type="button"
                   size="sm"
@@ -411,7 +420,7 @@ onMounted(() => {
                 </ui-button>
               </div>
               <p class="text-xs text-gray-500 mt-1">
-                如果沒有選擇特定成員，則所有成員都會分攤此項目
+                如果沒有選擇特定成員，則只有參與分攤此支出的成員會分攤此項目
               </p>
             </div>
           </div>

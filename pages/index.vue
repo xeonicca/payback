@@ -36,56 +36,63 @@ definePageMeta({
       </ui-button>
     </div>
 
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-      <ui-card
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div
         v-for="trip in trips"
         :key="trip.id"
-        class="transition-all duration-200 hover:shadow-lg hover:scale-[1.02] rounded-sm"
+        class="group relative bg-white rounded-xl shadow-sm hover:shadow-xl hover:border-indigo-200 transition-all duration-300 overflow-hidden cursor-pointer"
+        @click="navigateTo(`/trips/${trip.id}`)"
       >
-        <ui-card-header class="flex flex-row items-start justify-between space-y-0 pb-2">
-          <ui-card-title class="text-lg font-semibold">
-            <div class="flex items-center gap-2">
-              <Icon name="lucide-map-pin" class="text-indigo-700" />
-              <span class="text-indigo-700">{{ trip.name }}</span>
+        <!-- Gradient Header -->
+        <div class="h-2 bg-gradient-to-r from-blue-500 via-blue-500 to-indigo-700" />
+
+        <!-- Content -->
+        <div class="p-6">
+          <!-- Trip Name and Currency -->
+          <div class="flex items-start justify-between mb-4">
+            <div class="flex items-center gap-3">
+              <div class="flex-shrink-0 w-10 h-10 bg-indigo-100 rounded-lg flex items-center justify-center">
+                <Icon name="lucide-map-pin" class="text-indigo-600" size="20" />
+              </div>
+              <div>
+                <h3 class="font-semibold text-gray-900 text-lg leading-tight group-hover:text-indigo-600 transition-colors">
+                  {{ trip.name }}
+                </h3>
+              </div>
             </div>
-          </ui-card-title>
-          <ui-badge>
-            {{ trip.tripCurrency }}
-          </ui-badge>
-        </ui-card-header>
-
-        <ui-card-content class="space-y-2">
-          <div class="flex items-center gap-2">
-            <Icon name="lucide-calendar" class="text-gray-500" />
-            <span class="text-sm text-gray-500">{{ trip.createdAtString }}</span>
+            <div class="px-2.5 py-1 bg-gray-100 rounded-full">
+              <span class="text-xs font-medium text-gray-600">{{ trip.tripCurrency }}</span>
+            </div>
           </div>
-          <div class="flex items-center gap-2">
-            <Icon name="lucide:receipt" class="text-gray-500" />
-            <span class="text-base font-extrabold">{{ trip.tripCurrency }} {{ trip.enabledTotalExpenses.toLocaleString() }}</span>
-          </div>
-        </ui-card-content>
 
-        <ui-card-footer class="flex justify-end gap-2">
-          <nuxt-link :to="`/trips/${trip.id}`">
-            <ui-button
-              color="gray"
-              variant="outline"
-            >
-              <Icon name="lucide-eye" class="text-gray-500" />
-              查看
-            </ui-button>
-          </nuxt-link>
-          <!-- <nuxt-link :to="`/trips/${trip.id}/edit`">
-            <ui-button
-              color="primary"
-              variant="ghost"
-              icon="i-lucide-edit"
-            >
-              Edit
-            </ui-button>
-          </nuxt-link> -->
-        </ui-card-footer>
-      </ui-card>
+          <!-- Trip Stats -->
+          <div class="space-y-3 mb-6">
+            <div class="flex items-center gap-3">
+              <Icon name="lucide-calendar" class="text-gray-400" size="16" />
+              <span class="text-sm text-gray-600">{{ trip.createdAtString }}</span>
+            </div>
+            <div class="flex items-center gap-3">
+              <Icon name="lucide-receipt" class="text-gray-400" size="16" />
+              <div class="flex items-baseline gap-1">
+                <span class="text-xl font-bold text-gray-900">{{ trip.enabledTotalExpenses.toLocaleString() }}</span>
+                <span class="text-sm text-gray-500">{{ trip.tripCurrency }}</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Action Area -->
+          <div class="flex items-center justify-between pt-4 border-t border-gray-100">
+            <div class="flex items-center gap-2 text-sm text-gray-500">
+              <Icon name="lucide-eye" size="14" />
+              <span>查看詳情</span>
+            </div>
+            <Icon name="lucide-arrow-right" class="text-gray-400 group-hover:text-indigo-500 group-hover:translate-x-1 transition-all" size="16" />
+          </div>
+        </div>
+
+        <!-- Hover Effect Overlay -->
+        <div class="absolute inset-0 bg-gradient-to-r from-indigo-500/5 to-purple-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
+      </div>
     </div>
   </div>
 </template>

@@ -78,7 +78,10 @@ const sharedTotalByMember = computed(() => {
       sharingMembers = sharedWithMemberIds
     }
     else {
-      sharingMembers = item.sharedByMemberIds
+      // Only include members who are both in item sharing AND main expense sharing
+      sharingMembers = item.sharedByMemberIds.filter(memberId =>
+        sharedWithMemberIds.includes(memberId),
+      )
     }
 
     // Skip if no members are sharing this item
@@ -96,6 +99,77 @@ const sharedTotalByMember = computed(() => {
   })
 
   return memberTotals
+})
+
+// Detailed breakdown by member for debugging
+const memberItemBreakdown = computed(() => {
+  const sharedWithMemberIds = expense.value?.sharedWithMemberIds ?? []
+  const breakdown: Record<string, Array<{
+    itemName: string
+    itemPrice: number
+    itemQuantity: number
+    totalItemCost: number
+    sharingMembers: string[]
+    sharePerMember: number
+  }>> = {}
+
+  // Initialize breakdown for each member
+  sharedWithMemberIds.forEach((memberId) => {
+    breakdown[memberId] = []
+  })
+
+  if (!expense.value?.items?.length) {
+    // If no items, split grand total equally
+    const sharePerMember = expense.value!.grandTotal / sharedWithMemberIds.length
+    sharedWithMemberIds.forEach((memberId) => {
+      breakdown[memberId].push({
+        itemName: '總金額平分',
+        itemPrice: expense.value!.grandTotal,
+        itemQuantity: 1,
+        totalItemCost: expense.value!.grandTotal,
+        sharingMembers: sharedWithMemberIds,
+        sharePerMember,
+      })
+    })
+    return breakdown
+  }
+
+  // Calculate breakdown for each item
+  expense.value.items.forEach((item, index) => {
+    let sharingMembers: string[]
+
+    // If item has no specific sharedByMemberIds, all members share it
+    if (!item.sharedByMemberIds || item.sharedByMemberIds.length === 0) {
+      sharingMembers = sharedWithMemberIds
+    }
+    else {
+      // Only include members who are both in item sharing AND main expense sharing
+      sharingMembers = item.sharedByMemberIds.filter(memberId =>
+        sharedWithMemberIds.includes(memberId),
+      )
+    }
+
+    // Skip if no members are sharing this item
+    if (sharingMembers.length === 0)
+      return
+
+    const totalItemCost = item.price * (item.quantity ?? 1)
+    const sharePerMember = totalItemCost / sharingMembers.length
+
+    // Add this item breakdown to each sharing member
+    sharingMembers.forEach((memberId) => {
+      breakdown[memberId].push({
+        itemName: item.name || `項目 ${index + 1}`,
+        itemPrice: item.price,
+        itemQuantity: item.quantity ?? 1,
+        totalItemCost,
+        sharingMembers,
+        sharePerMember,
+      })
+    })
+  })
+
+  return breakdown
 })
 
 async function updateExpense(newValue: boolean) {
@@ -181,27 +255,57 @@ function closeEditDialog() {
         <div class="text-sm text-gray-500 min-w-[100px]">
           成員分攤明細
         </div>
-        <div class="space-y-2">
-          <div
+        <ui-accordion type="multiple" class="space-y-2">
+          <ui-accordion-item
             v-for="member in sharedMembers"
             :key="member.id"
-            class="flex items-center justify-between py-2 px-3 bg-gray-50 rounded-lg"
+            :value="member.id"
+            class="bg-gray-50 rounded-lg border-0"
           >
-            <div class="flex items-center gap-2">
-              <span class="text-sm">{{ member.avatarEmoji }}</span>
-              <span class="text-sm font-medium">{{ member.name }}</span>
-            </div>
-            <div class="text-right">
-              <div class="text-sm font-mono text-green-600">
-                {{ trip?.tripCurrency }} {{ sharedTotalByMember[member.id].total.toFixed(2) || '0.00' }}
+            <ui-accordion-trigger class="flex items-center justify-between py-2 px-3 hover:no-underline">
+              <div class="flex flex-1 items-center justify-between py-2 hover:no-underline">
+                <div class="flex items-center gap-2">
+                  <span class="text-sm">{{ member.avatarEmoji }}</span>
+                  <span class="text-sm font-medium">{{ member.name }}</span>
+                </div>
+                <div class="text-right mr-4">
+                  <div class="text-sm font-mono text-green-600">
+                    {{ trip?.tripCurrency }} {{ sharedTotalByMember[member.id].total.toFixed(2) || '0.00' }}
+                  </div>
+                  <div v-if="trip?.exchangeRate && trip.exchangeRate !== 1" class="text-xs text-gray-500 inline-flex items-center gap-1">
+                    <Icon name="lucide:equal-approximately" class="text-gray-500" size="12" />
+                    <p>{{ trip?.defaultCurrency }} {{ (sharedTotalByMember[member.id].convertedTotal).toFixed(2) }}</p>
+                  </div>
+                </div>
               </div>
-              <div v-if="trip?.exchangeRate && trip.exchangeRate !== 1" class="text-xs text-gray-500 inline-flex items-center gap-1">
-                <Icon name="lucide:equal-approximately" class="text-gray-500" size="12" />
-                <p>{{ trip?.defaultCurrency }} {{ (sharedTotalByMember[member.id].convertedTotal).toFixed(2) }}</p>
+            </ui-accordion-trigger>
+            <ui-accordion-content class="px-3 pb-3">
+              <div class="space-y-1 text-xs">
+                <div
+                  v-for="(item, index) in memberItemBreakdown[member.id] || []"
+                  :key="index"
+                  class="flex justify-between items-center py-1 px-2 bg-white rounded"
+                >
+                  <div class="flex-1">
+                    <span class="font-mono">{{ item.itemName }}</span>
+                    <span class="text-gray-500 ml-2">
+                      ({{ trip?.tripCurrency }} {{ item.itemPrice }} × {{ item.itemQuantity }} ÷ {{ item.sharingMembers.length }}人)
+                    </span>
+                  </div>
+                  <div class="text-right font-mono text-green-600">
+                    {{ trip?.tripCurrency }} {{ item.sharePerMember.toFixed(2) }}
+                  </div>
+                </div>
+                <div class="border-t pt-1 flex justify-between items-center font-bold">
+                  <span>小計:</span>
+                  <span class="text-green-600">
+                    {{ trip?.tripCurrency }} {{ (memberItemBreakdown[member.id] || []).reduce((sum, item) => sum + item.sharePerMember, 0).toFixed(2) }}
+                  </span>
+                </div>
               </div>
-            </div>
-          </div>
-        </div>
+            </ui-accordion-content>
+          </ui-accordion-item>
+        </ui-accordion>
       </div>
       <ui-separator />
       <template v-if="expense?.items?.length">
