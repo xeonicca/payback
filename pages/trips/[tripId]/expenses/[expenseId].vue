@@ -280,17 +280,17 @@ function closeEditDialog() {
               </div>
             </ui-accordion-trigger>
             <ui-accordion-content class="px-3 pb-3">
-              <div class="space-y-1 text-xs">
+              <div class="space-y-2 text-xs">
                 <div
                   v-for="(item, index) in memberItemBreakdown[member.id] || []"
                   :key="index"
-                  class="flex justify-between items-center py-1 px-2 bg-white rounded"
+                  class="flex justify-between items-center py-1 px-2 bg-indigo-100 rounded gap-4"
                 >
                   <div class="flex-1">
                     <span class="font-mono">{{ item.itemName }}</span>
-                    <span class="text-gray-500 ml-2">
+                    <p class="text-gray-500">
                       ({{ trip?.tripCurrency }} {{ item.itemPrice }} × {{ item.itemQuantity }} ÷ {{ item.sharingMembers.length }}人)
-                    </span>
+                    </p>
                   </div>
                   <div class="text-right font-mono text-green-600">
                     {{ trip?.tripCurrency }} {{ item.sharePerMember.toFixed(2) }}
@@ -306,6 +306,74 @@ function closeEditDialog() {
             </ui-accordion-content>
           </ui-accordion-item>
         </ui-accordion>
+      </div>
+
+      <!-- Debt Relationship Section -->
+      <div v-if="Object.keys(sharedTotalByMember).length > 0" class="space-y-2">
+        <div class="text-sm text-gray-500 min-w-[100px]">
+          債務關係
+        </div>
+        <div class="bg-gray-50 rounded-lg p-3 space-y-3">
+          <!-- Who paid and how much -->
+          <div class="flex items-center justify-between py-2 px-2 bg-white rounded">
+            <div class="flex items-center gap-2">
+              <span class="text-sm">{{ paidByMember?.avatarEmoji }}</span>
+              <span class="text-sm font-medium">{{ paidByMember?.name }} (付款人)</span>
+            </div>
+            <div class="text-right">
+              <div class="text-sm font-mono text-blue-600">
+                已付款 {{ trip?.tripCurrency }} {{ expense?.grandTotal }}
+              </div>
+            </div>
+          </div>
+
+          <!-- Debt relationships -->
+          <div class="space-y-2">
+            <div class="text-xs text-gray-600 mb-2">
+              其他成員應付金額:
+            </div>
+            <div
+              v-for="member in sharedMembers.filter(m => m.id !== expense?.paidByMemberId)"
+              :key="member.id"
+              class="flex items-center justify-between py-2 px-2 bg-white rounded"
+            >
+              <div class="flex items-center gap-2">
+                <span class="text-sm">{{ member.avatarEmoji }}</span>
+                <span class="text-sm font-medium">{{ member.name }}</span>
+              </div>
+              <div class="text-right">
+                <div class="text-sm font-mono text-red-600">
+                  應付 {{ trip?.tripCurrency }} {{ sharedTotalByMember[member.id].total.toFixed(2) }}
+                </div>
+                <div v-if="trip?.exchangeRate && trip.exchangeRate !== 1" class="text-xs text-gray-500 inline-flex items-center gap-1">
+                  <Icon name="lucide:equal-approximately" class="text-gray-500" size="12" />
+                  <p>{{ trip?.defaultCurrency }} {{ sharedTotalByMember[member.id].convertedTotal.toFixed(2) }}</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Summary -->
+          <div class="border-t pt-2">
+            <div class="text-xs text-gray-600 mb-1">
+              結算摘要:
+            </div>
+            <div class="text-xs space-y-1">
+              <div class="flex justify-between">
+                <span>付款人 {{ paidByMember?.name }} 應收:</span>
+                <span class="font-mono text-green-600">
+                  {{ trip?.tripCurrency }} {{ ((expense?.grandTotal || 0) - (sharedMembers.filter(m => m.id !== expense?.paidByMemberId).reduce((sum, m) => sum + (sharedTotalByMember[m.id]?.total || 0), 0))).toFixed(2) }}
+                </span>
+              </div>
+              <div class="flex justify-between">
+                <span>其他成員總計應付:</span>
+                <span class="font-mono text-red-600">
+                  {{ trip?.tripCurrency }} {{ sharedMembers.filter(m => m.id !== expense?.paidByMemberId).reduce((sum, m) => sum + (sharedTotalByMember[m.id]?.total || 0), 0).toFixed(2) }}
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
       <ui-separator />
       <template v-if="expense?.items?.length">

@@ -8,6 +8,7 @@ const props = defineProps<{
 }>()
 
 const expenseMembers = computed(() => (expense: Expense) => props.tripMembers.filter(member => expense.sharedWithMemberIds.includes(member.id)))
+const paidByMember = computed(() => props.tripMembers.find(member => member.id === props.expense.paidByMemberId))
 </script>
 
 <template>
@@ -31,6 +32,9 @@ const expenseMembers = computed(() => (expense: Expense) => props.tripMembers.fi
     <div class="flex flex-col justify-between gap-2">
       <div class="text-xl font-extrabold text-slate-800 text-right">
         {{ expense.paidAtObject.month }}/{{ expense.paidAtObject.day }}
+        <p class="text-base text-gray-500">
+          {{ paidByMember?.avatarEmoji }}
+        </p>
       </div>
 
       <div class="text-base font-mono w-[100px] text-right self-end text-green-600">

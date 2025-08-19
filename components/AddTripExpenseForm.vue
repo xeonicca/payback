@@ -23,7 +23,7 @@ const emit = defineEmits<{
 const timezone = getLocalTimeZone()
 
 const formSchema = toTypedSchema(z.object({
-  description: z.string().min(2).max(50),
+  description: z.string().min(2).max(200),
   grandTotal: z.coerce.number().positive(),
   paidAt: z.string(),
   paidByMemberId: z.string(),

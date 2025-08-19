@@ -57,7 +57,7 @@ Details for extraction:
 - For 'paidAtString': Extract the date and time of purchase from the receipt as a string in YYYY-MM-DD HH:MM format. If unable to extract, use the current server date.
 - For 'currency': Currency code (e.g., "JPY", "USD"). For Lawson (Japan), it's "JPY".
 - For 'items':
-    - List each distinct item.
+    - List each distinct item. If the receipt includes consumer tax or any form of discount from the grand total, also include it in the items.
     - 'name': Primary product name. Exclude quantities (e.g., '5コ', '3マイ'), original prices if discounted, and generic prefixes like "FF " or "Lm" unless part of the product identifier.
     - 'price': Final price paid for that item after any item-specific discounts.
     - 'translatedName': REQUIRED - Translate the item name to ${language}. If the item is already in ${language}, use the same name. Do not leave this field null.

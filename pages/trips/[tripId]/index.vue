@@ -90,6 +90,57 @@ if (!trip.value) {
       </div>
     </section>
 
+    <section class="mt-4 space-y-2">
+      <div class="flex items-center justify-between pl-2">
+        <h2 class="text-xl font-bold text-indigo-700">
+          結算建議
+        </h2>
+      </div>
+      <div class="space-y-2">
+        <div class="py-3 px-3 bg-amber-50 rounded-lg">
+          <div class="text-sm text-gray-700 mb-2">
+            <span class="font-medium">總支出:</span>
+            <span class="font-mono ml-1 text-indigo-600">
+              {{ trip?.tripCurrency }} {{ trip?.enabledTotalExpenses || '0.00' }}
+            </span>
+          </div>
+
+          <div class="text-sm text-gray-700 mb-2">
+            <span class="font-medium">平均每人:</span>
+            <span class="font-mono ml-1 text-indigo-600">
+              {{ trip?.tripCurrency }} {{ tripMembers.length > 0 ? ((trip?.enabledTotalExpenses || 0) / tripMembers.length).toFixed(2) : '0.00' }}
+            </span>
+          </div>
+
+          <div class="space-y-1">
+            <div
+              v-for="member in tripMembers"
+              :key="member.id"
+              class="text-xs flex items-center justify-between"
+            >
+              <span class="flex items-center gap-1">
+                <span>{{ member.avatarEmoji }}</span>
+                <span>{{ member.name }}</span>
+              </span>
+              <span
+                :class="{
+                  'text-green-600': member.spending > ((trip?.enabledTotalExpenses || 0) / tripMembers.length),
+                  'text-red-600': member.spending < ((trip?.enabledTotalExpenses || 0) / tripMembers.length),
+                  'text-gray-500': Math.abs(member.spending - ((trip?.enabledTotalExpenses || 0) / tripMembers.length)) < 0.01,
+                }"
+                class="font-mono"
+              >
+                <span v-if="member.spending > ((trip?.enabledTotalExpenses || 0) / tripMembers.length)">多付</span>
+                <span v-else-if="member.spending < ((trip?.enabledTotalExpenses || 0) / tripMembers.length)">少付</span>
+                <span v-else>已平衡</span>
+                {{ trip?.tripCurrency }} {{ Math.abs(member.spending - ((trip?.enabledTotalExpenses || 0) / tripMembers.length)).toFixed(2) }}
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
     <section class="mt-4">
       <div class="flex items-center justify-between pl-2">
         <h2 class="text-xl font-bold text-indigo-700">
