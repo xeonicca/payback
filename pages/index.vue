@@ -100,9 +100,17 @@ definePageMeta({
               <p class="text-xs text-gray-500 mb-1">
                 總支出
               </p>
+              <!-- Show TWD as primary -->
               <div class="flex items-baseline gap-2">
-                <span class="text-xs font-semibold text-gray-600">{{ trip.tripCurrency }}</span>
+                <span class="text-xs font-semibold text-gray-600">TWD</span>
                 <span class="text-2xl font-bold text-gray-900">
+                  {{ parseFloat((trip.enabledTotalExpenses * trip.exchangeRate).toFixed(2)).toLocaleString() }}
+                </span>
+              </div>
+              <!-- Show original currency below if different from TWD -->
+              <div v-if="trip.tripCurrency !== 'TWD'" class="mt-1 flex items-baseline gap-1.5">
+                <span class="text-xs text-gray-500">{{ trip.tripCurrency }}</span>
+                <span class="text-sm text-gray-600">
                   {{ parseFloat(trip.enabledTotalExpenses.toFixed(2)).toLocaleString() }}
                 </span>
               </div>
