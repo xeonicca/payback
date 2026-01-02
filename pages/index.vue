@@ -11,9 +11,18 @@ const trips = useCollection(tripQuery.withConverter(tripConverter), {
 })
 
 const router = useRouter()
+const searchTerm = ref('')
+
 function navigateTo(path: string) {
   router.push(path)
 }
+
+const filteredTrips = computed(() => {
+  if (!searchTerm.value) return trips.value
+  return trips.value.filter(trip =>
+    trip.name.toLowerCase().includes(searchTerm.value.toLowerCase()),
+  )
+})
 
 definePageMeta({
   middleware: ['auth'],
@@ -21,77 +30,94 @@ definePageMeta({
 </script>
 
 <template>
-  <div>
-    <div class="flex justify-between items-center mb-6">
-      <h1 class="text-xl font-extrabold text-primary">
-        行程一覽
-      </h1>
-      <ui-button
-        color="primary"
-        size="sm"
-        @click="navigateTo('/trips/new')"
-      >
+  <div class="min-h-screen">
+    <!-- Header Section -->
+    <header class="mb-10">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+        <h1 class="text-3xl font-bold text-gray-900">
+          行程一覽
+        </h1>
+        <ui-button
+          class="w-fit"
+          @click="navigateTo('/trips/new')"
+        >
+          <Icon name="lucide-plus" size="20" />
+          新增行程
+        </ui-button>
+      </div>
+
+      <!-- Search Bar -->
+      <div class="relative max-w-md">
+        <Icon name="lucide-search" class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+        <ui-input
+          v-model="searchTerm"
+          type="text"
+          placeholder="搜尋行程..."
+          class="pl-10 w-full"
+        />
+      </div>
+    </header>
+
+    <!-- Empty State -->
+    <div v-if="filteredTrips.length === 0" class="flex flex-col items-center justify-center py-20 text-center">
+      <div class="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mb-4">
+        <Icon name="lucide-search" class="w-8 h-8 text-gray-400" />
+      </div>
+      <h2 class="text-xl font-semibold text-gray-900 mb-2">
+        找不到行程
+      </h2>
+      <p class="text-gray-500 mb-6">
+        試試調整搜尋條件或新增一個行程
+      </p>
+      <ui-button @click="navigateTo('/trips/new')">
         <Icon name="lucide-plus" size="20" />
         新增行程
       </ui-button>
     </div>
 
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+    <!-- Trip Grid -->
+    <div v-else class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
       <div
-        v-for="trip in trips"
+        v-for="trip in filteredTrips"
         :key="trip.id"
-        class="group relative bg-white rounded-xl shadow-sm hover:shadow-xl hover:border-indigo-200 transition-all duration-300 overflow-hidden cursor-pointer"
+        class="group bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 cursor-pointer border border-gray-100 hover:border-indigo-200"
         @click="navigateTo(`/trips/${trip.id}`)"
       >
-        <!-- Gradient Header -->
-        <div class="h-2 bg-gradient-to-r from-blue-500 via-blue-500 to-indigo-700" />
-
-        <!-- Content -->
+        <!-- Card Content -->
         <div class="p-6">
-          <!-- Trip Name and Currency -->
-          <div class="flex items-start justify-between mb-4">
-            <div class="flex items-center gap-3">
-              <div class="flex-shrink-0 w-10 h-10 bg-indigo-100 rounded-lg flex items-center justify-center">
-                <Icon name="lucide-map-pin" class="text-indigo-600" size="20" />
-              </div>
-              <div>
-                <h3 class="font-semibold text-gray-900 text-lg leading-tight group-hover:text-indigo-600 transition-colors">
-                  {{ trip.name }}
-                </h3>
-              </div>
-            </div>
-            <div class="px-2.5 py-1 bg-gray-100 rounded-full">
-              <span class="text-xs font-medium text-gray-600">{{ trip.tripCurrency }}</span>
-            </div>
+          <div class="mb-4">
+            <h3 class="text-lg font-semibold text-gray-900 truncate group-hover:text-indigo-600 transition-colors mb-2">
+              {{ trip.name }}
+            </h3>
+            <p class="text-xs text-gray-500 font-medium flex items-center gap-1">
+              <Icon name="lucide-calendar" class="w-3.5 h-3.5" />
+              {{ trip.createdAtString }}
+            </p>
           </div>
 
-          <!-- Trip Stats -->
-          <div class="space-y-3 mb-6">
-            <div class="flex items-center gap-3">
-              <Icon name="lucide-calendar" class="text-gray-400" size="16" />
-              <span class="text-sm text-gray-600">{{ trip.createdAtString }}</span>
-            </div>
-            <div class="flex items-center gap-3">
-              <Icon name="lucide-receipt" class="text-gray-400" size="16" />
-              <div class="flex items-baseline gap-1">
-                <span class="text-xl font-bold text-gray-900">{{ parseFloat(trip.enabledTotalExpenses.toFixed(2)).toLocaleString() }}</span>
-                <span class="text-sm text-gray-500">{{ trip.tripCurrency }}</span>
+          <div class="flex items-end justify-between pt-4 border-t border-gray-100">
+            <div>
+              <p class="text-xs text-gray-500 mb-1">
+                總支出
+              </p>
+              <div class="flex items-baseline gap-2">
+                <span class="text-xs font-semibold text-gray-600">{{ trip.tripCurrency }}</span>
+                <span class="text-2xl font-bold text-gray-900">
+                  {{ parseFloat(trip.enabledTotalExpenses.toFixed(2)).toLocaleString() }}
+                </span>
               </div>
             </div>
-          </div>
-
-          <!-- Action Area -->
-          <div class="flex items-center justify-between pt-4 border-t border-gray-100">
-            <div class="flex items-center gap-2 text-sm text-gray-500">
-              <Icon name="lucide-eye" size="14" />
-              <span>查看詳情</span>
+            <div class="flex flex-col items-end gap-1">
+              <div class="flex items-center gap-2 text-sm text-indigo-600 font-medium group-hover:gap-3 transition-all">
+                查看
+                <Icon name="lucide-arrow-right" class="w-4 h-4" />
+              </div>
+              <p class="text-xs text-gray-500">
+                {{ trip.expenseCount }} 筆支出
+              </p>
             </div>
-            <Icon name="lucide-arrow-right" class="text-gray-400 group-hover:text-indigo-500 group-hover:translate-x-1 transition-all" size="16" />
           </div>
         </div>
-
-        <!-- Hover Effect Overlay -->
-        <div class="absolute inset-0 bg-gradient-to-r from-indigo-500/5 to-purple-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
       </div>
     </div>
   </div>
