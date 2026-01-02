@@ -197,7 +197,7 @@ exports.analyzeReceiptAndUpdateExpense = onObjectFinalized({
 
     // Configure model with structured output
     const model = ai.getGenerativeModel({
-      model: 'gemini-2.0-flash-exp',
+      model: 'gemini-2.0-flash',
       generationConfig: {
         responseMimeType: 'application/json',
         responseSchema: zodToJsonSchema(receiptSchema),
@@ -213,7 +213,7 @@ exports.analyzeReceiptAndUpdateExpense = onObjectFinalized({
 
     logger.log('Sending request to Gemini API with structured schema...')
     const result = await model.generateContent([
-      generatePrompt(defaultCurrency),
+      { text: generatePrompt(defaultCurrency) },
       imagePart,
     ])
 
