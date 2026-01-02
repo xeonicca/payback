@@ -195,15 +195,6 @@ exports.analyzeReceiptAndUpdateExpense = onObjectFinalized({
     // Download image and convert to base64
     const imageBase64 = await getImageAsBase64(fileBucket, filePath)
 
-    // Configure model with structured output
-    const model = ai.getGenerativeModel({
-      model: 'gemini-2.0-flash',
-      generationConfig: {
-        responseMimeType: 'application/json',
-        responseSchema: zodToJsonSchema(receiptSchema),
-      },
-    })
-
     const imagePart = {
       inlineData: {
         mimeType: contentType,
@@ -212,13 +203,20 @@ exports.analyzeReceiptAndUpdateExpense = onObjectFinalized({
     }
 
     logger.log('Sending request to Gemini API with structured schema...')
-    const result = await model.generateContent([
-      { text: generatePrompt(defaultCurrency) },
-      imagePart,
-    ])
+    const result = await ai.models.generateContent({
+      model: 'gemini-2.0-flash',
+      contents: [
+        { text: generatePrompt(defaultCurrency) },
+        imagePart,
+      ],
+      config: {
+        responseMimeType: 'application/json',
+        responseJsonSchema: zodToJsonSchema(receiptSchema),
+      },
+    })
 
     // Parse the guaranteed JSON response
-    const parsedDataFromAI = JSON.parse(result.response.text())
+    const parsedDataFromAI = JSON.parse(result.text)
     logger.info('Successfully parsed receipt data:', parsedDataFromAI)
 
     // Convert paidAtString to Firestore Timestamp with correct timezone
