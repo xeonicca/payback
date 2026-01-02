@@ -32,10 +32,10 @@ const chartData = computed<ChartDataPoint[]>(() => {
     return acc
   }, {} as Record<string, number>)
 
-  // Convert to array format required by Unovis
+  // Convert to array format and round to 2 decimal places
   return Object.entries(groupedExpenses).sort((a, b) => a[0].localeCompare(b[0])).map(([date, total]) => ({
     x: date,
-    y: total,
+    y: Number.parseFloat(total.toFixed(2)),
   }))
 })
 
@@ -68,10 +68,11 @@ onMounted(() => {
               anchor: 'center',
               align: 'center',
               formatter: (value) => {
-                if (value >= 1000) {
-                  return `${(value / 1000).toFixed(1)}k`
+                const num = Number(value)
+                if (num >= 1000) {
+                  return `${(num / 1000).toFixed(1)}k`
                 }
-                return value
+                return num.toFixed(2)
               },
               font: {
                 weight: 'bold',
@@ -97,7 +98,7 @@ onMounted(() => {
                   if (num >= 1000) {
                     return `${(num / 1000).toFixed(1)}k`
                   }
-                  return num
+                  return num.toFixed(2)
                 },
               },
             },
