@@ -194,82 +194,100 @@ function getDebtAmount(member1Id: string, member2Id: string) {
   </div>
 
   <!-- Debt Relationship Section -->
-  <div v-if="enabledExpenses.length > 0" class="mt-4 space-y-4">
-    <div class="bg-white rounded-sm p-4 space-y-4">
-      <div class="flex items-center justify-between">
-        <h2 class="text-xl font-bold text-indigo-700">
-          債務關係
-        </h2>
-      </div>
+  <div v-if="enabledExpenses.length > 0" class="mt-4 space-y-3">
+    <h2 class="text-xl font-bold text-indigo-700 px-2">
+      債務關係
+    </h2>
 
-      <div class="space-y-2">
-        <div
-          v-for="member in tripMembers"
-          :key="member.id"
-          class="py-2 px-3 bg-amber-50 rounded-lg"
-        >
-          <div class="flex items-center gap-2 mb-2">
-            <span class="text-sm">{{ member.avatarEmoji }}</span>
-            <span class="text-sm font-medium">{{ member.name }}</span>
+    <div class="space-y-3">
+      <div
+        v-for="member in tripMembers"
+        :key="member.id"
+        class="bg-white rounded-lg p-4 border border-gray-100 space-y-3"
+      >
+        <!-- Member Header -->
+        <div class="flex items-center gap-2 pb-3 border-b border-gray-100">
+          <span class="text-lg">{{ member.avatarEmoji }}</span>
+          <span class="text-base font-semibold text-gray-900">{{ member.name }}</span>
+        </div>
+
+        <!-- Summary Stats -->
+        <div class="space-y-2">
+          <div class="flex items-center justify-between py-2 px-3 bg-gray-50 rounded-lg">
+            <span class="text-xs text-gray-600 font-medium">
+              已付款
+            </span>
+            <span class="text-sm font-mono font-semibold text-blue-600">
+              {{ trip?.tripCurrency }} {{ getMemberPaidAmount(member.id).toFixed(2) }}
+            </span>
           </div>
-
-          <!-- Show paid vs owed amounts -->
-          <div class="mb-2 space-y-1">
-            <div class="text-xs flex items-center justify-between">
-              <span class="text-gray-600">已付款:</span>
-              <span class="font-mono text-blue-600">
-                {{ trip?.tripCurrency }} {{ getMemberPaidAmount(member.id).toFixed(2) }}
-              </span>
-            </div>
-            <div class="text-xs flex items-center justify-between">
-              <span class="text-gray-600">應付金額:</span>
-              <span class="font-mono text-green-600">
-                {{ trip?.tripCurrency }} {{ getMemberOwedAmount(member.id).toFixed(2) }}
-              </span>
-            </div>
-            <div class="text-xs flex items-center justify-between border-t pt-1">
-              <span class="font-medium">餘額:</span>
-              <span
-                :class="{
-                  'text-green-600': getMemberBalance(member.id) > 0,
-                  'text-red-600': getMemberBalance(member.id) < 0,
-                  'text-gray-600': getMemberBalance(member.id) === 0,
-                }"
-                class="font-mono font-medium"
-              >
-                {{ trip?.tripCurrency }} {{ getMemberBalance(member.id).toFixed(2) }}
-              </span>
-            </div>
+          <div class="flex items-center justify-between py-2 px-3 bg-gray-50 rounded-lg">
+            <span class="text-xs text-gray-600 font-medium">
+              應付金額
+            </span>
+            <span class="text-sm font-mono font-semibold text-orange-600">
+              {{ trip?.tripCurrency }} {{ getMemberOwedAmount(member.id).toFixed(2) }}
+            </span>
           </div>
+          <div class="flex items-center justify-between py-2 px-3 bg-indigo-50 rounded-lg border border-indigo-100">
+            <span class="text-xs text-gray-700 font-semibold">
+              餘額
+            </span>
+            <span
+              :class="{
+                'text-green-600': getMemberBalance(member.id) > 0,
+                'text-red-600': getMemberBalance(member.id) < 0,
+                'text-gray-700': getMemberBalance(member.id) === 0,
+              }"
+              class="text-sm font-mono font-bold"
+            >
+              {{ trip?.tripCurrency }} {{ getMemberBalance(member.id).toFixed(2) }}
+            </span>
+          </div>
+        </div>
 
-          <!-- Show debt relationships with other members -->
-          <div class="space-y-1">
-            <div class="text-xs text-gray-500 mb-1">
-              與其他成員的債務關係:
-            </div>
+        <!-- Debt Relationships with Other Members -->
+        <div v-if="tripMembers.filter(m => m.id !== member.id).length > 0" class="pt-2 space-y-2">
+          <p class="text-xs font-medium text-gray-600">
+            與其他成員的債務關係
+          </p>
+          <div class="space-y-2">
             <div
               v-for="otherMember in tripMembers.filter(m => m.id !== member.id)"
               :key="otherMember.id"
-              class="text-xs flex items-center justify-between"
+              class="flex items-center justify-between py-2 px-3 bg-gray-50 rounded-lg"
             >
-              <span class="flex items-center gap-1">
-                <span>{{ otherMember.avatarEmoji }}</span>
-                <span>{{ otherMember.name }}</span>
-              </span>
-              <span
-                :class="{
-                  'text-green-600': getDebtAmount(member.id, otherMember.id) > 0,
-                  'text-red-600': getDebtAmount(member.id, otherMember.id) < 0,
-                  'text-gray-500': getDebtAmount(member.id, otherMember.id) === 0,
-                }"
-                class="font-mono"
-              >
-                <span v-if="getDebtAmount(member.id, otherMember.id) > 0">應收</span>
-                <span v-else-if="getDebtAmount(member.id, otherMember.id) < 0">應付</span>
-                <span v-else>已結清</span>
-                <p>{{ trip?.tripCurrency }} {{ Math.abs(getDebtAmount(member.id, otherMember.id)).toFixed(2) }}</p>
-                <p class="text-xs text-indigo-500">{{ trip?.defaultCurrency }} {{ Math.abs(getDebtAmount(member.id, otherMember.id) * (trip?.exchangeRate || 1)).toFixed(2) }}</p>
-              </span>
+              <div class="flex items-center gap-2">
+                <span class="text-sm">{{ otherMember.avatarEmoji }}</span>
+                <span class="text-sm font-medium text-gray-900">{{ otherMember.name }}</span>
+              </div>
+              <div class="text-right">
+                <div
+                  :class="{
+                    'text-green-600': getDebtAmount(member.id, otherMember.id) > 0,
+                    'text-red-600': getDebtAmount(member.id, otherMember.id) < 0,
+                    'text-gray-600': getDebtAmount(member.id, otherMember.id) === 0,
+                  }"
+                  class="text-xs font-semibold"
+                >
+                  <span v-if="getDebtAmount(member.id, otherMember.id) > 0">應收</span>
+                  <span v-else-if="getDebtAmount(member.id, otherMember.id) < 0">應付</span>
+                  <span v-else>已結清</span>
+                </div>
+                <div
+                  :class="{
+                    'text-green-600': getDebtAmount(member.id, otherMember.id) > 0,
+                    'text-red-600': getDebtAmount(member.id, otherMember.id) < 0,
+                    'text-gray-600': getDebtAmount(member.id, otherMember.id) === 0,
+                  }"
+                  class="text-xs font-mono mt-0.5"
+                >
+                  {{ trip?.tripCurrency }} {{ Math.abs(getDebtAmount(member.id, otherMember.id)).toFixed(2) }}
+                </div>
+                <div v-if="trip?.exchangeRate && trip.exchangeRate !== 1" class="text-xs text-gray-500 font-mono mt-0.5">
+                  {{ trip?.defaultCurrency }} {{ Math.abs(getDebtAmount(member.id, otherMember.id) * (trip?.exchangeRate || 1)).toFixed(2) }}
+                </div>
+              </div>
             </div>
           </div>
         </div>
