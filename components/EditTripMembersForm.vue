@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { NewTripMember } from '@/types'
+import type { Expense, TripMember } from '@/types'
 import { toTypedSchema } from '@vee-validate/zod'
 import { useForm } from 'vee-validate'
 import { toast } from 'vue-sonner'
@@ -7,8 +7,9 @@ import * as z from 'zod'
 import { animalEmojis } from '@/constants'
 
 const props = defineProps<{
-  members: NewTripMember[]
-  onMembersChange: (updatedMembers: NewTripMember[]) => void
+  members: TripMember[]
+  expenses: Expense[]
+  onMembersChange: (updatedMembers: TripMember[]) => void
 }>()
 
 const formSchema = z.object({
@@ -50,10 +51,13 @@ const onSubmit = form.handleSubmit((values: FormValues) => {
     return
   }
 
-  const newMember: NewTripMember = {
+  // Create a new member with a temporary ID
+  const newMember: TripMember = {
+    id: `temp-${Date.now()}`,
     name: trimmedName,
     avatarEmoji: values.avatar,
     createdAt: new Date() as any,
+    createdAtString: new Date().toISOString(),
     spending: 0,
     isHost: false,
   }
@@ -71,12 +75,44 @@ const onSubmit = form.handleSubmit((values: FormValues) => {
   }
 })
 
-function handleRemoveMemberFromList(name: string) {
-  const toRemove = props.members.find(m => m.name === name)
-  const updated = props.members.filter(m => m.name !== name)
+function memberHasDebtRelations(memberId: string): boolean {
+  return props.expenses.some((expense) => {
+    // Check if member is the payer
+    if (expense.paidByMemberId === memberId) {
+      return true
+    }
+
+    // Check if member is sharing the expense
+    if (expense.sharedWithMemberIds.includes(memberId)) {
+      return true
+    }
+
+    // Check if member is sharing any items
+    if (expense.items && expense.items.length > 0) {
+      return expense.items.some(item =>
+        item.sharedByMemberIds && item.sharedByMemberIds.includes(memberId),
+      )
+    }
+
+    return false
+  })
+}
+
+function handleRemoveMemberFromList(member: TripMember) {
+  if (member.isHost) {
+    toast.error('Cannot remove the host member')
+    return
+  }
+
+  // Check if member has debt relationships
+  if (memberHasDebtRelations(member.id)) {
+    toast.error(`Cannot remove ${member.name} - member has expense relationships`)
+    return
+  }
+
+  const updated = props.members.filter(m => m.id !== member.id)
   props.onMembersChange(updated)
-  if (toRemove)
-    toast.success(`Removed ${toRemove.name} from the trip`)
+  toast.success(`Removed ${member.name} from the trip`)
 }
 </script>
 
@@ -147,7 +183,7 @@ function handleRemoveMemberFromList(name: string) {
       <ul class="divide-y divide-gray-200 border rounded-md max-h-60 overflow-y-auto">
         <li
           v-for="member in members"
-          :key="member.name"
+          :key="member.id"
           class="p-3 flex items-center justify-between hover:bg-gray-50"
         >
           <div class="flex items-center space-x-3">
@@ -160,13 +196,24 @@ function handleRemoveMemberFromList(name: string) {
             </div>
           </div>
           <ui-button
-            v-if="!member.isHost"
+            v-if="!member.isHost && !memberHasDebtRelations(member.id)"
             type="button"
             variant="ghost"
             size="icon"
             class="text-red-500 hover:text-red-700 hover:bg-red-100"
             title="Remove member"
-            @click="handleRemoveMemberFromList(member.name)"
+            @click="handleRemoveMemberFromList(member)"
+          >
+            <icon name="lucide:circle-x" :size="20" />
+          </ui-button>
+          <ui-button
+            v-else-if="!member.isHost && memberHasDebtRelations(member.id)"
+            type="button"
+            variant="ghost"
+            size="icon"
+            class="text-gray-400 cursor-not-allowed"
+            title="Cannot remove - member has expense relationships"
+            disabled
           >
             <icon name="lucide:circle-x" :size="20" />
           </ui-button>

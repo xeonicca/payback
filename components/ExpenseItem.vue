@@ -37,7 +37,7 @@ const paidByMember = computed(() => props.tripMembers.find(member => member.id =
         </p>
       </div>
 
-      <div class="text-base font-mono w-[100px] text-right self-end text-green-600">
+      <div class="text-base font-mono w-[120px] md:w-[200px] text-right self-end text-green-600">
         {{ trip.tripCurrency }} {{ expense.grandTotal.toFixed(2) }}
       </div>
     </div>

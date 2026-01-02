@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git add:*)",
+      "Bash(git commit -m \"$\\(cat <<''EOF''\nfix: resolve floating point precision issues in monetary displays\n\nApplied .toFixed\\(2\\) formatting to all monetary values throughout the application to prevent JavaScript floating point precision errors \\(e.g., displaying 5461.9800000000005 instead of 5461.98\\).\n\nAlso added CLAUDE.md documentation file for future Claude Code instances.\n\n🤖 Generated with [Claude Code]\\(https://claude.com/claude-code\\)\n\nCo-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>\nEOF\n\\)\")",
+      "Bash(cat:*)",
+      "Bash(git commit:*)",
+      "Bash(git diff:*)",
+      "Bash(pnpm install:*)",
+      "Bash(pnpm test:*)",
+      "Bash(firebase deploy:*)",
+      "WebFetch(domain:ai.google.dev)",
+      "WebSearch"
+    ]
+  }
+}
