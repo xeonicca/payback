@@ -96,45 +96,60 @@ if (!trip.value) {
           結算建議
         </h2>
       </div>
+
+      <!-- Summary Cards -->
+      <div class="grid grid-cols-2 gap-3">
+        <div class="bg-white rounded-lg p-4 border border-gray-100">
+          <p class="text-xs text-gray-500 mb-1">
+            總支出
+          </p>
+          <p class="text-xl font-bold text-gray-900 font-mono">
+            {{ trip?.tripCurrency }} {{ (trip?.enabledTotalExpenses || 0).toFixed(2) }}
+          </p>
+        </div>
+        <div class="bg-white rounded-lg p-4 border border-gray-100">
+          <p class="text-xs text-gray-500 mb-1">
+            平均每人
+          </p>
+          <p class="text-xl font-bold text-indigo-600 font-mono">
+            {{ trip?.tripCurrency }} {{ tripMembers.length > 0 ? ((trip?.enabledTotalExpenses || 0) / tripMembers.length).toFixed(2) : '0.00' }}
+          </p>
+        </div>
+      </div>
+
+      <!-- Member Balances -->
       <div class="space-y-2">
-        <div class="py-3 px-3 bg-amber-50 rounded-lg">
-          <div class="text-sm text-gray-700 mb-2">
-            <span class="font-medium">總支出:</span>
-            <span class="font-mono ml-1 text-indigo-600">
-              {{ trip?.tripCurrency }} {{ (trip?.enabledTotalExpenses || 0).toFixed(2) }}
-            </span>
+        <div
+          v-for="member in tripMembers"
+          :key="member.id"
+          class="flex items-center justify-between py-2.5 px-3 bg-white rounded-lg border border-gray-100"
+        >
+          <div class="flex items-center gap-2">
+            <span class="text-sm">{{ member.avatarEmoji }}</span>
+            <span class="text-sm font-medium text-gray-900">{{ member.name }}</span>
           </div>
-
-          <div class="text-sm text-gray-700 mb-2">
-            <span class="font-medium">平均每人:</span>
-            <span class="font-mono ml-1 text-indigo-600">
-              {{ trip?.tripCurrency }} {{ tripMembers.length > 0 ? ((trip?.enabledTotalExpenses || 0) / tripMembers.length).toFixed(2) : '0.00' }}
-            </span>
-          </div>
-
-          <div class="space-y-1">
+          <div class="text-right">
             <div
-              v-for="member in tripMembers"
-              :key="member.id"
-              class="text-xs flex items-center justify-between"
+              :class="{
+                'text-green-600': member.spending > ((trip?.enabledTotalExpenses || 0) / tripMembers.length),
+                'text-red-600': member.spending < ((trip?.enabledTotalExpenses || 0) / tripMembers.length),
+                'text-gray-600': Math.abs(member.spending - ((trip?.enabledTotalExpenses || 0) / tripMembers.length)) < 0.01,
+              }"
+              class="text-sm font-semibold"
             >
-              <span class="flex items-center gap-1">
-                <span>{{ member.avatarEmoji }}</span>
-                <span>{{ member.name }}</span>
-              </span>
-              <span
-                :class="{
-                  'text-green-600': member.spending > ((trip?.enabledTotalExpenses || 0) / tripMembers.length),
-                  'text-red-600': member.spending < ((trip?.enabledTotalExpenses || 0) / tripMembers.length),
-                  'text-gray-500': Math.abs(member.spending - ((trip?.enabledTotalExpenses || 0) / tripMembers.length)) < 0.01,
-                }"
-                class="font-mono"
-              >
-                <span v-if="member.spending > ((trip?.enabledTotalExpenses || 0) / tripMembers.length)">多付</span>
-                <span v-else-if="member.spending < ((trip?.enabledTotalExpenses || 0) / tripMembers.length)">少付</span>
-                <span v-else>已平衡</span>
-                {{ trip?.tripCurrency }} {{ Math.abs(member.spending - ((trip?.enabledTotalExpenses || 0) / tripMembers.length)).toFixed(2) }}
-              </span>
+              <span v-if="member.spending > ((trip?.enabledTotalExpenses || 0) / tripMembers.length)">多付</span>
+              <span v-else-if="member.spending < ((trip?.enabledTotalExpenses || 0) / tripMembers.length)">少付</span>
+              <span v-else>已平衡</span>
+            </div>
+            <div
+              :class="{
+                'text-green-600': member.spending > ((trip?.enabledTotalExpenses || 0) / tripMembers.length),
+                'text-red-600': member.spending < ((trip?.enabledTotalExpenses || 0) / tripMembers.length),
+                'text-gray-600': Math.abs(member.spending - ((trip?.enabledTotalExpenses || 0) / tripMembers.length)) < 0.01,
+              }"
+              class="text-xs font-mono mt-0.5"
+            >
+              {{ trip?.tripCurrency }} {{ Math.abs(member.spending - ((trip?.enabledTotalExpenses || 0) / tripMembers.length)).toFixed(2) }}
             </div>
           </div>
         </div>
