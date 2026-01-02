@@ -161,9 +161,16 @@ if (!trip.value) {
         <h2 class="text-xl font-bold text-indigo-700">
           近期支出紀錄
         </h2>
-        <ui-button size="sm" @click="openAddExpenseDrawer = true">
+        <ui-button
+          v-if="!trip.archived"
+          size="sm"
+          @click="openAddExpenseDrawer = true"
+        >
           <icon name="lucide:plus" size="16" />
         </ui-button>
+        <ui-badge v-else variant="secondary" class="text-xs">
+          已封存
+        </ui-badge>
       </div>
       <div v-if="enabledExpenses.length > 0" class="mt-2 pb-4 px-4 pt-2 space-y-1 bg-white rounded-sm">
         <template v-for="expense in enabledExpenses" :key="expense.id">

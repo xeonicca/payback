@@ -19,10 +19,15 @@ const openUploadReceiptDrawer = ref(false)
         <icon name="lucide:chart-column-big" size="20" class="text-slate-200" />
       </nuxt-link>
       <div
-        class="flex items-center justify-center w-14 h-14 rounded-full bg-amber-500 shadow-lg -mt-8"
-        @click="openUploadReceiptDrawer = true"
+        :class="{
+          'bg-amber-500 cursor-pointer': trip && !trip.archived,
+          'bg-gray-400 cursor-not-allowed': trip?.archived,
+        }"
+        class="flex items-center justify-center w-14 h-14 rounded-full shadow-lg -mt-8"
+        @click="!trip?.archived && (openUploadReceiptDrawer = true)"
       >
-        <icon v-if="trip" name="lucide:zap" size="24" class="text-white" />
+        <icon v-if="trip?.archived" name="lucide:archive" size="24" class="text-white" />
+        <icon v-else-if="trip" name="lucide:zap" size="24" class="text-white" />
         <icon v-else name="lucide:loader-circle" size="24" class="text-white animate-spin" />
       </div>
       <nuxt-link class="size-10 flex items-center justify-center" :to="`/trips/${tripId}/expenses`">

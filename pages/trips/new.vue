@@ -81,6 +81,7 @@ const onSubmit = handleSubmit(async (values) => {
       createdAt: serverTimestamp(),
       userId: sessionUser.value!.uid,
       expenseCount: 0,
+      archived: false,
     }
 
     const docRef = await writeTrip(tripData)

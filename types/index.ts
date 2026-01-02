@@ -32,6 +32,7 @@ export interface NewTrip {
   defaultCurrency: string
   userId: string
   createdAt: Timestamp | FieldValue
+  archived?: boolean
 }
 
 export interface Trip extends NewTrip {
@@ -40,6 +41,7 @@ export interface Trip extends NewTrip {
   totalExpenses: number
   enabledTotalExpenses: number
   disabledTotalExpenses: number
+  archived: boolean
 }
 
 export interface ExpenseDetailItem {

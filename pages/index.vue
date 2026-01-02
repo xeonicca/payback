@@ -86,9 +86,15 @@ definePageMeta({
         <!-- Card Content -->
         <div class="p-6">
           <div class="mb-4">
-            <h3 class="text-lg font-semibold text-gray-900 truncate group-hover:text-indigo-600 transition-colors mb-2">
-              {{ trip.name }}
-            </h3>
+            <div class="flex items-center gap-2 mb-2">
+              <h3 class="text-lg font-semibold text-gray-900 truncate group-hover:text-indigo-600 transition-colors flex-1">
+                {{ trip.name }}
+              </h3>
+              <ui-badge v-if="trip.archived" variant="secondary" class="text-xs shrink-0">
+                <Icon name="lucide:archive" class="w-3 h-3 mr-1" />
+                已封存
+              </ui-badge>
+            </div>
             <p class="text-xs text-gray-500 font-medium flex items-center gap-1">
               <Icon name="lucide-calendar" class="w-3.5 h-3.5" />
               {{ trip.createdAtString }}

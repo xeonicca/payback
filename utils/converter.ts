@@ -28,6 +28,7 @@ export const tripConverter: FirestoreDataConverter<Trip> = {
       enabledTotalExpenses: data.enabledTotalExpenses || 0,
       disabledTotalExpenses: data.disabledTotalExpenses || 0,
       expenseCount: data.expenseCount || 0,
+      archived: data.archived || false,
     } as Trip
   },
 }

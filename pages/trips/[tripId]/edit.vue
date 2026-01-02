@@ -66,6 +66,8 @@ const exchangeRateToTwd = computed(() => {
 })
 
 const isSubmitting = ref(false)
+const isArchiving = ref(false)
+const showArchiveWarning = ref(false)
 
 // Track members locally for add/remove operations
 const localMembers = ref<TripMember[]>([])
@@ -197,14 +199,57 @@ function handleReset() {
 
   toast.success('Form reset to original values')
 }
+
+function handleArchiveClick() {
+  if (!trip.value) return
+
+  // If already archived, unarchive directly
+  if (trip.value.archived) {
+    handleArchiveToggle()
+  }
+  else {
+    // Show warning before archiving
+    showArchiveWarning.value = true
+  }
+}
+
+async function handleArchiveToggle() {
+  if (!trip.value) return
+
+  const newArchivedState = !trip.value.archived
+
+  try {
+    isArchiving.value = true
+
+    const tripRef = doc(db, 'trips', tripId)
+    await updateDoc(tripRef, {
+      archived: newArchivedState,
+    })
+
+    toast.success(newArchivedState ? 'Trip archived successfully' : 'Trip unarchived successfully')
+    showArchiveWarning.value = false
+  }
+  catch (error) {
+    console.error('Error toggling archive:', error)
+    toast.error('Failed to update trip archive status')
+  }
+  finally {
+    isArchiving.value = false
+  }
+}
 </script>
 
 <template>
   <form class="max-w-2xl mx-auto bg-white p-8 rounded-lg shadow-xl space-y-6" @submit.prevent="onSubmit">
     <div class="flex items-center justify-between pb-4">
-      <h2 class="text-lg font-semibold text-gray-700 m-0">
-        編輯行程
-      </h2>
+      <div class="flex items-center gap-3">
+        <h2 class="text-lg font-semibold text-gray-700 m-0">
+          編輯行程
+        </h2>
+        <ui-badge v-if="trip?.archived" variant="secondary" class="text-xs">
+          已封存
+        </ui-badge>
+      </div>
       <ui-button
         type="button"
         variant="ghost"
@@ -215,12 +260,27 @@ function handleReset() {
       </ui-button>
     </div>
 
+    <!-- Archived Notice -->
+    <div v-if="trip?.archived" class="p-4 bg-amber-50 border border-amber-200 rounded-lg">
+      <div class="flex items-start gap-3">
+        <Icon name="lucide:archive" class="w-5 h-5 text-amber-600 mt-0.5" />
+        <div class="flex-1">
+          <h3 class="text-sm font-semibold text-amber-900 m-0 mb-1">
+            此行程已封存
+          </h3>
+          <p class="text-sm text-amber-700 m-0">
+            封存的行程無法編輯或新增支出。現有支出仍可編輯。如需修改行程設定，請先取消封存。
+          </p>
+        </div>
+      </div>
+    </div>
+
     <div class="space-y-4">
       <ui-form-field v-slot="{ componentField }" name="name" :validate-on-blur="!isFieldDirty">
         <ui-form-item>
           <ui-form-label>行程名稱</ui-form-label>
           <ui-form-control>
-            <ui-input type="text" placeholder="日本東京旅遊" v-bind="componentField" />
+            <ui-input type="text" placeholder="日本東京旅遊" :disabled="trip?.archived" v-bind="componentField" />
           </ui-form-control>
           <ui-form-message />
         </ui-form-item>
@@ -229,7 +289,7 @@ function handleReset() {
       <ui-form-field v-slot="{ componentField }" name="tripCurrency" :validate-on-blur="!isFieldDirty">
         <ui-form-item>
           <ui-form-label>行程幣值</ui-form-label>
-          <ui-select v-bind="componentField">
+          <ui-select v-bind="componentField" :disabled="trip?.archived">
             <ui-form-control>
               <ui-select-trigger class="w-full">
                 <ui-select-value placeholder="請選擇幣值" />
@@ -251,7 +311,7 @@ function handleReset() {
         <ui-form-item>
           <ui-form-label>對台幣的匯率</ui-form-label>
           <ui-form-control>
-            <ui-input type="number" step=".00001" :placeholder="exchangeRateToTwd.toString()" v-bind="componentField" />
+            <ui-input type="number" step=".00001" :placeholder="exchangeRateToTwd.toString()" :disabled="trip?.archived" v-bind="componentField" />
           </ui-form-control>
           <ui-form-description>
             1 {{ values.tripCurrency }} = {{ exchangeRateToTwd }} TWD
@@ -262,13 +322,13 @@ function handleReset() {
     </div>
 
     <edit-trip-members-form
-      v-if="localMembers.length > 0"
+      v-if="localMembers.length > 0 && !trip?.archived"
       :members="localMembers"
       :expenses="enabledExpenses"
       :on-members-change="onMembersChange"
     />
 
-    <div class="flex gap-3">
+    <div v-if="!trip?.archived" class="flex gap-3">
       <ui-button
         type="button"
         variant="outline"
@@ -287,5 +347,108 @@ function handleReset() {
         {{ isSubmitting ? '更新中...' : '更新行程' }}
       </ui-button>
     </div>
+
+    <!-- Archive Section -->
+    <div class="pt-6 border-t border-gray-200">
+      <div class="space-y-4">
+        <div>
+          <h3 class="text-base font-semibold text-gray-900 m-0 mb-2">
+            {{ trip?.archived ? '取消封存行程' : '封存行程' }}
+          </h3>
+          <p class="text-sm text-gray-600 m-0 mb-4">
+            {{ trip?.archived
+              ? '取消封存後，您可以繼續編輯行程資訊和新增支出。'
+              : '封存行程後，將無法編輯行程資訊或新增新支出。現有支出仍可編輯。'
+            }}
+          </p>
+        </div>
+        <ui-button
+          type="button"
+          :variant="trip?.archived ? 'default' : 'destructive'"
+          :disabled="isArchiving"
+          @click="handleArchiveClick"
+        >
+          <Icon :name="trip?.archived ? 'lucide:archive-restore' : 'lucide:archive'" :size="16" class="mr-2" />
+          {{ isArchiving ? '處理中...' : (trip?.archived ? '取消封存行程' : '封存行程') }}
+        </ui-button>
+      </div>
+    </div>
   </form>
+
+  <!-- Archive Warning Drawer -->
+  <ui-drawer v-model:open="showArchiveWarning">
+    <ui-drawer-content>
+      <div class="mx-auto w-full max-w-md p-6">
+        <div class="space-y-6">
+          <!-- Warning Icon -->
+          <div class="flex justify-center">
+            <div class="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center">
+              <Icon name="lucide:alert-triangle" class="w-8 h-8 text-red-600" />
+            </div>
+          </div>
+
+          <!-- Warning Title -->
+          <div class="text-center space-y-2">
+            <h2 class="text-xl font-bold text-gray-900 m-0">
+              確定要封存此行程？
+            </h2>
+            <p class="text-sm text-gray-600 m-0">
+              此操作會限制行程的編輯功能
+            </p>
+          </div>
+
+          <!-- Warning Content -->
+          <div class="space-y-3 bg-amber-50 border border-amber-200 rounded-lg p-4">
+            <div class="flex items-start gap-2">
+              <Icon name="lucide:x-circle" class="w-5 h-5 text-amber-600 mt-0.5 shrink-0" />
+              <p class="text-sm text-gray-700 m-0">
+                <strong>無法新增支出：</strong>封存後將無法新增任何新的支出記錄
+              </p>
+            </div>
+            <div class="flex items-start gap-2">
+              <Icon name="lucide:x-circle" class="w-5 h-5 text-amber-600 mt-0.5 shrink-0" />
+              <p class="text-sm text-gray-700 m-0">
+                <strong>無法編輯行程：</strong>行程名稱、幣值、匯率和成員將無法修改
+              </p>
+            </div>
+            <div class="flex items-start gap-2">
+              <Icon name="lucide:check-circle" class="w-5 h-5 text-green-600 mt-0.5 shrink-0" />
+              <p class="text-sm text-gray-700 m-0">
+                <strong>可以編輯現有支出：</strong>已存在的支出仍可查看和編輯
+              </p>
+            </div>
+            <div class="flex items-start gap-2">
+              <Icon name="lucide:info" class="w-5 h-5 text-blue-600 mt-0.5 shrink-0" />
+              <p class="text-sm text-gray-700 m-0">
+                <strong>可以取消封存：</strong>之後可以在編輯頁面取消封存來恢復編輯功能
+              </p>
+            </div>
+          </div>
+
+          <!-- Action Buttons -->
+          <div class="flex gap-3">
+            <ui-button
+              type="button"
+              variant="outline"
+              class="flex-1"
+              :disabled="isArchiving"
+              @click="showArchiveWarning = false"
+            >
+              取消
+            </ui-button>
+            <ui-button
+              type="button"
+              variant="destructive"
+              class="flex-1"
+              :disabled="isArchiving"
+              @click="handleArchiveToggle"
+            >
+              <Icon name="lucide:archive" :size="16" class="mr-2" />
+              {{ isArchiving ? '處理中...' : '確定封存' }}
+            </ui-button>
+          </div>
+        </div>
+      </div>
+    </ui-drawer-content>
+  </ui-drawer>
 </template>
