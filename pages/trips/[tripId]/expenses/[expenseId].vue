@@ -200,9 +200,9 @@ function closeEditDialog() {
 <template>
   <div class="flex items-end justify-between gap-2 bg-slate-200 mb-2">
     <h1 class="text-2xl font-bold text-indigo-700">
-      {{ trip?.tripCurrency }} {{ expense?.grandTotal }}
+      {{ trip?.tripCurrency }} {{ expense?.grandTotal.toFixed(2) }}
       <p class="text-sm text-slate-700 inline-flex items-center gap-1">
-        <Icon name="lucide:equal-approximately" class="text-slate-700" /> {{ trip?.defaultCurrency }} {{ convertToDefaultCurrency }}
+        <Icon name="lucide:equal-approximately" class="text-slate-700" /> {{ trip?.defaultCurrency }} {{ convertToDefaultCurrency.toFixed(2) }}
       </p>
     </h1>
     <ui-button
@@ -289,7 +289,7 @@ function closeEditDialog() {
                   <div class="flex-1">
                     <span class="font-mono">{{ item.itemName }}</span>
                     <p class="text-gray-500">
-                      ({{ trip?.tripCurrency }} {{ item.itemPrice }} × {{ item.itemQuantity }} ÷ {{ item.sharingMembers.length }}人)
+                      ({{ trip?.tripCurrency }} {{ item.itemPrice.toFixed(2) }} × {{ item.itemQuantity }} ÷ {{ item.sharingMembers.length }}人)
                     </p>
                   </div>
                   <div class="text-right font-mono text-green-600">
@@ -322,7 +322,7 @@ function closeEditDialog() {
             </div>
             <div class="text-right">
               <div class="text-sm font-mono text-blue-600">
-                已付款 {{ trip?.tripCurrency }} {{ expense?.grandTotal }}
+                已付款 {{ trip?.tripCurrency }} {{ expense?.grandTotal.toFixed(2) }}
               </div>
             </div>
           </div>

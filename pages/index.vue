@@ -74,7 +74,7 @@ definePageMeta({
             <div class="flex items-center gap-3">
               <Icon name="lucide-receipt" class="text-gray-400" size="16" />
               <div class="flex items-baseline gap-1">
-                <span class="text-xl font-bold text-gray-900">{{ trip.enabledTotalExpenses.toLocaleString() }}</span>
+                <span class="text-xl font-bold text-gray-900">{{ parseFloat(trip.enabledTotalExpenses.toFixed(2)).toLocaleString() }}</span>
                 <span class="text-sm text-gray-500">{{ trip.tripCurrency }}</span>
               </div>
             </div>

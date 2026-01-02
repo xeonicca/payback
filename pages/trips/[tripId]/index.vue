@@ -47,10 +47,10 @@ if (!trip.value) {
         </p>
       </h1>
       <div class="font-bold flex flex-col items-end">
-        <span class="text-xl text-indigo-700 font-bold">{{ trip.tripCurrency }} {{ trip.enabledTotalExpenses }}</span>
+        <span class="text-xl text-indigo-700 font-bold">{{ trip.tripCurrency }} {{ trip.enabledTotalExpenses.toFixed(2) }}</span>
         <span class="text-sm text-slate-600 inline-flex items-center gap-1">
           <Icon name="lucide:equal-approximately" class="text-slate-600" size="16" />
-          {{ trip.defaultCurrency }} {{ convertToDefaultCurrency }}
+          {{ trip.defaultCurrency }} {{ convertToDefaultCurrency.toFixed(2) }}
         </span>
       </div>
     </div>
@@ -101,7 +101,7 @@ if (!trip.value) {
           <div class="text-sm text-gray-700 mb-2">
             <span class="font-medium">總支出:</span>
             <span class="font-mono ml-1 text-indigo-600">
-              {{ trip?.tripCurrency }} {{ trip?.enabledTotalExpenses || '0.00' }}
+              {{ trip?.tripCurrency }} {{ (trip?.enabledTotalExpenses || 0).toFixed(2) }}
             </span>
           </div>
 

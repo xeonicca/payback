@@ -38,7 +38,7 @@ const paidByMember = computed(() => props.tripMembers.find(member => member.id =
       </div>
 
       <div class="text-base font-mono w-[100px] text-right self-end text-green-600">
-        {{ trip.tripCurrency }} {{ expense.grandTotal }}
+        {{ trip.tripCurrency }} {{ expense.grandTotal.toFixed(2) }}
       </div>
     </div>
   </nuxt-link>
