@@ -11,6 +11,7 @@ definePageMeta({
 const db = useFirestore()
 const { tripId } = useRoute().params
 const showHiddenExpenses = ref(false)
+const searchTerm = ref('')
 const router = useRouter()
 
 const trip = useDocument<Trip>(doc(db, 'trips', tripId as string).withConverter(tripConverter))
@@ -18,10 +19,37 @@ const { tripExpenses, enabledExpenses } = useTripExpenses(tripId as string)
 const { tripMembers } = useTripMembers(tripId as string)
 
 const displayedExpenses = computed(() => {
-  if (showHiddenExpenses.value) {
-    return tripExpenses.value
+  let expenses = showHiddenExpenses.value ? tripExpenses.value : enabledExpenses.value
+
+  // Apply search filter
+  if (searchTerm.value) {
+    const search = searchTerm.value.trim()
+    expenses = expenses.filter((expense) => {
+      // Check for amount conditions (>, <)
+      const gtMatch = search.match(/^>\s*(\d+\.?\d*)$/)
+      const ltMatch = search.match(/^<\s*(\d+\.?\d*)$/)
+
+      if (gtMatch) {
+        // Greater than condition
+        const threshold = Number.parseFloat(gtMatch[1])
+        return expense.grandTotal > threshold
+      }
+      else if (ltMatch) {
+        // Less than condition
+        const threshold = Number.parseFloat(ltMatch[1])
+        return expense.grandTotal < threshold
+      }
+      else {
+        // Regular search by description or amount
+        const searchLower = search.toLowerCase()
+        const matchesDescription = expense.description.toLowerCase().includes(searchLower)
+        const matchesAmount = expense.grandTotal.toString().includes(searchLower)
+        return matchesDescription || matchesAmount
+      }
+    })
   }
-  return enabledExpenses.value
+
+  return expenses
 })
 
 // Helper function to calculate how much a member has paid (sum of expenses they paid for)
@@ -119,7 +147,7 @@ function getDebtAmount(member1Id: string, member2Id: string) {
   >
     <icon name="lucide:arrow-left" size="16" /> 回到旅程
   </ui-button>
-  <div v-if="tripExpenses.length" class="space-y-2 bg-white rounded-sm p-4">
+  <div v-if="tripExpenses.length" class="space-y-3 bg-white rounded-sm p-4">
     <div class="flex justify-between items-center">
       <div class="text-sm text-gray-500 min-w-[100px]">
         購買明細 ({{ tripExpenses.length }} 筆)
@@ -132,11 +160,36 @@ function getDebtAmount(member1Id: string, member2Id: string) {
       </div>
     </div>
 
-    <div>
+    <!-- Search Bar -->
+    <div class="relative">
+      <Icon name="lucide-search" class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+      <ui-input
+        v-model="searchTerm"
+        type="text"
+        placeholder="搜尋描述、金額或條件 (例: >100, <500)..."
+        class="pl-10 w-full"
+      />
+    </div>
+
+    <!-- Expense List -->
+    <div v-if="displayedExpenses.length > 0">
       <template v-for="expense in displayedExpenses" :key="expense.id">
         <expense-item :expense="expense" :trip-members="tripMembers" :trip="trip!" />
         <ui-separator />
       </template>
+    </div>
+
+    <!-- Empty State -->
+    <div v-else class="flex flex-col items-center justify-center py-12 text-center">
+      <div class="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-3">
+        <Icon name="lucide-search" class="w-6 h-6 text-gray-400" />
+      </div>
+      <p class="text-sm text-gray-600 font-medium mb-1">
+        找不到符合的支出
+      </p>
+      <p class="text-xs text-gray-500">
+        試試調整搜尋條件
+      </p>
     </div>
   </div>
 
