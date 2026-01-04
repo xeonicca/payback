@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { toast } from 'vue-sonner'
-import { usePendingPromises } from 'vuefire'
 
 definePageMeta({
   middleware: ['auth'],
@@ -13,7 +12,6 @@ const { trip } = useTrip(tripId as string)
 const { tripMembers, hostMember } = useTripMembers(tripId as string)
 const { enabledExpenses } = useTripExpenses(tripId as string, 5)
 const { canManageExpenses, isCollaborator } = useTripCollaborators(tripId as string)
-await usePendingPromises()
 
 const openAddExpenseDrawer = ref(false)
 
@@ -24,10 +22,13 @@ const convertToDefaultCurrency = computed(() => {
   return Math.round(trip.value.enabledTotalExpenses * trip.value.exchangeRate * 100) / 100
 })
 
-if (!trip.value) {
-  toast.error('行程不存在')
-  navigateTo('/')
-}
+// Check if trip exists after data loads
+watch(trip, (tripValue) => {
+  if (tripValue === null) {
+    toast.error('行程不存在')
+    navigateTo('/')
+  }
+}, { once: true })
 </script>
 
 <template>

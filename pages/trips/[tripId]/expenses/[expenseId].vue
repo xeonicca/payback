@@ -4,7 +4,7 @@ import { computedAsync } from '@vueuse/core'
 import { doc, updateDoc } from 'firebase/firestore'
 import { getDownloadURL, ref as storageRef } from 'firebase/storage'
 import { toast } from 'vue-sonner'
-import { useDocument, useFirebaseStorage, useFirestore, usePendingPromises } from 'vuefire'
+import { useDocument, useFirebaseStorage, useFirestore } from 'vuefire'
 import EditExpenseForm from '@/components/EditExpenseForm.vue'
 import ExpenseDetailItem from '@/components/ExpenseDetailItem.vue'
 import { useTripMembers } from '@/composables/useTripMember'
@@ -18,16 +18,25 @@ definePageMeta({
 const db = useFirestore()
 const { tripId, expenseId } = useRoute().params
 
-const trip = useDocument<Trip>(doc(db, 'trips', tripId as string).withConverter(tripConverter))
-const expense = useDocument<Expense>(doc(db, 'trips', tripId as string, 'expenses', expenseId as string).withConverter(expenseConverter))
+// Client-only to avoid SSR permission issues
+const trip = process.client
+  ? useDocument<Trip>(doc(db, 'trips', tripId as string).withConverter(tripConverter))
+  : ref<Trip | null>(null)
+
+const expense = process.client
+  ? useDocument<Expense>(doc(db, 'trips', tripId as string, 'expenses', expenseId as string).withConverter(expenseConverter))
+  : ref<Expense | null>(null)
+
 const { tripMembers } = useTripMembers(tripId as string)
 const sharedMembers = computed(() => tripMembers.value?.filter(member => expense.value?.sharedWithMemberIds.includes(member.id)))
-await usePendingPromises()
 
-if (!trip.value || !expense.value) {
-  toast.error('支出不存在')
-  navigateTo(`/trips/${tripId}`)
-}
+// Check if trip/expense exists after data loads
+watch([trip, expense], ([tripValue, expenseValue]) => {
+  if (tripValue === null || expenseValue === null) {
+    toast.error('支出不存在')
+    navigateTo(`/trips/${tripId}`)
+  }
+}, { once: true })
 
 const showEditDialog = ref(false)
 

@@ -14,7 +14,11 @@ const showHiddenExpenses = ref(false)
 const searchTerm = ref('')
 const router = useRouter()
 
-const trip = useDocument<Trip>(doc(db, 'trips', tripId as string).withConverter(tripConverter))
+// Client-only to avoid SSR permission issues
+const trip = process.client
+  ? useDocument<Trip>(doc(db, 'trips', tripId as string).withConverter(tripConverter))
+  : ref<Trip | null>(null)
+
 const { tripExpenses, enabledExpenses } = useTripExpenses(tripId as string)
 const { tripMembers } = useTripMembers(tripId as string)
 

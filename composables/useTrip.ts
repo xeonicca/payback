@@ -5,8 +5,11 @@ import { tripConverter } from '@/utils/converter'
 
 export function useTrip(tripId: string) {
   const db = useFirestore()
-  const trip = useDocument<Trip>(doc(db, 'trips', tripId).withConverter(tripConverter))
 
+  // Client-only to avoid SSR permission issues
+  const trip = process.client
+    ? useDocument<Trip>(doc(db, 'trips', tripId).withConverter(tripConverter))
+    : ref(null)
 
   return {
     trip,

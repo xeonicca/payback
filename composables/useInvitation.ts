@@ -83,9 +83,10 @@ export function useInvitation() {
       where('invitationCode', '==', invitationCode),
     ).withConverter(invitationConverter)
 
-    const invitations = useCollection<Invitation>(invitationsQuery, {
-      ssrKey: `invitation-${invitationCode}`,
-    })
+    // Client-only query to avoid SSR auth issues
+    const invitations = process.client
+      ? useCollection<Invitation>(invitationsQuery)
+      : ref([])
 
     const invitation = computed(() => invitations.value[0] || null)
 

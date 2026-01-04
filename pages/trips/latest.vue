@@ -1,23 +1,34 @@
 <script setup lang="ts">
-import { collection, limit, orderBy, query } from 'firebase/firestore'
-import { useCollection, useFirestore, usePendingPromises } from 'vuefire'
+import { collection, limit, orderBy, query, where } from 'firebase/firestore'
+import { useCollection, useFirestore } from 'vuefire'
 
 const db = useFirestore()
 const router = useRouter()
+const sessionUser = useSessionUser()
 
-const tripsCollection = collection(db, 'trips')
-const tripsQuery = query(tripsCollection, orderBy('createdAt', 'desc'), limit(1))
-const trips = useCollection(tripsQuery, { ssrKey: 'find-latest-trip' })
-await usePendingPromises()
+const tripsQuery = computed(() => {
+  if (!sessionUser.value?.uid) return null
+  return query(
+    collection(db, 'trips'),
+    where('userId', '==', sessionUser.value.uid),
+    orderBy('createdAt', 'desc'),
+    limit(1),
+  )
+})
 
-onMounted(() => {
-  if (trips.value.length === 0) {
+// Client-only to avoid SSR permission issues
+const trips = process.client
+  ? useCollection(tripsQuery)
+  : ref([])
+
+watch(trips, (tripsList) => {
+  if (tripsList.length === 0) {
     router.push('/trips/new')
   }
-  else {
-    router.push(`/trips/${trips.value[0].id}`)
+  else if (tripsList.length > 0) {
+    router.push(`/trips/${tripsList[0].id}`)
   }
-})
+}, { immediate: true })
 </script>
 
 <template>

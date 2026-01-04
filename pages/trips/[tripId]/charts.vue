@@ -3,7 +3,6 @@ import type { Expense } from '@/types'
 import { Chart, registerables } from 'chart.js'
 import ChartDataLabels from 'chartjs-plugin-datalabels'
 import { onMounted, ref } from 'vue'
-import { usePendingPromises } from 'vuefire'
 
 Chart.register(...registerables, ChartDataLabels)
 
@@ -14,7 +13,6 @@ definePageMeta({
 
 const { tripId } = useRoute().params
 const { tripExpenses } = useTripExpenses(tripId as string)
-await usePendingPromises()
 
 interface ChartDataPoint {
   x: string

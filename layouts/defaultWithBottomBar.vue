@@ -1,23 +1,29 @@
 <script setup lang="ts">
+import type { Trip } from '@/types'
+import { doc } from 'firebase/firestore'
+import { useDocument, useFirestore } from 'vuefire'
+import { tripConverter } from '@/utils/converter'
+
 const route = useRoute()
 const router = useRouter()
+const db = useFirestore()
 
 const shouldShowBackButton = computed(() => {
   return route.name !== 'trips-tripId'
 })
 
 const tripId = computed(() => {
-  return route.params.tripId
+  return route.params.tripId as string | undefined
 })
 
-// Fetch trip to check archived status
-const trip = computed(() => {
-  if (tripId.value) {
-    const { trip: tripData } = useTrip(tripId.value as string)
-    return tripData.value
-  }
-  return null
+// Fetch trip to check archived status - client-only to avoid SSR issues
+const tripDocRef = computed(() => {
+  return tripId.value ? doc(db, 'trips', tripId.value).withConverter(tripConverter) : null
 })
+
+const trip = process.client
+  ? useDocument<Trip>(tripDocRef)
+  : ref<Trip | null>(null)
 </script>
 
 <template>
