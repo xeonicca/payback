@@ -40,24 +40,18 @@ if (!trip.value) {
   </template>
   <template v-else>
     <div class="flex items-start justify-between gap-2 bg-slate-200 pb-4">
-      <h1 class="text-2xl font-bold text-indigo-700">
+      <h1 class="text-xl font-bold text-indigo-700">
         {{ trip.name }}
         <p class="text-sm text-slate-600">
           {{ trip.expenseCount }} 筆
         </p>
       </h1>
       <div class="font-bold flex flex-col items-end">
-        <span class="text-xl text-indigo-700 font-bold">{{ trip.tripCurrency }} {{ trip.enabledTotalExpenses.toFixed(2) }}</span>
+        <span class="text-lg text-indigo-700 font-bold">{{ trip.tripCurrency }} {{ trip.enabledTotalExpenses.toFixed(2) }}</span>
         <span class="text-sm text-slate-600 inline-flex items-center gap-1">
           <Icon name="lucide:equal-approximately" class="text-slate-600" size="16" />
           {{ trip.defaultCurrency }} {{ convertToDefaultCurrency.toFixed(2) }}
         </span>
-      </div>
-    </div>
-    <div class="mt-1 flex gap-2 items-center">
-      <div v-for="member in tripMembers" :key="member.id" class="text-sm text-gray-500 flex items-center gap-1">
-        <span>{{ member.avatarEmoji }}</span>
-        <span class="font-bold">{{ member.name }}</span>
       </div>
     </div>
 
@@ -103,7 +97,7 @@ if (!trip.value) {
           <p class="text-xs text-gray-500 mb-1">
             總支出
           </p>
-          <p class="text-xl font-bold text-gray-900 font-mono">
+          <p class="text-lg font-bold text-gray-900 font-mono">
             {{ trip?.tripCurrency }} {{ (trip?.enabledTotalExpenses || 0).toFixed(2) }}
           </p>
         </div>
@@ -111,7 +105,7 @@ if (!trip.value) {
           <p class="text-xs text-gray-500 mb-1">
             平均每人
           </p>
-          <p class="text-xl font-bold text-indigo-600 font-mono">
+          <p class="text-lg font-bold text-indigo-600 font-mono">
             {{ trip?.tripCurrency }} {{ tripMembers.length > 0 ? ((trip?.enabledTotalExpenses || 0) / tripMembers.length).toFixed(2) : '0.00' }}
           </p>
         </div>

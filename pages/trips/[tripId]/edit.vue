@@ -347,33 +347,33 @@ async function handleArchiveToggle() {
         {{ isSubmitting ? '更新中...' : '更新行程' }}
       </ui-button>
     </div>
-
-    <!-- Archive Section -->
-    <div class="pt-6 border-t border-gray-200">
-      <div class="space-y-4">
-        <div>
-          <h3 class="text-base font-semibold text-gray-900 m-0 mb-2">
-            {{ trip?.archived ? '取消封存行程' : '封存行程' }}
-          </h3>
-          <p class="text-sm text-gray-600 m-0 mb-4">
-            {{ trip?.archived
-              ? '取消封存後，您可以繼續編輯行程資訊和新增支出。'
-              : '封存行程後，將無法編輯行程資訊或新增新支出。現有支出仍可編輯。'
-            }}
-          </p>
-        </div>
-        <ui-button
-          type="button"
-          :variant="trip?.archived ? 'default' : 'destructive'"
-          :disabled="isArchiving"
-          @click="handleArchiveClick"
-        >
-          <Icon :name="trip?.archived ? 'lucide:archive-restore' : 'lucide:archive'" :size="16" class="mr-2" />
-          {{ isArchiving ? '處理中...' : (trip?.archived ? '取消封存行程' : '封存行程') }}
-        </ui-button>
-      </div>
-    </div>
   </form>
+
+  <!-- Archive Section -->
+  <div class="max-w-2xl mx-auto mt-6 p-6 bg-white rounded-lg shadow-xl">
+    <div class="space-y-4">
+      <div>
+        <h3 class="text-base font-semibold text-gray-900 m-0 mb-2">
+          {{ trip?.archived ? '取消封存行程' : '封存行程' }}
+        </h3>
+        <p class="text-sm text-gray-600 m-0 mb-4">
+          {{ trip?.archived
+            ? '取消封存後，您可以繼續編輯行程資訊和新增支出。'
+            : '封存行程後，將無法編輯行程資訊或新增新支出。現有支出仍可編輯。'
+          }}
+        </p>
+      </div>
+      <ui-button
+        type="button"
+        :variant="trip?.archived ? 'default' : 'destructive'"
+        :disabled="isArchiving"
+        @click="handleArchiveClick"
+      >
+        <Icon :name="trip?.archived ? 'lucide:archive-restore' : 'lucide:archive'" :size="16" class="mr-2" />
+        {{ isArchiving ? '處理中...' : (trip?.archived ? '取消封存行程' : '封存行程') }}
+      </ui-button>
+    </div>
+  </div>
 
   <!-- Archive Warning Drawer -->
   <ui-drawer v-model:open="showArchiveWarning">

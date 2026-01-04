@@ -18,7 +18,8 @@ function navigateTo(path: string) {
 }
 
 const filteredTrips = computed(() => {
-  if (!searchTerm.value) return trips.value
+  if (!searchTerm.value)
+    return trips.value
   return trips.value.filter(trip =>
     trip.name.toLowerCase().includes(searchTerm.value.toLowerCase()),
   )
@@ -34,7 +35,7 @@ definePageMeta({
     <!-- Header Section -->
     <header class="mb-10">
       <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
-        <h1 class="text-3xl font-bold text-gray-900">
+        <h1 class="text-2xl font-bold text-gray-900">
           行程一覽
         </h1>
         <ui-button

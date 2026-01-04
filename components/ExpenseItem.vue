@@ -30,14 +30,14 @@ const paidByMember = computed(() => props.tripMembers.find(member => member.id =
       </p>
     </div>
     <div class="flex flex-col justify-between gap-2">
-      <div class="text-xl font-extrabold text-slate-800 text-right">
+      <div class="text-lg font-extrabold text-slate-800 text-right">
         {{ expense.paidAtObject.month }}/{{ expense.paidAtObject.day }}
         <p class="text-base text-gray-500">
           {{ paidByMember?.avatarEmoji }}
         </p>
       </div>
 
-      <div class="text-base font-mono w-[120px] md:w-[200px] text-right self-end text-green-600">
+      <div class="text-sm font-mono w-[120px] md:w-[200px] text-right self-end text-green-600">
         {{ trip.tripCurrency }} {{ (expense.grandTotal || 0).toFixed(2) }}
       </div>
     </div>
