@@ -7,10 +7,10 @@ export function useTripCollaborators(tripId: string) {
   const db = useFirestore()
   const sessionUser = useSessionUser()
 
-  // Client-only query to avoid SSR auth issues
-  const collaborators = import.meta.client
-    ? useCollection<TripCollaborator>(collection(db, 'trips', tripId, 'collaborators').withConverter(tripCollaboratorConverter))
-    : ref([])
+  const collaborators = useCollection<TripCollaborator>(
+    collection(db, 'trips', tripId, 'collaborators').withConverter(tripCollaboratorConverter),
+    { ssrKey: `trip-collaborators-${tripId}` },
+  )
 
   const currentUserCollaborator = computed(() => {
     if (!sessionUser.value) return null

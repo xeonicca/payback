@@ -54,7 +54,10 @@ export default defineNuxtConfig({
   },
 
   vuefire: {
-    auth: true,
+    auth: {
+      enabled: true,
+      sessionCookie: true, // Enable SSR authentication with service account
+    },
     config: {
       apiKey: process.env.NUXT_PUBLIC_FIREBASE_API_KEY,
       authDomain: process.env.NUXT_PUBLIC_FIREBASE_AUTH_DOMAIN || process.env.VERCEL_URL,

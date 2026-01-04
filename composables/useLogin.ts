@@ -22,18 +22,20 @@ interface ReturnUser {
 
 export default function useLogin() {
   const sessionUser = useSessionUser()
-  const currentUser = useCurrentUser()
-  const provider = new GoogleAuthProvider()
-  const authError = ref<AuthError | null>(null)
-  const auth = useFirebaseAuth()!
 
-  const isCurrentUserLoaded = useIsCurrentUserLoaded()
+  // Only access Firebase on client to avoid SSR initialization issues
+  const currentUser = import.meta.client ? useCurrentUser() : ref(null)
+  const provider = import.meta.client ? new GoogleAuthProvider() : null
+  const authError = ref<AuthError | null>(null)
+  const auth = import.meta.client ? useFirebaseAuth()! : null
+
+  const isCurrentUserLoaded = import.meta.client ? useIsCurrentUserLoaded() : ref(true)
   const isUserLoggedIn = computed(() => {
     // If session user exists, we're logged in regardless of Firebase state
     if (sessionUser.value)
       return true
-    // Otherwise, check if Firebase auth is loaded and has a user
-    return isCurrentUserLoaded.value && !!currentUser.value
+    // Otherwise, check if Firebase auth is loaded and has a user (client-side only)
+    return import.meta.client && isCurrentUserLoaded.value && !!currentUser.value
   })
 
   const setSession = async (user: User) => {
@@ -46,6 +48,7 @@ export default function useLogin() {
   }
 
   const redirectToGoogleLogin = async () => {
+    if (!auth || !provider) return
     await setPersistence(auth, inMemoryPersistence)
     try {
       await signInWithRedirect(auth, provider)
@@ -57,6 +60,8 @@ export default function useLogin() {
   }
 
   const loginWithGoogle = async () => {
+    if (!auth || !provider) return null
+
     if (import.meta.env.MODE === 'development') {
       try {
         const result = await signInWithPopup(auth, provider)
@@ -75,6 +80,8 @@ export default function useLogin() {
   }
 
   const checkRedirectResult = async () => {
+    if (!auth) return null
+
     if (import.meta.env.MODE === 'development') {
       const user = await getCurrentUser()
       if (user)
@@ -97,6 +104,8 @@ export default function useLogin() {
   }
 
   const logout = async () => {
+    if (!auth) return
+
     try {
       // Call server logout endpoint to clear session cookie
       await $fetch('/api/auth/logout', {

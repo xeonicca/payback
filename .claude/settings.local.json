@@ -10,7 +10,8 @@
       "Bash(pnpm test:*)",
       "Bash(firebase deploy:*)",
       "WebFetch(domain:ai.google.dev)",
-      "WebSearch"
+      "WebSearch",
+      "WebFetch(domain:vuefire.vuejs.org)"
     ]
   }
 }

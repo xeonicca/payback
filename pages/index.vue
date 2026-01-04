@@ -81,11 +81,6 @@ definePageMeta({
       </div>
     </div>
 
-    <!-- Loading State -->
-    <div v-if="tripsPending" class="flex justify-center py-20">
-      <Icon name="lucide:loader-circle" class="w-8 h-8 text-indigo-600 animate-spin" />
-    </div>
-
     <!-- Header Section -->
     <header class="mb-10">
       <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
@@ -113,8 +108,13 @@ definePageMeta({
       </div>
     </header>
 
+    <!-- Loading State -->
+    <div v-if="tripsPending" class="flex justify-center py-20">
+      <Icon name="lucide:loader-circle" class="w-8 h-8 text-indigo-600 animate-spin" />
+    </div>
+
     <!-- Empty State -->
-    <div v-if="!tripsPending && !tripsError && filteredTrips.length === 0" class="flex flex-col items-center justify-center py-20 text-center">
+    <div v-else-if="!tripsError && filteredTrips.length === 0" class="flex flex-col items-center justify-center py-20 text-center">
       <div class="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mb-4">
         <Icon name="lucide-search" class="w-8 h-8 text-gray-400" />
       </div>
@@ -131,7 +131,7 @@ definePageMeta({
     </div>
 
     <!-- Trip Grid -->
-    <div v-else-if="!tripsPending && !tripsError" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+    <div v-else-if="!tripsError" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
       <div
         v-for="trip in filteredTrips"
         :key="trip.id"

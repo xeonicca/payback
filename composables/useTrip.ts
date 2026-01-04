@@ -5,11 +5,7 @@ import { tripConverter } from '@/utils/converter'
 
 export function useTrip(tripId: string) {
   const db = useFirestore()
-
-  // Client-only to avoid SSR permission issues
-  const trip = import.meta.client
-    ? useDocument<Trip>(doc(db, 'trips', tripId).withConverter(tripConverter))
-    : ref(null)
+  const trip = useDocument<Trip>(doc(db, 'trips', tripId).withConverter(tripConverter))
 
   return {
     trip,

@@ -14,11 +14,7 @@ const showHiddenExpenses = ref(false)
 const searchTerm = ref('')
 const router = useRouter()
 
-// Client-only to avoid SSR permission issues
-const trip = import.meta.client
-  ? useDocument<Trip>(doc(db, 'trips', tripId as string).withConverter(tripConverter))
-  : ref<Trip | null>(null)
-
+const trip = useDocument<Trip>(doc(db, 'trips', tripId as string).withConverter(tripConverter))
 const { tripExpenses, enabledExpenses } = useTripExpenses(tripId as string)
 const { tripMembers } = useTripMembers(tripId as string)
 

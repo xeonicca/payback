@@ -17,10 +17,7 @@ const tripsQuery = computed(() => {
   )
 })
 
-// Client-only to avoid SSR permission issues
-const trips = import.meta.client
-  ? useCollection(tripsQuery)
-  : ref([])
+const trips = useCollection(tripsQuery, { ssrKey: 'latest-trip' })
 
 watch(trips, (tripsList) => {
   if (tripsList.length === 0) {

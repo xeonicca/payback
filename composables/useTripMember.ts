@@ -6,10 +6,10 @@ import { tripMemberConverter } from '@/utils/converter'
 export function useTripMembers(tripId: string) {
   const db = useFirestore()
 
-  // Client-only to avoid SSR permission issues
-  const tripMembers = import.meta.client
-    ? useCollection<TripMember>(collection(db, 'trips', tripId, 'members').withConverter(tripMemberConverter))
-    : ref([])
+  const tripMembers = useCollection<TripMember>(
+    collection(db, 'trips', tripId, 'members').withConverter(tripMemberConverter),
+    { ssrKey: `trip-members-${tripId}` },
+  )
 
   const hostMember = computed(() => tripMembers.value?.find(member => member.isHost))
 

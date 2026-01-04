@@ -16,14 +16,12 @@ const tripId = computed(() => {
   return route.params.tripId as string | undefined
 })
 
-// Fetch trip to check archived status - client-only to avoid SSR issues
+// Fetch trip to check archived status
 const tripDocRef = computed(() => {
   return tripId.value ? doc(db, 'trips', tripId.value).withConverter(tripConverter) : null
 })
 
-const trip = import.meta.client
-  ? useDocument<Trip>(tripDocRef)
-  : ref<Trip | null>(null)
+const trip = useDocument<Trip>(tripDocRef)
 </script>
 
 <template>

@@ -18,15 +18,8 @@ definePageMeta({
 const db = useFirestore()
 const { tripId, expenseId } = useRoute().params
 
-// Client-only to avoid SSR permission issues
-const trip = import.meta.client
-  ? useDocument<Trip>(doc(db, 'trips', tripId as string).withConverter(tripConverter))
-  : ref<Trip | null>(null)
-
-const expense = import.meta.client
-  ? useDocument<Expense>(doc(db, 'trips', tripId as string, 'expenses', expenseId as string).withConverter(expenseConverter))
-  : ref<Expense | null>(null)
-
+const trip = useDocument<Trip>(doc(db, 'trips', tripId as string).withConverter(tripConverter))
+const expense = useDocument<Expense>(doc(db, 'trips', tripId as string, 'expenses', expenseId as string).withConverter(expenseConverter))
 const { tripMembers } = useTripMembers(tripId as string)
 const sharedMembers = computed(() => tripMembers.value?.filter(member => expense.value?.sharedWithMemberIds.includes(member.id)))
 

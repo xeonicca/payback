@@ -13,11 +13,10 @@ export function useTripExpenses(tripId: string, hasLimit = 0) {
   if (hasLimit > 0) {
     queryConditions.push(limit(hasLimit))
   }
-
-  // Client-only query to avoid SSR auth issues
-  const tripExpenses = import.meta.client
-    ? useCollection<Expense>(query(collection(db, 'trips', tripId, 'expenses').withConverter(expenseConverter), ...queryConditions))
-    : ref([])
+  const tripExpenses
+   = useCollection<Expense>(query(collection(db, 'trips', tripId, 'expenses').withConverter(expenseConverter), ...queryConditions), {
+     ssrKey: `trip-expenses-${tripId}`,
+   })
 
   const enabledExpenses = computed(() => {
     return tripExpenses.value.filter(expense => expense.enabled)
