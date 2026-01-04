@@ -84,7 +84,7 @@ export function useInvitation() {
     ).withConverter(invitationConverter)
 
     // Client-only query to avoid SSR auth issues
-    const invitations = process.client
+    const invitations = import.meta.client
       ? useCollection<Invitation>(invitationsQuery)
       : ref([])
 

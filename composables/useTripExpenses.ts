@@ -15,7 +15,7 @@ export function useTripExpenses(tripId: string, hasLimit = 0) {
   }
 
   // Client-only query to avoid SSR auth issues
-  const tripExpenses = process.client
+  const tripExpenses = import.meta.client
     ? useCollection<Expense>(query(collection(db, 'trips', tripId, 'expenses').withConverter(expenseConverter), ...queryConditions))
     : ref([])
 

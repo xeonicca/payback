@@ -15,7 +15,7 @@ const searchTerm = ref('')
 const router = useRouter()
 
 // Client-only to avoid SSR permission issues
-const trip = process.client
+const trip = import.meta.client
   ? useDocument<Trip>(doc(db, 'trips', tripId as string).withConverter(tripConverter))
   : ref<Trip | null>(null)
 
@@ -30,8 +30,8 @@ const displayedExpenses = computed(() => {
     const search = searchTerm.value.trim()
     expenses = expenses.filter((expense) => {
       // Check for amount conditions (>, <)
-      const gtMatch = search.match(/^>\s*(\d+\.?\d*)$/)
-      const ltMatch = search.match(/^<\s*(\d+\.?\d*)$/)
+      const gtMatch = search.match(/^>\s*(\d+(?:\.\d*)?)$/)
+      const ltMatch = search.match(/^<\s*(\d+(?:\.\d*)?)$/)
 
       if (gtMatch) {
         // Greater than condition

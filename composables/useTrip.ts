@@ -7,7 +7,7 @@ export function useTrip(tripId: string) {
   const db = useFirestore()
 
   // Client-only to avoid SSR permission issues
-  const trip = process.client
+  const trip = import.meta.client
     ? useDocument<Trip>(doc(db, 'trips', tripId).withConverter(tripConverter))
     : ref(null)
 

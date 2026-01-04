@@ -19,11 +19,11 @@ const db = useFirestore()
 const { tripId, expenseId } = useRoute().params
 
 // Client-only to avoid SSR permission issues
-const trip = process.client
+const trip = import.meta.client
   ? useDocument<Trip>(doc(db, 'trips', tripId as string).withConverter(tripConverter))
   : ref<Trip | null>(null)
 
-const expense = process.client
+const expense = import.meta.client
   ? useDocument<Expense>(doc(db, 'trips', tripId as string, 'expenses', expenseId as string).withConverter(expenseConverter))
   : ref<Expense | null>(null)
 

@@ -7,7 +7,8 @@ const router = useRouter()
 const sessionUser = useSessionUser()
 
 const tripsQuery = computed(() => {
-  if (!sessionUser.value?.uid) return null
+  if (!sessionUser.value?.uid)
+    return null
   return query(
     collection(db, 'trips'),
     where('userId', '==', sessionUser.value.uid),
@@ -17,7 +18,7 @@ const tripsQuery = computed(() => {
 })
 
 // Client-only to avoid SSR permission issues
-const trips = process.client
+const trips = import.meta.client
   ? useCollection(tripsQuery)
   : ref([])
 

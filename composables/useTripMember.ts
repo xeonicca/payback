@@ -7,7 +7,7 @@ export function useTripMembers(tripId: string) {
   const db = useFirestore()
 
   // Client-only to avoid SSR permission issues
-  const tripMembers = process.client
+  const tripMembers = import.meta.client
     ? useCollection<TripMember>(collection(db, 'trips', tripId, 'members').withConverter(tripMemberConverter))
     : ref([])
 

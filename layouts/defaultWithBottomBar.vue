@@ -21,7 +21,7 @@ const tripDocRef = computed(() => {
   return tripId.value ? doc(db, 'trips', tripId.value).withConverter(tripConverter) : null
 })
 
-const trip = process.client
+const trip = import.meta.client
   ? useDocument<Trip>(tripDocRef)
   : ref<Trip | null>(null)
 </script>

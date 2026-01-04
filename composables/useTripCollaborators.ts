@@ -8,7 +8,7 @@ export function useTripCollaborators(tripId: string) {
   const sessionUser = useSessionUser()
 
   // Client-only query to avoid SSR auth issues
-  const collaborators = process.client
+  const collaborators = import.meta.client
     ? useCollection<TripCollaborator>(collection(db, 'trips', tripId, 'collaborators').withConverter(tripCollaboratorConverter))
     : ref([])
 
