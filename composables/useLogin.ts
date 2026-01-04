@@ -98,6 +98,12 @@ export default function useLogin() {
 
   const logout = async () => {
     try {
+      // Call server logout endpoint to clear session cookie
+      await $fetch('/api/auth/logout', {
+        method: 'POST',
+      })
+
+      // Sign out from Firebase
       await signOut(auth)
       sessionUser.value = null
     }

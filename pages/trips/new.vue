@@ -82,9 +82,21 @@ const onSubmit = handleSubmit(async (values) => {
       userId: sessionUser.value!.uid,
       expenseCount: 0,
       archived: false,
+      collaboratorCount: 1, // Owner is the first collaborator
+      isPublicInviteEnabled: true,
     }
 
     const docRef = await writeTrip(tripData)
+
+    // Initialize owner as collaborator
+    await writeTripCollaborator(docRef.id, {
+      userId: sessionUser.value!.uid,
+      email: sessionUser.value!.email,
+      displayName: sessionUser.value!.displayName,
+      photoURL: sessionUser.value!.photoURL,
+      role: 'owner',
+      joinedAt: serverTimestamp(),
+    })
 
     // Save all trip members
     for (const member of allMembers.value) {
@@ -114,6 +126,11 @@ async function writeTrip(tripData: NewTrip) {
 
 async function writeTripMembers(tripId: string, member: NewTripMember) {
   const docRef = await addDoc(collection(db, 'trips', tripId, 'members'), member)
+  return docRef
+}
+
+async function writeTripCollaborator(tripId: string, collaborator: any) {
+  const docRef = await addDoc(collection(db, 'trips', tripId, 'collaborators'), collaborator)
   return docRef
 }
 

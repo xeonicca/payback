@@ -33,6 +33,8 @@ export interface NewTrip {
   userId: string
   createdAt: Timestamp | FieldValue
   archived?: boolean
+  collaboratorCount?: number
+  isPublicInviteEnabled?: boolean
 }
 
 export interface Trip extends NewTrip {
@@ -42,6 +44,8 @@ export interface Trip extends NewTrip {
   enabledTotalExpenses: number
   disabledTotalExpenses: number
   archived: boolean
+  collaboratorCount: number
+  isPublicInviteEnabled: boolean
 }
 
 export interface ExpenseDetailItem {
@@ -82,4 +86,38 @@ export interface Expense extends NewExpense {
 export interface Currency {
   code: string
   name: string
+}
+
+export interface NewTripCollaborator {
+  userId: string
+  email: string | null
+  displayName: string | null
+  photoURL: string | null
+  role: 'owner' | 'editor'
+  joinedAt: Timestamp | FieldValue
+  invitedBy?: string
+}
+
+export interface TripCollaborator extends NewTripCollaborator {
+  joinedAtString: string
+}
+
+export interface NewInvitation {
+  tripId: string
+  tripName: string
+  invitedByUserId: string
+  invitedByName: string
+  invitationCode: string
+  status: 'pending' | 'accepted' | 'expired' | 'revoked'
+  expiresAt: Timestamp | FieldValue
+  createdAt: Timestamp | FieldValue
+  usedByUserId?: string
+  usedAt?: Timestamp | FieldValue
+}
+
+export interface Invitation extends NewInvitation {
+  id: string
+  createdAtString: string
+  expiresAtString: string
+  usedAtString?: string
 }

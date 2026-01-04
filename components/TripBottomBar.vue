@@ -5,6 +5,7 @@ const props = defineProps<{
 
 const { tripMembers, hostMember } = useTripMembers(props.tripId)
 const { trip } = useTrip(props.tripId)
+const { canManageExpenses } = useTripCollaborators(props.tripId)
 
 const openUploadReceiptDrawer = ref(false)
 </script>
@@ -20,13 +21,14 @@ const openUploadReceiptDrawer = ref(false)
       </nuxt-link>
       <div
         :class="{
-          'bg-amber-500 cursor-pointer': trip && !trip.archived,
-          'bg-gray-400 cursor-not-allowed': trip?.archived,
+          'bg-amber-500 cursor-pointer': trip && !trip.archived && canManageExpenses,
+          'bg-gray-400 cursor-not-allowed': trip?.archived || !canManageExpenses,
         }"
         class="flex items-center justify-center w-14 h-14 rounded-full shadow-lg -mt-8"
-        @click="!trip?.archived && (openUploadReceiptDrawer = true)"
+        @click="!trip?.archived && canManageExpenses && (openUploadReceiptDrawer = true)"
       >
         <icon v-if="trip?.archived" name="lucide:archive" size="24" class="text-white" />
+        <icon v-else-if="!canManageExpenses" name="lucide:lock" size="24" class="text-white" />
         <icon v-else-if="trip" name="lucide:zap" size="24" class="text-white" />
         <icon v-else name="lucide:loader-circle" size="24" class="text-white animate-spin" />
       </div>

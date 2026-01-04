@@ -5,8 +5,8 @@ import type {
   SnapshotOptions,
   WithFieldValue,
 } from 'firebase/firestore'
-import type { Expense, Trip, TripMember } from '@/types'
-import { formatFirebaseTimestamp } from '@/utils/date'
+import type { Expense, Invitation, Trip, TripCollaborator, TripMember } from '@/types'
+import { formatFirebaseDateAndTime, formatFirebaseTimestamp } from '@/utils/date'
 
 export const tripConverter: FirestoreDataConverter<Trip> = {
   toFirestore(trip: WithFieldValue<Trip>): DocumentData {
@@ -29,6 +29,8 @@ export const tripConverter: FirestoreDataConverter<Trip> = {
       disabledTotalExpenses: data.disabledTotalExpenses || 0,
       expenseCount: data.expenseCount || 0,
       archived: data.archived || false,
+      collaboratorCount: data.collaboratorCount || 0,
+      isPublicInviteEnabled: data.isPublicInviteEnabled || true,
     } as Trip
   },
 }
@@ -80,5 +82,58 @@ export const expenseConverter: FirestoreDataConverter<Expense> = {
       items: data.items || [],
       enabled: data.enabled ?? true,
     } as Expense
+  },
+}
+
+export const tripCollaboratorConverter: FirestoreDataConverter<TripCollaborator> = {
+  toFirestore(collaborator: WithFieldValue<TripCollaborator>): DocumentData {
+    return {
+      userId: collaborator.userId,
+      email: collaborator.email,
+      displayName: collaborator.displayName,
+      photoURL: collaborator.photoURL,
+      role: collaborator.role,
+      joinedAt: collaborator.joinedAt,
+      invitedBy: collaborator.invitedBy,
+    }
+  },
+  fromFirestore(snapshot: QueryDocumentSnapshot, options: SnapshotOptions): TripCollaborator {
+    const data = snapshot.data(options)
+    return {
+      userId: data.userId,
+      email: data.email,
+      displayName: data.displayName,
+      photoURL: data.photoURL,
+      role: data.role,
+      joinedAt: data.joinedAt,
+      joinedAtString: formatFirebaseTimestamp(data.joinedAt),
+      invitedBy: data.invitedBy,
+    } as TripCollaborator
+  },
+}
+
+export const invitationConverter: FirestoreDataConverter<Invitation> = {
+  toFirestore(invitation: WithFieldValue<Invitation>): DocumentData {
+    const { id, ...data } = invitation
+    return data
+  },
+  fromFirestore(snapshot: QueryDocumentSnapshot, options: SnapshotOptions): Invitation {
+    const data = snapshot.data(options)
+    return {
+      id: snapshot.id,
+      tripId: data.tripId,
+      tripName: data.tripName,
+      invitedByUserId: data.invitedByUserId,
+      invitedByName: data.invitedByName,
+      invitationCode: data.invitationCode,
+      status: data.status,
+      expiresAt: data.expiresAt,
+      expiresAtString: formatFirebaseTimestamp(data.expiresAt),
+      createdAt: data.createdAt,
+      createdAtString: formatFirebaseTimestamp(data.createdAt),
+      usedByUserId: data.usedByUserId,
+      usedAt: data.usedAt,
+      usedAtString: data.usedAt ? formatFirebaseTimestamp(data.usedAt) : undefined,
+    } as Invitation
   },
 }

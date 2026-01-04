@@ -2,10 +2,11 @@ import type { App } from 'firebase-admin/app'
 import type { H3Event } from 'h3'
 import { cert, getApps, initializeApp } from 'firebase-admin/app'
 import { getAuth as getAdminAuth } from 'firebase-admin/auth'
+import { getFirestore } from 'firebase-admin/firestore'
 
 let app: App
 
-export function getFirebaseAdminAuth() {
+function getFirebaseAdminApp() {
   if (getApps().length) {
     app = getApps()[0]
   }
@@ -18,8 +19,15 @@ export function getFirebaseAdminAuth() {
       credential: cert(serviceAccount),
     })
   }
+  return app
+}
 
-  return getAdminAuth(app)
+export function getFirebaseAdminAuth() {
+  return getAdminAuth(getFirebaseAdminApp())
+}
+
+export function getFirebaseAdminFirestore() {
+  return getFirestore(getFirebaseAdminApp())
 }
 
 async function getUserFromCookie(cookie: string) {

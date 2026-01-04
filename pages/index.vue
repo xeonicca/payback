@@ -1,17 +1,48 @@
 <script setup lang="ts">
-import { collection, orderBy, query } from 'firebase/firestore'
-import { useCollection, useFirestore } from 'vuefire'
+import { collection, getDocs, orderBy, query, where } from 'firebase/firestore'
+import { useFirestore } from 'vuefire'
 import { tripConverter } from '@/utils/converter'
-
-const db = useFirestore()
-const tripQuery = query(collection(db, 'trips'), orderBy('createdAt', 'desc'))
-const trips = useCollection(tripQuery.withConverter(tripConverter), {
-  once: true,
-  ssrKey: 'trips-index',
-})
 
 const router = useRouter()
 const searchTerm = ref('')
+const db = useFirestore()
+const sessionUser = useSessionUser()
+
+// Fetch trips client-side only using useAsyncData
+const { data: ownedTrips, error: tripsError, pending: tripsPending } = await useAsyncData(
+  'owned-trips',
+  async () => {
+    if (!sessionUser.value?.uid) return []
+
+    const tripsQuery = query(
+      collection(db, 'trips'),
+      where('userId', '==', sessionUser.value.uid),
+      orderBy('createdAt', 'desc'),
+    ).withConverter(tripConverter)
+
+    const snapshot = await getDocs(tripsQuery)
+    return snapshot.docs.map(doc => doc.data())
+  },
+  {
+    server: false, // Client-side only
+    lazy: true, // Non-blocking
+  },
+)
+
+// Watch for errors and log them
+watch(tripsError, (error) => {
+  if (error) {
+    console.error('❌ Firestore Query Error:', error)
+    console.error('Error message:', error.message)
+
+    // Check if it's a missing index error
+    if (error.message?.includes('index')) {
+      console.error('🔗 CREATE INDEX: Check the error message above for the Firebase Console link to create the index')
+    }
+  }
+}, { immediate: true })
+
+const trips = computed(() => ownedTrips.value || [])
 
 function navigateTo(path: string) {
   router.push(path)
@@ -21,7 +52,7 @@ const filteredTrips = computed(() => {
   if (!searchTerm.value)
     return trips.value
   return trips.value.filter(trip =>
-    trip.name.toLowerCase().includes(searchTerm.value.toLowerCase()),
+    trip?.name?.toLowerCase().includes(searchTerm.value.toLowerCase()),
   )
 })
 
@@ -32,6 +63,29 @@ definePageMeta({
 
 <template>
   <div class="min-h-screen">
+    <!-- Error Display -->
+    <div v-if="tripsError" class="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
+      <div class="flex items-start gap-3">
+        <Icon name="lucide:alert-circle" class="w-5 h-5 text-red-600 mt-0.5 shrink-0" />
+        <div class="flex-1">
+          <h3 class="text-sm font-semibold text-red-900 m-0 mb-1">
+            Firestore Error
+          </h3>
+          <p class="text-sm text-red-700 m-0 mb-2 font-mono">
+            {{ tripsError.message }}
+          </p>
+          <p class="text-xs text-red-600 m-0">
+            Check the browser console (F12) for the link to create the missing index.
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Loading State -->
+    <div v-if="tripsPending" class="flex justify-center py-20">
+      <Icon name="lucide:loader-circle" class="w-8 h-8 text-indigo-600 animate-spin" />
+    </div>
+
     <!-- Header Section -->
     <header class="mb-10">
       <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
@@ -60,7 +114,7 @@ definePageMeta({
     </header>
 
     <!-- Empty State -->
-    <div v-if="filteredTrips.length === 0" class="flex flex-col items-center justify-center py-20 text-center">
+    <div v-if="!tripsPending && !tripsError && filteredTrips.length === 0" class="flex flex-col items-center justify-center py-20 text-center">
       <div class="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mb-4">
         <Icon name="lucide-search" class="w-8 h-8 text-gray-400" />
       </div>
@@ -77,7 +131,7 @@ definePageMeta({
     </div>
 
     <!-- Trip Grid -->
-    <div v-else class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+    <div v-else-if="!tripsPending && !tripsError" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
       <div
         v-for="trip in filteredTrips"
         :key="trip.id"

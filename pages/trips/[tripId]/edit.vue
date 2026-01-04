@@ -32,6 +32,7 @@ const tripId = route.params.tripId as string
 const { trip } = useTrip(tripId)
 const { tripMembers } = useTripMembers(tripId)
 const { enabledExpenses } = useTripExpenses(tripId)
+const { collaborators, isOwner, canInvite } = useTripCollaborators(tripId)
 
 const formSchema = toTypedSchema(z.object({
   name: z.string().min(2).max(50),
@@ -68,6 +69,7 @@ const exchangeRateToTwd = computed(() => {
 const isSubmitting = ref(false)
 const isArchiving = ref(false)
 const showArchiveWarning = ref(false)
+const showInviteDrawer = ref(false)
 
 // Track members locally for add/remove operations
 const localMembers = ref<TripMember[]>([])
@@ -374,6 +376,87 @@ async function handleArchiveToggle() {
       </ui-button>
     </div>
   </div>
+
+  <!-- Collaborators Section -->
+  <div v-if="isOwner" class="max-w-2xl mx-auto mt-6 p-6 bg-white rounded-lg shadow-xl">
+    <div class="space-y-4">
+      <div class="flex items-center justify-between">
+        <div>
+          <h3 class="text-base font-semibold text-gray-900 m-0 mb-2">
+            協作者管理
+          </h3>
+          <p class="text-sm text-gray-600 m-0">
+            邀請其他人加入行程並協作管理支出
+          </p>
+        </div>
+        <ui-badge variant="secondary" class="text-xs">
+          {{ collaborators.length }} 位
+        </ui-badge>
+      </div>
+
+      <!-- Collaborators List -->
+      <div v-if="collaborators.length > 0" class="space-y-2">
+        <div
+          v-for="collaborator in collaborators"
+          :key="collaborator.userId"
+          class="flex items-center gap-4 p-4 bg-gray-50 rounded-lg border border-gray-200"
+        >
+          <!-- Avatar -->
+          <div class="w-12 h-12 rounded-full overflow-hidden bg-gray-200 flex items-center justify-center shrink-0">
+            <img
+              v-if="collaborator.photoURL"
+              :src="collaborator.photoURL"
+              :alt="collaborator.displayName || 'User'"
+              class="w-full h-full object-cover"
+            >
+            <Icon v-else name="lucide:user" class="w-6 h-6 text-gray-400" />
+          </div>
+
+          <!-- Info -->
+          <div class="flex-1 min-w-0">
+            <div class="flex items-center gap-2 mb-1">
+              <p class="text-base font-semibold text-gray-900 truncate m-0">
+                {{ collaborator.displayName || '未知使用者' }}
+              </p>
+              <ui-badge v-if="collaborator.role === 'owner'" variant="default" class="text-xs shrink-0">
+                <Icon name="lucide:crown" :size="12" class="mr-1" />
+                主辦人
+              </ui-badge>
+              <ui-badge v-else variant="secondary" class="text-xs shrink-0">
+                編輯者
+              </ui-badge>
+            </div>
+            <p class="text-xs text-gray-500 truncate m-0">
+              {{ collaborator.email }}
+            </p>
+            <p class="text-xs text-gray-400 m-0">
+              加入於 {{ new Date(collaborator.joinedAtString).toLocaleDateString('zh-TW') }}
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Invite Button -->
+      <ui-button
+        v-if="canInvite"
+        type="button"
+        class="w-full"
+        variant="outline"
+        @click="showInviteDrawer = true"
+      >
+        <Icon name="lucide:user-plus" :size="16" class="mr-2" />
+        邀請協作者
+      </ui-button>
+    </div>
+  </div>
+
+  <!-- Invite Collaborators Drawer -->
+  <invite-collaborators-drawer
+    v-if="trip"
+    :trip-id="tripId"
+    :open="showInviteDrawer"
+    @update:open="showInviteDrawer = $event"
+  />
 
   <!-- Archive Warning Drawer -->
   <ui-drawer v-model:open="showArchiveWarning">

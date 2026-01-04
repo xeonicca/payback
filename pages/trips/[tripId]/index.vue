@@ -12,6 +12,7 @@ const { tripId } = useRoute().params
 const { trip } = useTrip(tripId as string)
 const { tripMembers, hostMember } = useTripMembers(tripId as string)
 const { enabledExpenses } = useTripExpenses(tripId as string, 5)
+const { canManageExpenses, isCollaborator } = useTripCollaborators(tripId as string)
 await usePendingPromises()
 
 const openAddExpenseDrawer = ref(false)
@@ -156,13 +157,13 @@ if (!trip.value) {
           近期支出紀錄
         </h2>
         <ui-button
-          v-if="!trip.archived"
+          v-if="!trip.archived && canManageExpenses"
           size="sm"
           @click="openAddExpenseDrawer = true"
         >
           <icon name="lucide:plus" size="16" />
         </ui-button>
-        <ui-badge v-else variant="secondary" class="text-xs">
+        <ui-badge v-else-if="trip.archived" variant="secondary" class="text-xs">
           已封存
         </ui-badge>
       </div>
