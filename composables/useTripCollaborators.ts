@@ -1,5 +1,5 @@
-import type { TripCollaborator } from '@/types'
-import { collection } from 'firebase/firestore'
+import type { Trip, TripCollaborator } from '@/types'
+import { collection, doc } from 'firebase/firestore'
 import { useCollection, useFirestore } from 'vuefire'
 import { tripCollaboratorConverter } from '@/utils/converter'
 
@@ -7,18 +7,21 @@ export function useTripCollaborators(tripId: string) {
   const db = useFirestore()
   const sessionUser = useSessionUser()
 
+  const trip = useDocument<Trip>(doc(db, 'trips', tripId).withConverter(tripConverter))
+
   const collaborators = useCollection<TripCollaborator>(
     collection(db, 'trips', tripId, 'collaborators').withConverter(tripCollaboratorConverter),
     { ssrKey: `trip-collaborators-${tripId}` },
   )
 
   const currentUserCollaborator = computed(() => {
-    if (!sessionUser.value) return null
+    if (!sessionUser.value)
+      return null
     return collaborators.value.find(c => c.userId === sessionUser.value!.uid)
   })
 
   const isOwner = computed(() => {
-    return currentUserCollaborator.value?.role === 'owner'
+    return currentUserCollaborator.value?.role === 'owner' || trip.value?.userId === sessionUser.value?.uid
   })
 
   const isCollaborator = computed(() => {
@@ -37,7 +40,7 @@ export function useTripCollaborators(tripId: string) {
 
   const canManageExpenses = computed(() => {
     // Both owner and editors can manage expenses
-    return isCollaborator.value
+    return isCollaborator.value || isOwner.value
   })
 
   const canInvite = computed(() => {
