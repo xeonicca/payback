@@ -103,30 +103,52 @@ function getMemberOwedAmount(memberId: string) {
   enabledExpenses.value.forEach((expense) => {
     // If expense has items, calculate based on item-level sharing
     if (expense.items && expense.items.length > 0) {
-      expense.items.forEach((item) => {
-        let sharingMembers: string[] = []
+      // First, calculate total of all items
+      const itemsTotal = expense.items.reduce((sum, item) =>
+        sum + (item.price * (item.quantity || 1)), 0
+      )
 
-        // If item has no specific sharedByMemberIds, all expense members share it
-        if (!item.sharedByMemberIds || item.sharedByMemberIds.length === 0) {
-          sharingMembers = expense.sharedWithMemberIds
-        }
-        else {
-          // Only include members who are both in item sharing AND main expense sharing
-          sharingMembers = item.sharedByMemberIds.filter(memberId =>
-            expense.sharedWithMemberIds.includes(memberId),
-          )
-        }
+      // Only use item-level sharing if items have valid prices
+      if (itemsTotal > 0) {
+        // Calculate this member's share of items
+        let memberItemsTotal = 0
+        expense.items.forEach((item) => {
+          let sharingMembers: string[] = []
 
-        // Skip if no members are sharing this item or if this member isn't sharing
-        if (sharingMembers.length === 0 || !sharingMembers.includes(memberId)) {
-          return
-        }
+          // If item has no specific sharedByMemberIds, all expense members share it
+          if (!item.sharedByMemberIds || item.sharedByMemberIds.length === 0) {
+            sharingMembers = expense.sharedWithMemberIds
+          }
+          else {
+            // Only include members who are both in item sharing AND main expense sharing
+            sharingMembers = item.sharedByMemberIds.filter(id =>
+              expense.sharedWithMemberIds.includes(id),
+            )
+          }
 
-        // Calculate this member's share of this item
-        const itemTotal = item.price * (item.quantity || 1)
-        const sharePerMember = itemTotal / sharingMembers.length
-        totalOwed += sharePerMember
-      })
+          // Skip if no members are sharing this item or if this member isn't sharing
+          if (sharingMembers.length === 0 || !sharingMembers.includes(memberId)) {
+            return
+          }
+
+          // Calculate this member's share of this item
+          const itemTotal = item.price * (item.quantity || 1)
+          const sharePerMember = itemTotal / sharingMembers.length
+          memberItemsTotal += sharePerMember
+        })
+
+        // Proportionally distribute the grandTotal based on this member's item share
+        // This ensures taxes, fees, tips, etc. are distributed proportionally
+        const memberProportion = memberItemsTotal / itemsTotal
+        totalOwed += expense.grandTotal * memberProportion
+      }
+      else {
+        // Items exist but have no prices - fall back to expense-level sharing
+        if (expense.sharedWithMemberIds.includes(memberId)) {
+          const sharePerMember = expense.grandTotal / expense.sharedWithMemberIds.length
+          totalOwed += sharePerMember
+        }
+      }
     }
     else {
       // If no items, use expense-level sharing

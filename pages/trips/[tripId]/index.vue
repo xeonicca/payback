@@ -43,30 +43,52 @@ function getMemberOwedAmount(memberId: string) {
   allEnabledExpenses.value.forEach((expense) => {
     // If expense has items, calculate based on item-level sharing
     if (expense.items && expense.items.length > 0) {
-      expense.items.forEach((item) => {
-        let sharingMembers: string[] = []
+      // First, calculate total of all items
+      const itemsTotal = expense.items.reduce((sum, item) =>
+        sum + (item.price * (item.quantity || 1)), 0
+      )
 
-        // If item has no specific sharedByMemberIds, all expense members share it
-        if (!item.sharedByMemberIds || item.sharedByMemberIds.length === 0) {
-          sharingMembers = expense.sharedWithMemberIds
-        }
-        else {
-          // Only include members who are both in item sharing AND main expense sharing
-          sharingMembers = item.sharedByMemberIds.filter(id =>
-            expense.sharedWithMemberIds.includes(id),
-          )
-        }
+      // Only use item-level sharing if items have valid prices
+      if (itemsTotal > 0) {
+        // Calculate this member's share of items
+        let memberItemsTotal = 0
+        expense.items.forEach((item) => {
+          let sharingMembers: string[] = []
 
-        // Skip if no members are sharing this item or if this member isn't sharing
-        if (sharingMembers.length === 0 || !sharingMembers.includes(memberId)) {
-          return
-        }
+          // If item has no specific sharedByMemberIds, all expense members share it
+          if (!item.sharedByMemberIds || item.sharedByMemberIds.length === 0) {
+            sharingMembers = expense.sharedWithMemberIds
+          }
+          else {
+            // Only include members who are both in item sharing AND main expense sharing
+            sharingMembers = item.sharedByMemberIds.filter(id =>
+              expense.sharedWithMemberIds.includes(id),
+            )
+          }
 
-        // Calculate this member's share of this item
-        const itemTotal = item.price * (item.quantity || 1)
-        const sharePerMember = itemTotal / sharingMembers.length
-        totalOwed += sharePerMember
-      })
+          // Skip if no members are sharing this item or if this member isn't sharing
+          if (sharingMembers.length === 0 || !sharingMembers.includes(memberId)) {
+            return
+          }
+
+          // Calculate this member's share of this item
+          const itemTotal = item.price * (item.quantity || 1)
+          const sharePerMember = itemTotal / sharingMembers.length
+          memberItemsTotal += sharePerMember
+        })
+
+        // Proportionally distribute the grandTotal based on this member's item share
+        // This ensures taxes, fees, tips, etc. are distributed proportionally
+        const memberProportion = memberItemsTotal / itemsTotal
+        totalOwed += expense.grandTotal * memberProportion
+      }
+      else {
+        // Items exist but have no prices - fall back to expense-level sharing
+        if (expense.sharedWithMemberIds.includes(memberId)) {
+          const sharePerMember = expense.grandTotal / expense.sharedWithMemberIds.length
+          totalOwed += sharePerMember
+        }
+      }
     }
     else {
       // If no items, use expense-level sharing
@@ -86,6 +108,64 @@ function getMemberBalance(memberId: string) {
   const owed = getMemberOwedAmount(memberId)
 
   return paid - owed
+}
+
+// Debug function to check balance totals
+function debugBalances() {
+  if (!allEnabledExpenses.value || !tripMembers.value)
+    return
+
+  console.log('=== DEBUG: Balance Check ===')
+  console.log(`Trip: ${trip.value?.name}`)
+  console.log(`Total expenses count: ${allEnabledExpenses.value.length}`)
+  console.log(`Total from trip: ${trip.value?.enabledTotalExpenses}`)
+
+  let totalPaid = 0
+  let totalOwed = 0
+  let totalBalance = 0
+
+  tripMembers.value.forEach((member) => {
+    const paid = getMemberPaidAmount(member.id)
+    const owed = getMemberOwedAmount(member.id)
+    const balance = getMemberBalance(member.id)
+
+    totalPaid += paid
+    totalOwed += owed
+    totalBalance += balance
+
+    console.log(`${member.name}:`)
+    console.log(`  Paid: ${paid.toFixed(2)}`)
+    console.log(`  Owed: ${owed.toFixed(2)}`)
+    console.log(`  Balance: ${balance.toFixed(2)}`)
+  })
+
+  console.log('\nTotals:')
+  console.log(`  Total Paid: ${totalPaid.toFixed(2)}`)
+  console.log(`  Total Owed: ${totalOwed.toFixed(2)}`)
+  console.log(`  Total Balance: ${totalBalance.toFixed(2)} (should be ~0)`)
+  console.log(`  Difference: ${Math.abs(totalPaid - totalOwed).toFixed(2)}`)
+
+  // Detailed expense breakdown
+  console.log('\n=== Expense Details ===')
+  allEnabledExpenses.value.forEach((expense) => {
+    console.log(`\nExpense: ${expense.description}`)
+    console.log(`  Grand Total: ${expense.grandTotal}`)
+    console.log(`  Has Items: ${expense.items?.length > 0}`)
+    console.log(`  Shared by: ${expense.sharedWithMemberIds.length} members`)
+
+    if (expense.items && expense.items.length > 0) {
+      const itemsTotal = expense.items.reduce((sum, item) =>
+        sum + (item.price * (item.quantity || 1)), 0
+      )
+      console.log(`  Items Total: ${itemsTotal}`)
+      console.log(`  Difference (tax/fees): ${(expense.grandTotal - itemsTotal).toFixed(2)}`)
+    }
+  })
+}
+
+// Expose debug function to window for console access
+if (import.meta.client) {
+  (window as any).debugBalances = debugBalances
 }
 
 // Check if trip exists after data loads
