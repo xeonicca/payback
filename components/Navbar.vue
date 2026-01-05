@@ -1,9 +1,25 @@
 <script setup lang="ts">
+import type { Trip } from '@/types'
+import { doc } from 'firebase/firestore'
+import { useDocument, useFirestore } from 'vuefire'
+import { tripConverter } from '@/utils/converter'
 import { toast } from 'vue-sonner'
 
 const sessionUser = useSessionUser()
 const router = useRouter()
+const route = useRoute()
 const { logout } = useLogin()
+
+// Check if we're on a trip detail page
+const tripId = computed(() => route.params.tripId as string | undefined)
+const isOnTripPage = computed(() => !!tripId.value)
+
+// Fetch trip name if on trip page
+const db = useFirestore()
+const tripDocRef = computed(() => {
+  return tripId.value ? doc(db, 'trips', tripId.value).withConverter(tripConverter) : null
+})
+const trip = useDocument<Trip>(tripDocRef)
 
 async function handleLogout() {
   try {
@@ -31,27 +47,32 @@ async function handleLogout() {
       text-white pt-2 px-4 pb-4"
   >
     <div class="container mx-auto flex justify-between items-center">
-      <NuxtLink to="/" class="flex items-center gap-2 hover:text-blue-200">
-        <NuxtImg
-          src="/logo-transparent.png"
-          alt="Payback Logo"
-          width="80"
-          height="80"
-          class="rounded-full"
-          loading="eager"
-        />
-      </NuxtLink>
+      <!-- Logo and Breadcrumb -->
+      <div class="flex items-center gap-3">
+        <NuxtLink to="/" class="flex items-center gap-2 hover:text-blue-200 flex-shrink-0">
+          <NuxtImg
+            src="/logo-transparent.png"
+            alt="Payback Logo"
+            width="80"
+            height="80"
+            class="rounded-full"
+            loading="eager"
+          />
+        </NuxtLink>
+
+        <!-- Breadcrumb when on trip pages -->
+        <div v-if="isOnTripPage && trip" class="flex items-center gap-2 text-sm">
+          <Icon name="lucide:chevron-right" size="16" class="text-blue-200" />
+          <NuxtLink
+            :to="`/trips/${tripId}`"
+            class="hover:text-blue-200 font-medium truncate max-w-[200px] transition-colors"
+          >
+            {{ trip.name }}
+          </NuxtLink>
+        </div>
+      </div>
+
       <ul class="flex place-items-center space-x-4">
-        <!-- <li>
-          <NuxtLink to="/" class="flex items-center hover:text-blue-200 p-2 rounded-full hover:bg-blue-500 transition-colors" title="Dashboard">
-            <Icon name="lucide:house" size="20" />
-          </NuxtLink>
-        </li> -->
-        <li>
-          <NuxtLink to="/trips/latest" class="flex items-center hover:text-blue-200 p-2 rounded-full hover:bg-blue-500 transition-colors" title="Add Trip">
-            <Icon name="lucide:plane" size="20" />
-          </NuxtLink>
-        </li>
         <li class="flex items-center">
           <ClientOnly>
             <template v-if="sessionUser">

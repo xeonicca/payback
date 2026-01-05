@@ -12,7 +12,21 @@ const db = useFirestore()
 const { tripId } = useRoute().params
 const showHiddenExpenses = ref(false)
 const searchTerm = ref('')
+const sortBy = ref<'time' | 'total'>('time')
+const sortOrder = ref<'asc' | 'desc'>('desc')
 const router = useRouter()
+
+function toggleSort(type: 'time' | 'total') {
+  if (sortBy.value === type) {
+    // Toggle order if clicking the same sort option
+    sortOrder.value = sortOrder.value === 'desc' ? 'asc' : 'desc'
+  }
+  else {
+    // Switch to new sort option with default descending order
+    sortBy.value = type
+    sortOrder.value = 'desc'
+  }
+}
 
 const trip = useDocument<Trip>(doc(db, 'trips', tripId as string).withConverter(tripConverter))
 const { tripExpenses, enabledExpenses } = useTripExpenses(tripId as string)
@@ -48,6 +62,23 @@ const displayedExpenses = computed(() => {
       }
     })
   }
+
+  // Apply sorting
+  expenses = [...expenses].sort((a, b) => {
+    let comparison = 0
+
+    if (sortBy.value === 'total') {
+      comparison = a.grandTotal - b.grandTotal
+    }
+    else {
+      // Sort by time (paidAt, then createdAt)
+      const aTime = a.paidAt?.toMillis() || a.createdAt?.toMillis() || 0
+      const bTime = b.paidAt?.toMillis() || b.createdAt?.toMillis() || 0
+      comparison = aTime - bTime
+    }
+
+    return sortOrder.value === 'desc' ? -comparison : comparison
+  })
 
   return expenses
 })
@@ -139,14 +170,73 @@ function getDebtAmount(member1Id: string, member2Id: string) {
 </script>
 
 <template>
-  <ui-button
-    class="text-gray-500 flex items-center gap-1 mb-2 px-0"
-    variant="link"
-    size="sm"
-    @click="router.push(`/trips/${tripId}`)"
-  >
-    <icon name="lucide:arrow-left" size="16" /> 回到旅程
-  </ui-button>
+  <!-- Sticky Header with Back Button, Search, and Sort -->
+  <div class="sticky top-0 z-10 bg-slate-200 -mx-6 px-6 pt-2 pb-2 space-y-2">
+    <!-- Row 1: Back Button and Search -->
+    <div class="flex items-center gap-2">
+      <ui-button
+        class="text-gray-500 flex items-center gap-1 px-0 flex-shrink-0"
+        variant="link"
+        size="sm"
+        @click="router.push(`/trips/${tripId}`)"
+      >
+        <icon name="lucide:arrow-left" size="16" /> 回到旅程
+      </ui-button>
+
+      <div class="relative flex-1">
+        <Icon name="lucide-search" class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+        <ui-input
+          v-model="searchTerm"
+          type="text"
+          placeholder="搜尋描述、金額..."
+          class="pl-10 pr-10 w-full h-9"
+        />
+        <button
+          v-if="searchTerm"
+          type="button"
+          class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+          @click="searchTerm = ''"
+        >
+          <Icon name="lucide-x" class="w-4 h-4" />
+        </button>
+      </div>
+    </div>
+
+    <!-- Row 2: Sort Options -->
+    <div class="flex items-center gap-3 text-xs">
+      <span class="text-gray-600">排序</span>
+      <button
+        type="button"
+        class="flex items-center gap-1 transition-colors" :class="[
+          sortBy === 'time' ? 'text-indigo-700 font-semibold' : 'text-gray-600 hover:text-gray-900',
+        ]"
+        @click="toggleSort('time')"
+      >
+        <span>購買時間</span>
+        <Icon
+          v-if="sortBy === 'time'"
+          :name="sortOrder === 'desc' ? 'lucide-arrow-down' : 'lucide-arrow-up'"
+          class="w-3 h-3"
+        />
+      </button>
+      <span class="text-gray-300">|</span>
+      <button
+        type="button"
+        class="flex items-center gap-1 transition-colors" :class="[
+          sortBy === 'total' ? 'text-indigo-700 font-semibold' : 'text-gray-600 hover:text-gray-900',
+        ]"
+        @click="toggleSort('total')"
+      >
+        <span>金額大小</span>
+        <Icon
+          v-if="sortBy === 'total'"
+          :name="sortOrder === 'desc' ? 'lucide-arrow-down' : 'lucide-arrow-up'"
+          class="w-3 h-3"
+        />
+      </button>
+    </div>
+  </div>
+
   <div v-if="tripExpenses.length" class="space-y-3 bg-white rounded-sm p-4">
     <div class="flex justify-between items-center">
       <div class="text-sm text-gray-500 min-w-[100px]">
@@ -158,17 +248,6 @@ function getDebtAmount(member1Id: string, member2Id: string) {
         </ui-label>
         <ui-switch id="enabled" :model-value="showHiddenExpenses" @update:model-value="showHiddenExpenses = !showHiddenExpenses" />
       </div>
-    </div>
-
-    <!-- Search Bar -->
-    <div class="relative">
-      <Icon name="lucide-search" class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-      <ui-input
-        v-model="searchTerm"
-        type="text"
-        placeholder="搜尋描述、金額或條件 (例: >100, <500)..."
-        class="pl-10 w-full"
-      />
     </div>
 
     <!-- Expense List -->
@@ -191,6 +270,27 @@ function getDebtAmount(member1Id: string, member2Id: string) {
         試試調整搜尋條件
       </p>
     </div>
+  </div>
+
+  <!-- Empty State: No Expenses -->
+  <div v-else class="flex flex-col items-center justify-center py-20 text-center">
+    <div class="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mb-4">
+      <Icon name="lucide-receipt" class="w-10 h-10 text-gray-400" />
+    </div>
+    <h3 class="text-lg font-semibold text-gray-900 mb-2">
+      尚無支出記錄
+    </h3>
+    <p class="text-sm text-gray-600 mb-6 max-w-xs">
+      還沒有任何購買明細。開始記錄您的旅程支出吧！
+    </p>
+    <ui-button
+      variant="default"
+      size="sm"
+      @click="router.push(`/trips/${tripId}`)"
+    >
+      <Icon name="lucide-arrow-left" class="w-4 h-4 mr-1" />
+      回到旅程頁面
+    </ui-button>
   </div>
 
   <!-- Debt Relationship Section -->
