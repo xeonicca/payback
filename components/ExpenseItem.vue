@@ -37,8 +37,13 @@ const paidByMember = computed(() => props.tripMembers.find(member => member.id =
         </p>
       </div>
 
-      <div class="text-sm font-mono w-[120px] md:w-[200px] text-right self-end text-green-600">
-        {{ trip.tripCurrency }} {{ (expense.grandTotal || 0).toFixed(2) }}
+      <div class="w-[120px] md:w-[200px] text-right self-end">
+        <div class="text-sm font-mono text-green-600">
+          {{ trip.tripCurrency }} {{ (expense.grandTotal || 0).toFixed(2) }}
+        </div>
+        <div v-if="trip?.exchangeRate && trip.exchangeRate !== 1" class="text-xs text-gray-400 font-mono mt-0.5">
+          ≈ {{ trip?.defaultCurrency }} {{ ((expense.grandTotal || 0) * trip.exchangeRate).toFixed(2) }}
+        </div>
       </div>
     </div>
   </nuxt-link>

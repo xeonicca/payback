@@ -10,7 +10,8 @@ const { tripId } = useRoute().params
 
 const { trip } = useTrip(tripId as string)
 const { tripMembers, hostMember } = useTripMembers(tripId as string)
-const { enabledExpenses } = useTripExpenses(tripId as string, 5)
+const { enabledExpenses: recentExpenses } = useTripExpenses(tripId as string, 5)
+const { enabledExpenses: allEnabledExpenses } = useTripExpenses(tripId as string, 0)
 const { canManageExpenses, isCollaborator } = useTripCollaborators(tripId as string)
 
 const openAddExpenseDrawer = ref(false)
@@ -21,6 +22,71 @@ const convertToDefaultCurrency = computed(() => {
 
   return Math.round(trip.value.enabledTotalExpenses * trip.value.exchangeRate * 100) / 100
 })
+
+// Calculate how much each member has actually paid (using ALL expenses)
+function getMemberPaidAmount(memberId: string) {
+  if (!allEnabledExpenses.value)
+    return 0
+
+  return allEnabledExpenses.value
+    .filter(expense => expense.paidByMemberId === memberId)
+    .reduce((total, expense) => total + expense.grandTotal, 0)
+}
+
+// Calculate how much a member owes (considering item-level sharing)
+function getMemberOwedAmount(memberId: string) {
+  if (!allEnabledExpenses.value)
+    return 0
+
+  let totalOwed = 0
+
+  allEnabledExpenses.value.forEach((expense) => {
+    // If expense has items, calculate based on item-level sharing
+    if (expense.items && expense.items.length > 0) {
+      expense.items.forEach((item) => {
+        let sharingMembers: string[] = []
+
+        // If item has no specific sharedByMemberIds, all expense members share it
+        if (!item.sharedByMemberIds || item.sharedByMemberIds.length === 0) {
+          sharingMembers = expense.sharedWithMemberIds
+        }
+        else {
+          // Only include members who are both in item sharing AND main expense sharing
+          sharingMembers = item.sharedByMemberIds.filter(id =>
+            expense.sharedWithMemberIds.includes(id),
+          )
+        }
+
+        // Skip if no members are sharing this item or if this member isn't sharing
+        if (sharingMembers.length === 0 || !sharingMembers.includes(memberId)) {
+          return
+        }
+
+        // Calculate this member's share of this item
+        const itemTotal = item.price * (item.quantity || 1)
+        const sharePerMember = itemTotal / sharingMembers.length
+        totalOwed += sharePerMember
+      })
+    }
+    else {
+      // If no items, use expense-level sharing
+      if (expense.sharedWithMemberIds.includes(memberId)) {
+        const sharePerMember = expense.grandTotal / expense.sharedWithMemberIds.length
+        totalOwed += sharePerMember
+      }
+    }
+  })
+
+  return totalOwed
+}
+
+// Calculate member balance (paid - owed)
+function getMemberBalance(memberId: string) {
+  const paid = getMemberPaidAmount(memberId)
+  const owed = getMemberOwedAmount(memberId)
+
+  return paid - owed
+}
 
 // Check if trip exists after data loads
 watch(trip, (tripValue) => {
@@ -60,36 +126,7 @@ watch(trip, (tripValue) => {
     <section class="mt-4 space-y-2">
       <div class="flex items-center justify-between pl-2">
         <h2 class="text-xl font-bold text-indigo-700">
-          成員支出
-        </h2>
-      </div>
-      <div class="space-y-2">
-        <div
-          v-for="member in tripMembers"
-          :key="member.id"
-          class="flex items-center justify-between py-2 px-3 bg-gray-50 rounded-lg"
-        >
-          <div class="flex items-center gap-2">
-            <span class="text-sm">{{ member.avatarEmoji }}</span>
-            <span class="text-sm font-medium">{{ member.name }}</span>
-          </div>
-          <div class="text-right">
-            <div class="text-sm font-mono text-green-600">
-              {{ trip?.tripCurrency }} {{ member.spending.toFixed(2) || '0.00' }}
-            </div>
-            <div v-if="trip?.exchangeRate && trip.exchangeRate !== 1" class="text-xs text-gray-500 inline-flex items-center gap-1">
-              <Icon name="lucide:equal-approximately" class="text-gray-500" size="12" />
-              <p>{{ trip?.defaultCurrency }} {{ (member.spending * trip.exchangeRate).toFixed(2) }}</p>
-            </div>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <section class="mt-4 space-y-2">
-      <div class="flex items-center justify-between pl-2">
-        <h2 class="text-xl font-bold text-indigo-700">
-          結算建議
+          成員結算
         </h2>
       </div>
 
@@ -102,6 +139,9 @@ watch(trip, (tripValue) => {
           <p class="text-lg font-bold text-gray-900 font-mono">
             {{ trip?.tripCurrency }} {{ (trip?.enabledTotalExpenses || 0).toFixed(2) }}
           </p>
+          <p v-if="trip?.exchangeRate && trip.exchangeRate !== 1" class="text-xs text-gray-400 font-mono">
+            ≈ {{ trip?.defaultCurrency }} {{ ((trip?.enabledTotalExpenses || 0) * trip.exchangeRate).toFixed(2) }}
+          </p>
         </div>
         <div class="bg-white rounded-lg p-4 border border-gray-100">
           <p class="text-xs text-gray-500 mb-1">
@@ -110,42 +150,79 @@ watch(trip, (tripValue) => {
           <p class="text-lg font-bold text-indigo-600 font-mono">
             {{ trip?.tripCurrency }} {{ tripMembers.length > 0 ? ((trip?.enabledTotalExpenses || 0) / tripMembers.length).toFixed(2) : '0.00' }}
           </p>
+          <p v-if="trip?.exchangeRate && trip.exchangeRate !== 1" class="text-xs text-gray-400 font-mono">
+            ≈ {{ trip?.defaultCurrency }} {{ tripMembers.length > 0 ? (((trip?.enabledTotalExpenses || 0) / tripMembers.length) * trip.exchangeRate).toFixed(2) : '0.00' }}
+          </p>
         </div>
       </div>
 
-      <!-- Member Balances -->
+      <!-- Combined Member Info -->
       <div class="space-y-2">
         <div
           v-for="member in tripMembers"
           :key="member.id"
-          class="flex items-center justify-between py-2.5 px-3 bg-white rounded-lg border border-gray-100"
+          class="bg-white rounded-lg p-3 border border-gray-100"
         >
-          <div class="flex items-center gap-2">
-            <span class="text-sm">{{ member.avatarEmoji }}</span>
-            <span class="text-sm font-medium text-gray-900">{{ member.name }}</span>
-          </div>
-          <div class="text-right">
-            <div
-              :class="{
-                'text-green-600': member.spending > ((trip?.enabledTotalExpenses || 0) / tripMembers.length),
-                'text-red-600': member.spending < ((trip?.enabledTotalExpenses || 0) / tripMembers.length),
-                'text-gray-600': Math.abs(member.spending - ((trip?.enabledTotalExpenses || 0) / tripMembers.length)) < 0.01,
-              }"
-              class="text-sm font-semibold"
-            >
-              <span v-if="member.spending > ((trip?.enabledTotalExpenses || 0) / tripMembers.length)">多付</span>
-              <span v-else-if="member.spending < ((trip?.enabledTotalExpenses || 0) / tripMembers.length)">少付</span>
-              <span v-else>已平衡</span>
+          <!-- Member Header -->
+          <div class="flex items-center justify-between mb-2">
+            <div class="flex items-center gap-2">
+              <span class="text-base">{{ member.avatarEmoji }}</span>
+              <span class="text-sm font-semibold text-gray-900">{{ member.name }}</span>
             </div>
             <div
               :class="{
-                'text-green-600': member.spending > ((trip?.enabledTotalExpenses || 0) / tripMembers.length),
-                'text-red-600': member.spending < ((trip?.enabledTotalExpenses || 0) / tripMembers.length),
-                'text-gray-600': Math.abs(member.spending - ((trip?.enabledTotalExpenses || 0) / tripMembers.length)) < 0.01,
+                'text-green-600': getMemberBalance(member.id) > 0.01,
+                'text-red-600': getMemberBalance(member.id) < -0.01,
+                'text-gray-600': Math.abs(getMemberBalance(member.id)) <= 0.01,
               }"
-              class="text-xs font-mono mt-0.5"
+              class="text-xs font-semibold px-2 py-0.5 rounded-full"
+              :style="{
+                backgroundColor: getMemberBalance(member.id) > 0.01
+                  ? 'rgb(220 252 231)'
+                  : getMemberBalance(member.id) < -0.01
+                    ? 'rgb(254 226 226)'
+                    : 'rgb(243 244 246)',
+              }"
             >
-              {{ trip?.tripCurrency }} {{ Math.abs(member.spending - ((trip?.enabledTotalExpenses || 0) / tripMembers.length)).toFixed(2) }}
+              <span v-if="getMemberBalance(member.id) > 0.01">應收款</span>
+              <span v-else-if="getMemberBalance(member.id) < -0.01">應付款</span>
+              <span v-else>已結清</span>
+            </div>
+          </div>
+
+          <!-- Member Details Grid -->
+          <div class="grid grid-cols-2 gap-2 text-xs">
+            <!-- Spending -->
+            <div class="bg-gray-50 rounded p-2">
+              <p class="text-gray-500 mb-0.5">
+                已支付
+              </p>
+              <p class="font-mono font-semibold text-gray-900">
+                {{ trip?.tripCurrency }} {{ getMemberPaidAmount(member.id).toFixed(2) }}
+              </p>
+              <p v-if="trip?.exchangeRate && trip.exchangeRate !== 1" class="text-gray-400 font-mono mt-0.5">
+                ≈ {{ trip?.defaultCurrency }} {{ (getMemberPaidAmount(member.id) * trip.exchangeRate).toFixed(2) }}
+              </p>
+            </div>
+
+            <!-- Balance -->
+            <div class="bg-gray-50 rounded p-2">
+              <p class="text-gray-500 mb-0.5">
+                結算金額
+              </p>
+              <p
+                :class="{
+                  'text-green-600': getMemberBalance(member.id) > 0.01,
+                  'text-red-600': getMemberBalance(member.id) < -0.01,
+                  'text-gray-600': Math.abs(getMemberBalance(member.id)) <= 0.01,
+                }"
+                class="font-mono font-semibold"
+              >
+                {{ getMemberBalance(member.id) > 0.01 ? '+' : getMemberBalance(member.id) < -0.01 ? '-' : '' }}{{ trip?.tripCurrency }} {{ Math.abs(getMemberBalance(member.id)).toFixed(2) }}
+              </p>
+              <p v-if="trip?.exchangeRate && trip.exchangeRate !== 1" class="text-gray-400 font-mono mt-0.5">
+                ≈ {{ trip?.defaultCurrency }} {{ (Math.abs(getMemberBalance(member.id)) * trip.exchangeRate).toFixed(2) }}
+              </p>
             </div>
           </div>
         </div>
@@ -168,8 +245,8 @@ watch(trip, (tripValue) => {
           已封存
         </ui-badge>
       </div>
-      <div v-if="enabledExpenses.length > 0" class="mt-2 pb-4 px-4 pt-2 space-y-1 bg-white rounded-sm">
-        <template v-for="expense in enabledExpenses" :key="expense.id">
+      <div v-if="recentExpenses.length > 0" class="mt-2 pb-4 px-4 pt-2 space-y-1 bg-white rounded-sm">
+        <template v-for="expense in recentExpenses" :key="expense.id">
           <expense-item :expense="expense" :trip-members="tripMembers" :trip="trip!" />
           <ui-separator />
         </template>
