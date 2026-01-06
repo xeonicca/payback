@@ -12,7 +12,8 @@ const sessionUser = useSessionUser()
 const { data: ownedTrips, error: tripsError, pending: tripsPending } = await useAsyncData(
   'owned-trips',
   async () => {
-    if (!sessionUser.value?.uid) return []
+    if (!sessionUser.value?.uid)
+      return []
 
     const tripsQuery = query(
       collection(db, 'trips'),
@@ -83,7 +84,7 @@ definePageMeta({
 
     <!-- Header Section -->
     <header class="mb-10">
-      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+      <div class="flex sm:flex-row sm:items-center justify-between gap-4 mb-6">
         <h1 class="text-2xl font-bold text-gray-900">
           行程一覽
         </h1>

@@ -1,6 +1,7 @@
 <script setup lang="ts">
+import type { FieldValue } from 'firebase/firestore'
 import type { Trip } from '@/types'
-import { doc } from 'firebase/firestore'
+import { doc, Timestamp } from 'firebase/firestore'
 import { useDocument, useFirestore } from 'vuefire'
 import { tripConverter } from '@/utils/converter'
 
@@ -75,8 +76,11 @@ const displayedExpenses = computed(() => {
     }
     else {
       // Sort by time (paidAt, then createdAt)
-      const aTime = a.paidAt?.toMillis() || a.createdAt?.toMillis() || 0
-      const bTime = b.paidAt?.toMillis() || b.createdAt?.toMillis() || 0
+      const getTimeMillis = (timestamp: Timestamp | FieldValue | undefined) => {
+        return timestamp instanceof Timestamp ? timestamp.toMillis() : 0
+      }
+      const aTime = getTimeMillis(a.paidAt) || getTimeMillis(a.createdAt) || 0
+      const bTime = getTimeMillis(b.paidAt) || getTimeMillis(b.createdAt) || 0
       comparison = aTime - bTime
     }
 
@@ -89,7 +93,7 @@ const displayedExpenses = computed(() => {
 
 <template>
   <!-- Sticky Header with Back Button, Search, and Sort -->
-  <div class="sticky top-0 z-10 bg-slate-200 -mx-6 px-6 pt-2 pb-2 space-y-2">
+  <div class="sticky top-0 z-10 bg-slate-200 -mx-6 px-6 pb-2 space-y-2">
     <!-- Row 1: Back Button and Search -->
     <div class="flex items-center gap-2">
       <ui-button
