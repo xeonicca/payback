@@ -67,6 +67,7 @@ export interface NewExpense {
   isProcessing: boolean
   enabled: boolean // New field with default value true
   items?: Array<ExpenseDetailItem>
+  inputCurrency?: string // The currency used when entering this expense
 }
 
 export interface Expense extends NewExpense {

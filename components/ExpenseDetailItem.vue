@@ -84,9 +84,9 @@ const sharedByMemberAvatars = computed(() => {
         <span class="font-medium text-sm">{{ item.name }}</span>
         <div class="font-mono text-xs text-gray-500">
           <span v-if="item.price !== 0">
-            {{ currency }} {{ item.price }}
+            {{ currency }} {{ Math.round(item.price * 100) / 100 }}
           </span>
-          <span>x{{ item.quantity ?? 1 }}</span>
+          <span> x{{ item.quantity ?? 1 }}</span>
         </div>
       </div>
       <p v-if="item.translatedName" class="text-xs text-gray-500 mt-2">
@@ -100,7 +100,7 @@ const sharedByMemberAvatars = computed(() => {
     </div>
     <div class="text-right font-mono text-sm ml-4">
       <div class="text-green-600">
-        {{ currency }} {{ item.price * (item.quantity ?? 1) }}
+        {{ currency }} {{ Math.round(item.price * (item.quantity ?? 1) * 100) / 100 }}
       </div>
       <div v-if="convertedPrice" class="text-xs text-gray-500 inline-flex items-center gap-1">
         <Icon name="lucide:equal-approximately" class="text-gray-500" size="12" />

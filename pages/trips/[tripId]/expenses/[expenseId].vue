@@ -49,6 +49,11 @@ const convertToDefaultCurrency = computed(() => {
   return Math.round(expense.value.grandTotal * trip.value.exchangeRate * 100) / 100
 })
 
+// Check if expense was entered in home currency
+const usedHomeCurrency = computed(() =>
+  expense.value?.inputCurrency && expense.value.inputCurrency === trip.value?.defaultCurrency,
+)
+
 const sharedTotalByMember = computed(() => {
   const sharedWithMemberIds = expense.value?.sharedWithMemberIds ?? []
   if (!expense.value?.items?.length) {
@@ -201,11 +206,18 @@ function closeEditDialog() {
 
 <template>
   <div class="flex items-end justify-between gap-2 bg-slate-200 mb-2">
-    <h1 class="text-2xl font-bold text-indigo-700">
-      {{ trip?.tripCurrency }} {{ expense?.grandTotal.toFixed(2) }}
-      <p class="text-sm text-slate-700 inline-flex items-center gap-1">
-        <Icon name="lucide:equal-approximately" class="text-slate-700" /> {{ trip?.defaultCurrency }} {{ convertToDefaultCurrency.toFixed(2) }}
-      </p>
+    <h1 class="text-2xl font-bold">
+      <template v-if="usedHomeCurrency">
+        <span class="text-blue-600 inline-flex items-center gap-2">
+          {{ trip?.defaultCurrency }} {{ convertToDefaultCurrency.toFixed(2) }}
+        </span>
+      </template>
+      <template v-else>
+        <span class="text-indigo-700">{{ trip?.tripCurrency }} {{ expense?.grandTotal.toFixed(2) }}</span>
+        <p class="text-sm text-slate-700 inline-flex items-center gap-1">
+          <Icon name="lucide:equal-approximately" class="text-slate-700" /> {{ trip?.defaultCurrency }} {{ convertToDefaultCurrency.toFixed(2) }}
+        </p>
+      </template>
     </h1>
     <ui-button
       variant="outline"
@@ -271,13 +283,18 @@ function closeEditDialog() {
                   <span class="text-sm font-medium">{{ member.name }}</span>
                 </div>
                 <div class="text-right mr-4">
-                  <div class="text-sm font-mono text-green-600">
-                    {{ trip?.tripCurrency }} {{ sharedTotalByMember[member.id].total.toFixed(2) || '0.00' }}
+                  <div v-if="usedHomeCurrency" class="text-sm font-mono text-blue-600">
+                    {{ trip?.defaultCurrency }} {{ sharedTotalByMember[member.id].convertedTotal.toFixed(2) || '0.00' }}
                   </div>
-                  <div v-if="trip?.exchangeRate && trip.exchangeRate !== 1" class="text-xs text-gray-500 inline-flex items-center gap-1">
-                    <Icon name="lucide:equal-approximately" class="text-gray-500" size="12" />
-                    <p>{{ trip?.defaultCurrency }} {{ (sharedTotalByMember[member.id].convertedTotal).toFixed(2) }}</p>
-                  </div>
+                  <template v-else>
+                    <div class="text-sm font-mono text-green-600">
+                      {{ trip?.tripCurrency }} {{ sharedTotalByMember[member.id].total.toFixed(2) || '0.00' }}
+                    </div>
+                    <div v-if="trip?.exchangeRate && trip.exchangeRate !== 1" class="text-xs text-gray-500 inline-flex items-center gap-1">
+                      <Icon name="lucide:equal-approximately" class="text-gray-500" size="12" />
+                      <p>{{ trip?.defaultCurrency }} {{ (sharedTotalByMember[member.id].convertedTotal).toFixed(2) }}</p>
+                    </div>
+                  </template>
                 </div>
               </div>
             </ui-accordion-trigger>
@@ -291,17 +308,17 @@ function closeEditDialog() {
                   <div class="flex-1">
                     <span class="font-mono">{{ item.itemName }}</span>
                     <p class="text-gray-500">
-                      ({{ trip?.tripCurrency }} {{ item.itemPrice.toFixed(2) }} × {{ item.itemQuantity }} ÷ {{ item.sharingMembers.length }}人)
+                      ({{ usedHomeCurrency ? trip?.defaultCurrency : trip?.tripCurrency }} {{ (usedHomeCurrency ? item.itemPrice * (trip?.exchangeRate || 1) : item.itemPrice).toFixed(2) }} × {{ item.itemQuantity }} ÷ {{ item.sharingMembers.length }}人)
                     </p>
                   </div>
-                  <div class="text-right font-mono text-green-600">
-                    {{ trip?.tripCurrency }} {{ item.sharePerMember.toFixed(2) }}
+                  <div class="text-right font-mono" :class="usedHomeCurrency ? 'text-blue-600' : 'text-green-600'">
+                    {{ usedHomeCurrency ? trip?.defaultCurrency : trip?.tripCurrency }} {{ (usedHomeCurrency ? item.sharePerMember * (trip?.exchangeRate || 1) : item.sharePerMember).toFixed(2) }}
                   </div>
                 </div>
                 <div class="border-t pt-1 flex justify-between items-center font-bold">
                   <span>小計:</span>
-                  <span class="text-green-600">
-                    {{ trip?.tripCurrency }} {{ (memberItemBreakdown[member.id] || []).reduce((sum, item) => sum + item.sharePerMember, 0).toFixed(2) }}
+                  <span :class="usedHomeCurrency ? 'text-blue-600' : 'text-green-600'">
+                    {{ usedHomeCurrency ? trip?.defaultCurrency : trip?.tripCurrency }} {{ ((memberItemBreakdown[member.id] || []).reduce((sum, item) => sum + item.sharePerMember, 0) * (usedHomeCurrency ? (trip?.exchangeRate || 1) : 1)).toFixed(2) }}
                   </span>
                 </div>
               </div>
@@ -329,7 +346,7 @@ function closeEditDialog() {
               已付款
             </span>
             <span class="text-sm font-mono font-semibold text-blue-600">
-              {{ trip?.tripCurrency }} {{ expense?.grandTotal.toFixed(2) }}
+              {{ usedHomeCurrency ? trip?.defaultCurrency : trip?.tripCurrency }} {{ (usedHomeCurrency ? convertToDefaultCurrency : expense?.grandTotal)?.toFixed(2) }}
             </span>
           </div>
         </div>
@@ -352,10 +369,7 @@ function closeEditDialog() {
               </div>
               <div class="text-right">
                 <div class="text-sm font-mono font-semibold text-red-600">
-                  {{ trip?.tripCurrency }} {{ sharedTotalByMember[member.id].total.toFixed(2) }}
-                </div>
-                <div v-if="trip?.exchangeRate && trip.exchangeRate !== 1" class="text-xs text-gray-500 font-mono mt-0.5">
-                  {{ trip?.defaultCurrency }} {{ sharedTotalByMember[member.id].convertedTotal.toFixed(2) }}
+                  {{ usedHomeCurrency ? trip?.defaultCurrency : trip?.tripCurrency }} {{ (usedHomeCurrency ? sharedTotalByMember[member.id].convertedTotal : sharedTotalByMember[member.id].total).toFixed(2) }}
                 </div>
               </div>
             </div>
@@ -369,15 +383,15 @@ function closeEditDialog() {
           </p>
           <div class="space-y-2">
             <div class="flex items-center justify-between py-2 px-3 bg-white rounded-lg">
-              <span class="text-xs text-gray-600">付款人 {{ paidByMember?.name }} 應收</span>
-              <span class="text-sm font-mono font-semibold text-green-600">
-                {{ trip?.tripCurrency }} {{ ((expense?.grandTotal || 0) - (sharedMembers.filter(m => m.id !== expense?.paidByMemberId).reduce((sum, m) => sum + (sharedTotalByMember[m.id]?.total || 0), 0))).toFixed(2) }}
+              <span class="text-xs text-gray-600">付款人 {{ paidByMember?.name }} 自付額</span>
+              <span class="text-sm font-mono font-semibold text-blue-600">
+                {{ usedHomeCurrency ? trip?.defaultCurrency : trip?.tripCurrency }} {{ (((expense?.grandTotal || 0) - (sharedMembers.filter(m => m.id !== expense?.paidByMemberId).reduce((sum, m) => sum + (sharedTotalByMember[m.id]?.total || 0), 0))) * (usedHomeCurrency ? (trip?.exchangeRate || 1) : 1)).toFixed(2) }}
               </span>
             </div>
             <div class="flex items-center justify-between py-2 px-3 bg-white rounded-lg">
               <span class="text-xs text-gray-600">其他成員總計應付</span>
               <span class="text-sm font-mono font-semibold text-red-600">
-                {{ trip?.tripCurrency }} {{ sharedMembers.filter(m => m.id !== expense?.paidByMemberId).reduce((sum, m) => sum + (sharedTotalByMember[m.id]?.total || 0), 0).toFixed(2) }}
+                {{ usedHomeCurrency ? trip?.defaultCurrency : trip?.tripCurrency }} {{ (sharedMembers.filter(m => m.id !== expense?.paidByMemberId).reduce((sum, m) => sum + (sharedTotalByMember[m.id]?.total || 0), 0) * (usedHomeCurrency ? (trip?.exchangeRate || 1) : 1)).toFixed(2) }}
               </span>
             </div>
           </div>

@@ -22,6 +22,23 @@ const emit = defineEmits<{
 
 const timezone = getLocalTimeZone()
 
+// Selected currency for input - defaults to trip currency, with user override
+const currencyOverride = ref<string | null>(null)
+const selectedCurrency = computed({
+  get: () => currencyOverride.value ?? props.trip.tripCurrency,
+  set: (val: string) => { currencyOverride.value = val },
+})
+
+// Check if entering in home currency
+const useHomeCurrency = computed(() =>
+  selectedCurrency.value === props.trip.defaultCurrency,
+)
+
+// Check if trip and home currency are different
+const hasDifferentCurrencies = computed(() =>
+  props.trip.tripCurrency !== props.trip.defaultCurrency,
+)
+
 const formSchema = toTypedSchema(z.object({
   description: z.string().min(2).max(200),
   grandTotal: z.coerce.number().positive(),
@@ -50,6 +67,25 @@ const paidAtDate = computed({
   set: val => val,
 })
 
+// Convert home currency amount to trip currency
+function convertToTripCurrency(amount: number): number {
+  if (!useHomeCurrency.value || !props.trip.exchangeRate) {
+    return amount
+  }
+  // exchangeRate = 1 tripCurrency = X defaultCurrency
+  // So to convert from defaultCurrency to tripCurrency: divide by exchangeRate
+  return amount / props.trip.exchangeRate
+}
+
+// Preview of converted amount when entering in home currency
+const convertedAmountPreview = computed(() => {
+  if (!useHomeCurrency.value || !values.grandTotal) {
+    return null
+  }
+  const converted = convertToTripCurrency(values.grandTotal)
+  return converted.toFixed(2)
+})
+
 const df = new DateFormatter('en-US', {
   dateStyle: 'long',
 })
@@ -63,8 +99,13 @@ const onSubmit = handleSubmit(async (values) => {
     const now = new Date()
     selectedDate.setHours(now.getHours(), now.getMinutes(), now.getSeconds())
 
+    // Convert amount to trip currency if entered in home currency
+    const grandTotalInTripCurrency = convertToTripCurrency(values.grandTotal)
+
     await addDoc(collection(db, 'trips', props.trip.id, 'expenses'), {
       ...values,
+      grandTotal: grandTotalInTripCurrency,
+      inputCurrency: selectedCurrency.value,
       paidAt: Timestamp.fromDate(selectedDate),
       createdAt: Timestamp.fromDate(new Date()),
       isProcessing: false,
@@ -98,15 +139,31 @@ onMounted(() => {
     <div class="space-y-4 px-6 py-8 min-h-[30vh] overflow-y-auto">
       <ui-form-field v-slot="{ componentField }" name="grandTotal" :validate-on-blur="!isFieldDirty">
         <ui-form-item>
-          <ui-form-label>支出金額</ui-form-label>
+          <div class="flex items-center justify-between">
+            <ui-form-label>支出金額</ui-form-label>
+            <ui-button
+              v-if="hasDifferentCurrencies"
+              type="button"
+              variant="ghost"
+              size="sm"
+              class="h-6 text-xs"
+              @click="selectedCurrency = useHomeCurrency ? trip.tripCurrency : trip.defaultCurrency"
+            >
+              <Icon name="lucide:arrow-left-right" class="mr-1 h-3 w-3" />
+              {{ useHomeCurrency ? `改用 ${trip.tripCurrency}` : `改用 ${trip.defaultCurrency}` }}
+            </ui-button>
+          </div>
           <ui-form-control>
             <div class="relative">
               <ui-input id="grandTotalInput" class="pl-14" type="tel" v-bind="componentField" step="0.01" />
               <ui-badge class="absolute start-0 inset-y-0 flex items-center justify-center ml-1 my-1 px-2">
-                {{ trip.tripCurrency }}
+                {{ selectedCurrency }}
               </ui-badge>
             </div>
           </ui-form-control>
+          <p v-if="convertedAmountPreview" class="text-xs text-muted-foreground mt-1">
+            ≈ {{ trip.tripCurrency }} {{ convertedAmountPreview }}
+          </p>
           <ui-form-message />
         </ui-form-item>
       </ui-form-field>

@@ -9,6 +9,11 @@ const props = defineProps<{
 
 const expenseMembers = computed(() => (expense: Expense) => props.tripMembers.filter(member => expense.sharedWithMemberIds.includes(member.id)))
 const paidByMember = computed(() => props.tripMembers.find(member => member.id === props.expense.paidByMemberId))
+
+// Check if expense was entered in home currency
+const usedHomeCurrency = computed(() =>
+  props.expense.inputCurrency && props.expense.inputCurrency === props.trip.defaultCurrency,
+)
 </script>
 
 <template>
@@ -37,12 +42,18 @@ const paidByMember = computed(() => props.tripMembers.find(member => member.id =
         {{ paidByMember?.avatarEmoji }}
       </p>
       <div class="w-[120px] md:w-[200px] text-right self-end">
-        <div class="text-sm font-mono text-green-600">
-          {{ trip.tripCurrency }} {{ (expense.grandTotal || 0).toFixed(2) }}
+        <div v-if="usedHomeCurrency" class="flex items-center text-sm font-mono text-blue-600 justify-end gap-2">
+          <Icon name="lucide:home" class="inline-block size-4" />
+          <div>{{ trip.defaultCurrency }} {{ ((expense.grandTotal || 0) * trip.exchangeRate).toFixed(2) }}</div>
         </div>
-        <div v-if="trip?.exchangeRate && trip.exchangeRate !== 1" class="text-xs text-gray-400 font-mono mt-0.5">
-          ≈ {{ trip?.defaultCurrency }} {{ ((expense.grandTotal || 0) * trip.exchangeRate).toFixed(2) }}
-        </div>
+        <template v-else>
+          <div class="text-sm font-mono text-green-600">
+            {{ trip.tripCurrency }} {{ (expense.grandTotal || 0).toFixed(2) }}
+          </div>
+          <div v-if="trip?.exchangeRate && trip.exchangeRate !== 1" class="text-xs text-gray-400 font-mono mt-0.5">
+            ≈ {{ trip?.defaultCurrency }} {{ ((expense.grandTotal || 0) * trip.exchangeRate).toFixed(2) }}
+          </div>
+        </template>
       </div>
     </div>
   </nuxt-link>
