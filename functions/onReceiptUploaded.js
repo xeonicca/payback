@@ -60,7 +60,9 @@ const timezoneMap = {
 }
 
 // Generate prompt text
-function generatePrompt(currency) {
+// receiptCurrency: the expected currency of the receipt (tripCurrency - where the trip is)
+// outputLocale: the user's preferred locale for translations (defaultCurrency - user's home currency)
+function generatePrompt(receiptCurrency, outputLocale) {
   const languageMap = {
     JPY: 'Japanese',
     USD: 'English',
@@ -95,8 +97,10 @@ function generatePrompt(currency) {
     PHP: 'MM/DD/YYYY (Philippine format)',
   }
 
-  const language = languageMap[currency] || 'English'
-  const dateFormat = dateFormatMap[currency] || 'DD/MM/YYYY (international format)'
+  // Use outputLocale for translation language (user's preferred language based on defaultCurrency)
+  const language = languageMap[outputLocale] || 'English'
+  // Use receiptCurrency for date format hints (tripCurrency - receipt's region)
+  const dateFormat = dateFormatMap[receiptCurrency] || 'DD/MM/YYYY (international format)'
 
   return `
 Analyze the provided receipt image and extract the following information:
@@ -105,20 +109,20 @@ Details for extraction:
 - For 'grandTotal': The final total amount paid.
 - For 'paidAtString': Extract the date and time of purchase from the receipt.
   IMPORTANT DATE PARSING INSTRUCTIONS:
-  * The receipt is from a ${currency} currency region, which typically uses ${dateFormat}.
+  * The receipt is likely from a ${receiptCurrency} currency region, which typically uses ${dateFormat}.
   * Use this knowledge to interpret ambiguous dates correctly (e.g., "05/03/2024" should be interpreted based on regional format).
   * For dates like "13/03/2024", it's clear that 13 is the day (since months only go to 12).
   * For ambiguous dates like "05/03/2024", use the regional format: ${dateFormat}.
   * Always output the final date in YYYY-MM-DD HH:mm format, regardless of the input format.
   * If you cannot extract a valid date, use null.
-- For 'currency': Currency code should be "${currency}".
+- For 'currency': Detect the currency from the receipt. The expected currency is "${receiptCurrency}" but use the actual currency shown on the receipt if different.
 - For 'items':
     - List each distinct item. If the receipt includes consumer tax or any form of discount from the grand total, also include it in the items.
     - 'name': Primary product name. Exclude quantities (e.g., '5コ', '3マイ'), original prices if discounted, and generic prefixes like "FF " or "Lm" unless part of the product identifier.
     - 'price': Final price paid for that item after any item-specific discounts.
     - 'translatedName': REQUIRED - Translate the item name to ${language}. If the item is already in ${language}, use the same name. Do not leave this field null.
     - 'quantity': Quantity of the item. Default to 1 if not provided.
-- For 'description': Generate a concise (1-2 sentences) summary of the purchase. Use phrase for the first sentence to quickly describe the purchase, then details for further clarification but no need to mention the cost here. Mention the store name and type of purchase if identifiable.
+- For 'description': Generate a brief summary in ${language}. Include the store/location name and the category of items purchased (e.g., "FamilyMart, snacks and drinks" or "Disneyland, entrance tickets" or "Starbucks, coffee"). Do NOT list individual item names as they are already captured in the items field.
 - If any numeric or date string field cannot be reliably extracted, use null.
 
 Please analyze the receipt in its native language if possible, but ensure the response follows the schema structure.
@@ -156,21 +160,29 @@ exports.analyzeReceiptAndUpdateExpense = onObjectFinalized({
   const expenseId = match[2]
   logger.info(`Extracted tripId: ${tripId}, expenseId: ${expenseId}`)
 
-  // Fetch trip document to get defaultCurrency
+  // Fetch trip document to get tripCurrency and defaultCurrency
+  // tripCurrency: the currency of the trip destination (for receipt analysis)
+  // defaultCurrency: the user's home currency (for output locale/translations)
+  let tripCurrency = null
   let defaultCurrency = null
   try {
     const tripDoc = await db.doc(`trips/${tripId}`).get()
     if (tripDoc.exists) {
-      defaultCurrency = tripDoc.data().defaultCurrency
-      logger.info(`Retrieved defaultCurrency: ${defaultCurrency} from trip document`)
+      const tripData = tripDoc.data()
+      tripCurrency = tripData.tripCurrency
+      defaultCurrency = tripData.defaultCurrency
+      logger.info(`Retrieved tripCurrency: ${tripCurrency}, defaultCurrency: ${defaultCurrency} from trip document`)
     }
     else {
       logger.warn(`Trip document ${tripId} does not exist`)
+      tripCurrency = 'TWD'
       defaultCurrency = 'TWD'
     }
   }
   catch (error) {
     logger.error(`Error fetching trip document: ${error}`)
+    tripCurrency = 'TWD'
+    defaultCurrency = 'TWD'
   }
 
   if (!contentType || !contentType.startsWith('image/')) {
@@ -206,7 +218,7 @@ exports.analyzeReceiptAndUpdateExpense = onObjectFinalized({
     const result = await ai.models.generateContent({
       model: 'gemini-2.0-flash',
       contents: [
-        { text: generatePrompt(defaultCurrency) },
+        { text: generatePrompt(tripCurrency, defaultCurrency) },
         imagePart,
       ],
       config: {
@@ -223,8 +235,8 @@ exports.analyzeReceiptAndUpdateExpense = onObjectFinalized({
     let paidAtTimestamp = null
     if (parsedDataFromAI.paidAtString) {
       try {
-        // Get the timezone for this currency
-        const tz = timezoneMap[defaultCurrency] || 'UTC'
+        // Get the timezone for the trip destination currency (where the receipt is from)
+        const tz = timezoneMap[tripCurrency] || 'UTC'
 
         // Parse the date string in the receipt's local timezone
         const parsedDate = dayjs.tz(parsedDataFromAI.paidAtString, 'YYYY-MM-DD HH:mm', tz)

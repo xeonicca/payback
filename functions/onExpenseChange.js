@@ -1,8 +1,10 @@
 const admin = require('firebase-admin')
+const { Storage } = require('@google-cloud/storage')
 const logger = require('firebase-functions/logger')
 const { onDocumentCreated, onDocumentUpdated, onDocumentDeleted } = require('firebase-functions/v2/firestore')
 
 const db = admin.firestore()
+const storage = new Storage()
 
 // Helper function to calculate member spending for an expense
 function calculateMemberSpending(expenseData, tripMembers) {
@@ -243,7 +245,7 @@ exports.onExpenseUpdated = onDocumentUpdated('trips/{tripId}/expenses/{expenseId
 
 // Trigger on expense deletion
 exports.onExpenseDeleted = onDocumentDeleted('trips/{tripId}/expenses/{expenseId}', async (event) => {
-  const { tripId } = event.params
+  const { tripId, expenseId } = event.params
   const expenseData = event.data.data()
 
   // Only subtract if the expense was not in processing state
@@ -269,5 +271,16 @@ exports.onExpenseDeleted = onDocumentDeleted('trips/{tripId}/expenses/{expenseId
     catch (error) {
       logger.error(`Error processing expense deletion: ${error}`)
     }
+  }
+
+  // Delete associated images from Storage
+  try {
+    const bucket = storage.bucket(process.env.GCLOUD_STORAGE_BUCKET)
+    const expenseFolder = `trips/${tripId}/expenses/${expenseId}/`
+    await bucket.deleteFiles({ prefix: expenseFolder })
+    logger.info(`Deleted images for expense ${expenseId}`)
+  }
+  catch (error) {
+    logger.error(`Error deleting images for expense ${expenseId}: ${error}`)
   }
 })

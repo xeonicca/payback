@@ -11,7 +11,8 @@
       "Bash(firebase deploy:*)",
       "WebFetch(domain:ai.google.dev)",
       "WebSearch",
-      "WebFetch(domain:vuefire.vuejs.org)"
+      "WebFetch(domain:vuefire.vuejs.org)",
+      "Bash(npm install:*)"
     ]
   }
 }

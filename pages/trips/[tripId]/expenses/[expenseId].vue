@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { Expense, Trip } from '@/types'
 import { computedAsync } from '@vueuse/core'
-import { doc, updateDoc } from 'firebase/firestore'
+import { deleteDoc, doc, updateDoc } from 'firebase/firestore'
 import { getDownloadURL, ref as storageRef } from 'firebase/storage'
 import { toast } from 'vue-sonner'
 import { useDocument, useFirebaseStorage, useFirestore } from 'vuefire'
@@ -16,6 +16,7 @@ definePageMeta({
 })
 
 const db = useFirestore()
+const router = useRouter()
 const { tripId, expenseId } = useRoute().params
 
 const trip = useDocument<Trip>(doc(db, 'trips', tripId as string).withConverter(tripConverter))
@@ -32,6 +33,8 @@ watch([trip, expense], ([tripValue, expenseValue]) => {
 }, { once: true })
 
 const showEditDialog = ref(false)
+const showDeleteDialog = ref(false)
+const isDeleting = ref(false)
 
 const paidByMember = computed(() => tripMembers.value?.find(member => member.id === expense.value?.paidByMemberId))
 const sharedWithMembers = computed(() => tripMembers.value?.filter(member => expense.value?.sharedWithMemberIds.includes(member.id)))
@@ -202,6 +205,25 @@ function openEditDialog() {
 function closeEditDialog() {
   showEditDialog.value = false
 }
+
+async function deleteExpense() {
+  if (!expense.value)
+    return
+
+  try {
+    isDeleting.value = true
+    await deleteDoc(doc(db, 'trips', tripId as string, 'expenses', expenseId as string))
+    toast.success('已刪除支出')
+    router.push(`/trips/${tripId}/expenses`)
+  }
+  catch (error) {
+    console.error('Error deleting expense:', error)
+    toast.error('刪除失敗')
+  }
+  finally {
+    isDeleting.value = false
+  }
+}
 </script>
 
 <template>
@@ -219,19 +241,33 @@ function closeEditDialog() {
         </p>
       </template>
     </h1>
-    <ui-button
-      variant="outline"
-      size="sm"
-      class="flex items-center gap-2"
-      @click="openEditDialog"
-    >
-      <Icon
-        name="lucide:edit-3"
-        :size="16"
-        class="text-gray-600"
-      />
-      編輯
-    </ui-button>
+    <div class="flex items-center gap-2">
+      <ui-button
+        variant="outline"
+        size="sm"
+        class="flex items-center gap-2"
+        @click="openEditDialog"
+      >
+        <Icon
+          name="lucide:edit-3"
+          :size="16"
+          class="text-gray-600"
+        />
+        編輯
+      </ui-button>
+      <ui-button
+        variant="destructive"
+        size="sm"
+        class="flex items-center gap-2"
+        @click="showDeleteDialog = true"
+      >
+        <Icon
+          name="lucide:trash-2"
+          :size="16"
+        />
+        刪除
+      </ui-button>
+    </div>
   </div>
 
   <div class="text-sm">
@@ -446,4 +482,25 @@ function closeEditDialog() {
       </div>
     </ui-drawer-content>
   </ui-drawer>
+
+  <!-- Delete Expense Confirmation Dialog -->
+  <ui-alert-dialog v-model:open="showDeleteDialog">
+    <ui-alert-dialog-content>
+      <ui-alert-dialog-header>
+        <ui-alert-dialog-title>刪除支出</ui-alert-dialog-title>
+        <ui-alert-dialog-description>
+          確定要刪除「{{ expense?.description }}」嗎？此操作無法復原。
+        </ui-alert-dialog-description>
+      </ui-alert-dialog-header>
+      <ui-alert-dialog-footer>
+        <ui-alert-dialog-cancel :disabled="isDeleting">
+          取消
+        </ui-alert-dialog-cancel>
+        <ui-button variant="destructive" :disabled="isDeleting" @click="deleteExpense">
+          <Icon v-if="isDeleting" name="lucide:loader-2" class="animate-spin mr-2" :size="16" />
+          {{ isDeleting ? '刪除中...' : '刪除' }}
+        </ui-button>
+      </ui-alert-dialog-footer>
+    </ui-alert-dialog-content>
+  </ui-alert-dialog>
 </template>
