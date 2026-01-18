@@ -144,9 +144,7 @@ export default defineNuxtConfig({
     },
     client: {
       installPrompt: true,
-      // you don't need to include this: only for testing purposes
-      // if enabling periodic sync for update use 1 hour or so (periodicSyncForUpdates: 3600)
-      periodicSyncForUpdates: 20,
+      periodicSyncForUpdates: 3600,
     },
   },
 
