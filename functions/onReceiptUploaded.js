@@ -1,14 +1,14 @@
-const { GoogleGenAI } = require('@google/genai')
-const { z } = require('zod')
-const { zodToJsonSchema } = require('zod-to-json-schema')
 const { Storage } = require('@google-cloud/storage')
+const { GoogleGenAI } = require('@google/genai')
 const dayjs = require('dayjs')
-const utc = require('dayjs/plugin/utc')
-const timezone = require('dayjs/plugin/timezone')
 const customParseFormat = require('dayjs/plugin/customParseFormat')
+const timezone = require('dayjs/plugin/timezone')
+const utc = require('dayjs/plugin/utc')
 const admin = require('firebase-admin')
 const { logger } = require('firebase-functions/v2')
 const { onObjectFinalized } = require('firebase-functions/v2/storage')
+const { z } = require('zod')
+const { zodToJsonSchema } = require('zod-to-json-schema')
 
 // Extend dayjs with timezone support
 dayjs.extend(utc)
@@ -73,8 +73,13 @@ function generatePrompt(receiptCurrency, outputLocale) {
     CNY: 'Simplified Chinese',
     KRW: 'Korean',
     SGD: 'English',
-    HKD: 'English',
+    HKD: 'Traditional Chinese',
     TWD: 'Traditional Chinese',
+    VND: 'Vietnamese',
+    MYR: 'Malay',
+    THB: 'Thai',
+    IDR: 'Indonesian',
+    PHP: 'Filipino',
   }
 
   // Date format guidance based on currency
