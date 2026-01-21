@@ -6,4 +6,7 @@ export default defineNuxtPlugin(async () => {
 
   if (data)
     sessionUser.value = data
+
+  // Return object so Nuxt waits for this plugin before running route middleware
+  return {}
 })
