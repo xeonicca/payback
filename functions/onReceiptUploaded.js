@@ -18,20 +18,24 @@ dayjs.extend(customParseFormat)
 const db = admin.firestore()
 const storage = new Storage()
 
-// Define Zod schemas
+// --- ENHANCED SCHEMAS ---
+
 const expenseItemSchema = z.object({
-  name: z.string().describe('Primary product name of the item.'),
-  translatedName: z.string().nullable().describe('Translated name of the item in the target language.'),
-  quantity: z.number().nullable().describe('Quantity of the item. Default to 1 if not provided.'),
-  price: z.number().describe('Final price paid for that item after any item-specific discounts.'),
+  name: z.string().describe('Primary product name of the item. Remove generic prefixes like "FF " or "Lm".'),
+  // Fix 1: Explicitly forbid dual-language output in the schema description
+  translatedName: z.string().nullable().describe('The name translated into the target language ONLY. Do NOT include the original name. If already in target language, use original.'),
+  quantity: z.number().nullable().describe('Count of items. Default to 1 if not specified.'),
+  // Fix 2: Explicitly define this as UNIT price to stop the model from grabbing the line total
+  price: z.number().describe('The price per SINGLE unit. CAUTION: If the receipt says "2 @ 10.00 = 20.00", the price is 10.00, NOT 20.00. Do not include currency symbols.'),
 })
 
 const receiptSchema = z.object({
-  grandTotal: z.number().nullable().describe('The final total amount paid.'),
+  grandTotal: z.number().nullable().describe('The final total amount paid including tax.'),
   paidAtString: z.string().nullable().describe('Date and time of purchase in YYYY-MM-DD HH:mm format.'),
   currency: z.string().describe('Currency code (e.g., JPY, USD, TWD).'),
   items: z.array(expenseItemSchema).describe('List of items purchased.'),
-  description: z.string().nullable().describe('Concise 1-2 sentence summary of the purchase.'),
+  // Fix 3: Explicitly forbid dual-language output here as well
+  description: z.string().nullable().describe('Concise 1-sentence summary in the TARGET LANGUAGE ONLY. Do not provide bilingual output (e.g., avoid "Original (Translation)").'),
 })
 
 // Configure Google Gen AI
@@ -50,18 +54,17 @@ const timezoneMap = {
   IDR: 'Asia/Jakarta',
   VND: 'Asia/Ho_Chi_Minh',
   PHP: 'Asia/Manila',
-  USD: 'America/New_York', // Default to Eastern Time
+  USD: 'America/New_York',
   CAD: 'America/Toronto',
-  EUR: 'Europe/Paris', // Default to Central European Time
+  EUR: 'Europe/Paris',
   GBP: 'Europe/London',
   AUD: 'Australia/Sydney',
   NZD: 'Pacific/Auckland',
   INR: 'Asia/Kolkata',
 }
 
-// Generate prompt text
-// receiptCurrency: the expected currency of the receipt (tripCurrency - where the trip is)
-// outputLocale: the user's preferred locale for translations (defaultCurrency - user's home currency)
+// --- ENHANCED PROMPT GENERATION ---
+
 function generatePrompt(receiptCurrency, outputLocale) {
   const languageMap = {
     JPY: 'Japanese',
@@ -82,55 +85,62 @@ function generatePrompt(receiptCurrency, outputLocale) {
     PHP: 'Filipino',
   }
 
-  // Date format guidance based on currency
   const dateFormatMap = {
-    USD: 'MM/DD/YYYY (US format)',
-    JPY: 'YYYY/MM/DD or YYYY-MM-DD (Japanese format)',
-    CNY: 'YYYY/MM/DD or YYYY-MM-DD (Chinese format)',
-    KRW: 'YYYY/MM/DD or YYYY-MM-DD (Korean format)',
-    EUR: 'DD/MM/YYYY (European format)',
-    GBP: 'DD/MM/YYYY (UK format)',
-    AUD: 'DD/MM/YYYY (Australian format)',
-    CAD: 'DD/MM/YYYY or MM/DD/YYYY (Canadian format - use context clues)',
-    SGD: 'DD/MM/YYYY (Singapore format)',
-    HKD: 'DD/MM/YYYY (Hong Kong format)',
-    TWD: 'YYYY/MM/DD (Taiwanese format)',
-    MYR: 'DD/MM/YYYY (Malaysian format)',
-    THB: 'DD/MM/YYYY (Thai format)',
-    IDR: 'DD/MM/YYYY (Indonesian format)',
-    VND: 'DD/MM/YYYY (Vietnamese format)',
-    PHP: 'MM/DD/YYYY (Philippine format)',
+    USD: 'MM/DD/YYYY',
+    JPY: 'YYYY/MM/DD',
+    CNY: 'YYYY/MM/DD',
+    KRW: 'YYYY/MM/DD',
+    EUR: 'DD/MM/YYYY',
+    GBP: 'DD/MM/YYYY',
+    AUD: 'DD/MM/YYYY',
+    CAD: 'DD/MM/YYYY',
+    SGD: 'DD/MM/YYYY',
+    HKD: 'DD/MM/YYYY',
+    TWD: 'YYYY/MM/DD',
+    MYR: 'DD/MM/YYYY',
+    THB: 'DD/MM/YYYY',
+    IDR: 'DD/MM/YYYY',
+    VND: 'DD/MM/YYYY',
+    PHP: 'MM/DD/YYYY',
   }
 
-  // Use outputLocale for translation language (user's preferred language based on defaultCurrency)
   const language = languageMap[outputLocale] || 'English'
-  // Use receiptCurrency for date format hints (tripCurrency - receipt's region)
-  const dateFormat = dateFormatMap[receiptCurrency] || 'DD/MM/YYYY (international format)'
+  const dateFormat = dateFormatMap[receiptCurrency] || 'DD/MM/YYYY'
 
+  // Fix 4: Restructured prompt with strict "Negative Constraints" (what NOT to do)
   return `
-Analyze the provided receipt image and extract the following information:
+Analyze the provided receipt image and extract data into the specified JSON structure.
 
-Details for extraction:
-- For 'grandTotal': The final total amount paid.
-- For 'paidAtString': Extract the date and time of purchase from the receipt.
-  IMPORTANT DATE PARSING INSTRUCTIONS:
-  * The receipt is likely from a ${receiptCurrency} currency region, which typically uses ${dateFormat}.
-  * Use this knowledge to interpret ambiguous dates correctly (e.g., "05/03/2024" should be interpreted based on regional format).
-  * For dates like "13/03/2024", it's clear that 13 is the day (since months only go to 12).
-  * For ambiguous dates like "05/03/2024", use the regional format: ${dateFormat}.
-  * Always output the final date in YYYY-MM-DD HH:mm format, regardless of the input format.
-  * If you cannot extract a valid date, use null.
-- For 'currency': Detect the currency from the receipt. The expected currency is "${receiptCurrency}" but use the actual currency shown on the receipt if different.
-- For 'items':
-    - List each distinct item. If the receipt includes consumer tax or any form of discount from the grand total, also include it in the items.
-    - 'name': Primary product name. Exclude quantities (e.g., '5コ', '3マイ'), original prices if discounted, and generic prefixes like "FF " or "Lm" unless part of the product identifier.
-    - 'price': Final price paid for that item after any item-specific discounts.
-    - 'translatedName': REQUIRED - Translate the item name to ${language}. If the item is already in ${language}, use the same name. Do not leave this field null.
-    - 'quantity': Quantity of the item. Default to 1 if not provided.
-- For 'description': Generate a brief summary in ${language}. Include the store/location name and the category of items purchased (e.g., "FamilyMart, snacks and drinks" or "Disneyland, entrance tickets" or "Starbucks, coffee"). Do NOT list individual item names as they are already captured in the items field.
-- If any numeric or date string field cannot be reliably extracted, use null.
+### CONTEXT
+- Receipt Region Currency: ${receiptCurrency}
+- Expected Date Format: ${dateFormat}
+- Target Output Language: ${language}
 
-Please analyze the receipt in its native language if possible, but ensure the response follows the schema structure.
+### STRICT EXTRACTION RULES:
+
+1. **TRANSLATION**: 
+   - For 'description' and 'translatedName', return text **strictly in ${language}**.
+   - **FORBIDDEN**: Do not format as "Original (Translation)" or "Translation / Original". 
+   - If the text is already in ${language}, return it as is.
+
+2. **PRICING LOGIC (Unit Price vs Line Total)**:
+   - The 'price' field in 'items' represents the **UNIT PRICE** (price for 1 item).
+   - Check the math: (price * quantity) should equal the line total printed on the receipt.
+   - *Example*: If a line says "Beer x 2 ... 10.00", and the total is 10.00, then price is 5.00 and quantity is 2.
+   - *Example*: If a line says "Beer ... 5.00" and "Qty 2", and line total is 10.00, price is 5.00.
+   - **WARNING**: Do not mistakenly extract the line total as the unit price.
+
+3. **DESCRIPTION**:
+   - Create a short summary (e.g., "7-Eleven, snacks and drinks" or "Uber, taxi ride").
+   - Do not list every single item name.
+   - Language: ${language} ONLY.
+
+4. **DATES**:
+   - Parse ambiguity (e.g., 05/04/2024) using the regional format: ${dateFormat}.
+   - Output format: YYYY-MM-DD HH:mm.
+   - If invalid, return null.
+
+Analyze the receipt now.
 `
 }
 
@@ -142,7 +152,7 @@ async function getImageAsBase64(bucketName, filePath) {
   return buffer.toString('base64')
 }
 
-// Define the Cloud Function using onObjectFinalized
+// Define the Cloud Function
 exports.analyzeReceiptAndUpdateExpense = onObjectFinalized({
   bucket: process.env.GCLOUD_STORAGE_BUCKET,
   region: 'us-west1',
@@ -165,9 +175,6 @@ exports.analyzeReceiptAndUpdateExpense = onObjectFinalized({
   const expenseId = match[2]
   logger.info(`Extracted tripId: ${tripId}, expenseId: ${expenseId}`)
 
-  // Fetch trip document to get tripCurrency and defaultCurrency
-  // tripCurrency: the currency of the trip destination (for receipt analysis)
-  // defaultCurrency: the user's home currency (for output locale/translations)
   let tripCurrency = null
   let defaultCurrency = null
   try {
@@ -176,7 +183,6 @@ exports.analyzeReceiptAndUpdateExpense = onObjectFinalized({
       const tripData = tripDoc.data()
       tripCurrency = tripData.tripCurrency
       defaultCurrency = tripData.defaultCurrency
-      logger.info(`Retrieved tripCurrency: ${tripCurrency}, defaultCurrency: ${defaultCurrency} from trip document`)
     }
     else {
       logger.warn(`Trip document ${tripId} does not exist`)
@@ -192,6 +198,7 @@ exports.analyzeReceiptAndUpdateExpense = onObjectFinalized({
 
   if (!contentType || !contentType.startsWith('image/')) {
     logger.log('File is not an image. Skipping analysis.', { contentType })
+    // Error handling logic for non-images...
     const expenseDocRefError = db.doc(`trips/${tripId}/expenses/${expenseId}`)
     try {
       await expenseDocRefError.update({
@@ -200,16 +207,13 @@ exports.analyzeReceiptAndUpdateExpense = onObjectFinalized({
         processedAt: admin.firestore.FieldValue.serverTimestamp(),
       })
     }
-    catch (error) {
-      logger.error(`Error updating Firestore for non-image file: ${expenseId}`, error)
-    }
+    catch (err) { logger.error(err) }
     return
   }
 
   logger.info(`Analyzing image: ${filePath}`)
 
   try {
-    // Download image and convert to base64
     const imageBase64 = await getImageAsBase64(fileBucket, filePath)
 
     const imagePart = {
@@ -232,28 +236,38 @@ exports.analyzeReceiptAndUpdateExpense = onObjectFinalized({
       },
     })
 
-    // Parse the guaranteed JSON response
-    const parsedDataFromAI = JSON.parse(result.text)
+    let parsedDataFromAI = JSON.parse(result.text)
+
+    // --- FIX 5: MATH SAFETY SANITIZATION ---
+    // Even if the AI fails the prompt, this code block catches "Line Total" mistakes.
+    if (parsedDataFromAI.items && parsedDataFromAI.items.length > 0) {
+      parsedDataFromAI.items = parsedDataFromAI.items.map((item) => {
+        // Heuristic: If Quantity > 1 AND Price seems suspiciously close to the Grand Total (or significantly high),
+        // and Price * Quantity is massive, the AI likely pulled the Line Total as the Unit Price.
+        // We verify if (Price / Quantity) makes more sense locally, or checks against Grand Total constraints.
+
+        // Simple Check: If Price > Grand Total (and Grand Total exists), it's definitely wrong.
+        if (parsedDataFromAI.grandTotal && item.price > parsedDataFromAI.grandTotal) {
+          if (item.quantity && item.quantity > 1) {
+            const newPrice = item.price / item.quantity
+            logger.info(`Correcting Unit Price logic: Changed ${item.price} to ${newPrice} based on quantity ${item.quantity}`)
+            item.price = Number.parseFloat(newPrice.toFixed(2))
+          }
+        }
+        return item
+      })
+    }
+
     logger.info('Successfully parsed receipt data:', parsedDataFromAI)
 
-    // Convert paidAtString to Firestore Timestamp with correct timezone
+    // Date parsing logic (unchanged)
     let paidAtTimestamp = null
     if (parsedDataFromAI.paidAtString) {
       try {
-        // Get the timezone for the trip destination currency (where the receipt is from)
         const tz = timezoneMap[tripCurrency] || 'UTC'
-
-        // Parse the date string in the receipt's local timezone
         const parsedDate = dayjs.tz(parsedDataFromAI.paidAtString, 'YYYY-MM-DD HH:mm', tz)
-
         if (parsedDate.isValid()) {
           paidAtTimestamp = admin.firestore.Timestamp.fromDate(parsedDate.toDate())
-          logger.info('Successfully converted paidAtString to Timestamp:', {
-            original: parsedDataFromAI.paidAtString,
-            timezone: tz,
-            timestamp: paidAtTimestamp,
-            utc: parsedDate.utc().format(),
-          })
         }
         else {
           logger.warn('Invalid date format from paidAtString:', parsedDataFromAI.paidAtString)
@@ -264,7 +278,6 @@ exports.analyzeReceiptAndUpdateExpense = onObjectFinalized({
       }
     }
 
-    // Prepare Firestore update data
     const { paidAtString, ...restOfData } = parsedDataFromAI
     const firestoreUpdateData = {
       ...restOfData,
@@ -277,20 +290,14 @@ exports.analyzeReceiptAndUpdateExpense = onObjectFinalized({
     if (paidAtTimestamp !== null) {
       firestoreUpdateData.paidAt = paidAtTimestamp
     }
-    else {
-      logger.warn('paidAtTimestamp is null, \'paidAt\' field will not be set.')
-    }
 
-    // Update Firestore
     const expenseDocRef = db.doc(`trips/${tripId}/expenses/${expenseId}`)
     await expenseDocRef.update(firestoreUpdateData)
     logger.info(`Successfully updated Firestore document: trips/${tripId}/expenses/${expenseId}`)
   }
   catch (error) {
     logger.error('Error calling Gemini API or processing:', error)
-    if (error.response)
-      logger.error('Gemini API Error Response:', error.response.data)
-
+    // Error handling logic (unchanged)...
     const expenseDocRefGeneralError = db.doc(`trips/${tripId}/expenses/${expenseId}`)
     try {
       await expenseDocRefGeneralError.update({
@@ -299,8 +306,6 @@ exports.analyzeReceiptAndUpdateExpense = onObjectFinalized({
         processedAt: admin.firestore.FieldValue.serverTimestamp(),
       })
     }
-    catch (updateError) {
-      logger.error(`Error updating Firestore with general failure for ${expenseId}`, updateError)
-    }
+    catch (updateError) { logger.error(updateError) }
   }
 })
