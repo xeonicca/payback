@@ -13,11 +13,11 @@ const db = useFirestore()
 const { tripId } = useRoute().params
 const showHiddenExpenses = ref(false)
 const searchTerm = ref('')
-const sortBy = ref<'time' | 'total'>('time')
+const sortBy = ref<'time' | 'total' | 'uploaded'>('time')
 const sortOrder = ref<'asc' | 'desc'>('desc')
 const router = useRouter()
 
-function toggleSort(type: 'time' | 'total') {
+function toggleSort(type: 'time' | 'total' | 'uploaded') {
   if (sortBy.value === type) {
     // Toggle order if clicking the same sort option
     sortOrder.value = sortOrder.value === 'desc' ? 'asc' : 'desc'
@@ -70,15 +70,21 @@ const displayedExpenses = computed(() => {
   // Apply sorting
   expenses = [...expenses].sort((a, b) => {
     let comparison = 0
+    const getTimeMillis = (timestamp: Timestamp | FieldValue | undefined) => {
+      return timestamp instanceof Timestamp ? timestamp.toMillis() : 0
+    }
 
     if (sortBy.value === 'total') {
       comparison = a.grandTotal - b.grandTotal
     }
+    else if (sortBy.value === 'uploaded') {
+      // Sort by upload/creation date only
+      const aTime = getTimeMillis(a.createdAt) || 0
+      const bTime = getTimeMillis(b.createdAt) || 0
+      comparison = aTime - bTime
+    }
     else {
       // Sort by time (paidAt, then createdAt)
-      const getTimeMillis = (timestamp: Timestamp | FieldValue | undefined) => {
-        return timestamp instanceof Timestamp ? timestamp.toMillis() : 0
-      }
       const aTime = getTimeMillis(a.paidAt) || getTimeMillis(a.createdAt) || 0
       const bTime = getTimeMillis(b.paidAt) || getTimeMillis(b.createdAt) || 0
       comparison = aTime - bTime
@@ -152,6 +158,21 @@ const displayedExpenses = computed(() => {
         <span>金額大小</span>
         <Icon
           v-if="sortBy === 'total'"
+          :name="sortOrder === 'desc' ? 'lucide-arrow-down' : 'lucide-arrow-up'"
+          class="w-3 h-3"
+        />
+      </button>
+      <span class="text-gray-300">|</span>
+      <button
+        type="button"
+        class="flex items-center gap-1 transition-colors" :class="[
+          sortBy === 'uploaded' ? 'text-indigo-700 font-semibold' : 'text-gray-600 hover:text-gray-900',
+        ]"
+        @click="toggleSort('uploaded')"
+      >
+        <span>上傳時間</span>
+        <Icon
+          v-if="sortBy === 'uploaded'"
           :name="sortOrder === 'desc' ? 'lucide-arrow-down' : 'lucide-arrow-up'"
           class="w-3 h-3"
         />
