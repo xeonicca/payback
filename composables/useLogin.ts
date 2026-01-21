@@ -13,7 +13,7 @@ import {
   signInWithRedirect,
   signOut,
 } from 'firebase/auth'
-import { getCurrentUser, useFirebaseAuth, useIsCurrentUserLoaded } from 'vuefire'
+import { getCurrentUser, useFirebaseAuth } from 'vuefire'
 import { useSessionUser } from './useSessionUser'
 
 interface ReturnUser {
@@ -24,18 +24,15 @@ export default function useLogin() {
   const sessionUser = useSessionUser()
 
   // Only access Firebase on client to avoid SSR initialization issues
-  const currentUser = import.meta.client ? useCurrentUser() : ref(null)
   const provider = import.meta.client ? new GoogleAuthProvider() : null
   const authError = ref<AuthError | null>(null)
   const auth = import.meta.client ? useFirebaseAuth()! : null
 
-  const isCurrentUserLoaded = import.meta.client ? useIsCurrentUserLoaded() : ref(true)
   const isUserLoggedIn = computed(() => {
-    // If session user exists, we're logged in regardless of Firebase state
-    if (sessionUser.value)
-      return true
-    // Otherwise, check if Firebase auth is loaded and has a user (client-side only)
-    return import.meta.client && isCurrentUserLoaded.value && !!currentUser.value
+    // Only trust the server session for auth state
+    // Don't use Firebase Auth's cached currentUser as it persists in IndexedDB
+    // even after the server session expires
+    return !!sessionUser.value
   })
 
   const setSession = async (user: User) => {
