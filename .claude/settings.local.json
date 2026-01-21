@@ -12,8 +12,12 @@
       "WebFetch(domain:ai.google.dev)",
       "WebSearch",
       "WebFetch(domain:vuefire.vuejs.org)",
+<<<<<<< HEAD
       "WebFetch(domain:raw.githubusercontent.com)",
       "Bash(npx eslint:*)"
+=======
+      "Bash(npm install:*)"
+>>>>>>> 780cddd3480c65cddc6d388a09881d415ec1e584
     ]
   }
 }

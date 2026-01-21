@@ -7,12 +7,13 @@ export default defineEventHandler(async (event) => {
   const { firebaseIdToken } = await readBody(event)
 
   try {
+    const expiresInMs = Number(config.authCookieExpires)
     const sessionCookie = await auth.createSessionCookie(firebaseIdToken, {
-      expiresIn: Number(config.authCookieExpires),
+      expiresIn: expiresInMs,
     })
 
     setCookie(event, config.authCookieName as string, sessionCookie as string, {
-      maxAge: Number(config.authCookieExpires),
+      maxAge: Math.floor(expiresInMs / 1000), // Convert ms to seconds for cookie
       sameSite: 'strict',
       httpOnly: true,
       secure: config.public.nodeEnv === 'production',
