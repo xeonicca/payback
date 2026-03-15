@@ -15,7 +15,7 @@ const sizeClasses: Record<string, string> = {
 <template>
   <Icon
     name="lucide:loader-circle"
-    class="text-indigo-600 animate-spin"
+    class="text-primary animate-spin"
     :class="sizeClasses[size]"
   />
 </template>

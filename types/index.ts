@@ -33,24 +33,32 @@ export interface NewTrip {
   defaultCurrency: string
   userId: string
   createdAt: Timestamp | FieldValue
+  updatedAt?: Timestamp | FieldValue
   archived?: boolean
   collaboratorCount?: number
+  memberCount?: number
   isPublicInviteEnabled?: boolean
   collaboratorUserIds?: string[]
   ownerDisplayName?: string
+  memberEmojis?: string[]
+  lastExpenseDescription?: string
 }
 
 export interface Trip extends NewTrip {
   id: string
   createdAtString: string
+  updatedAtString: string
   totalExpenses: number
   enabledTotalExpenses: number
   disabledTotalExpenses: number
   archived: boolean
   collaboratorCount: number
+  memberCount: number
   isPublicInviteEnabled: boolean
   collaboratorUserIds: string[]
   ownerDisplayName: string
+  memberEmojis: string[]
+  lastExpenseDescription: string
 }
 
 export interface ExpenseDetailItem {

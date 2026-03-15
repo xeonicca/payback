@@ -23,6 +23,8 @@ export const tripConverter: FirestoreDataConverter<Trip> = {
       defaultCurrency: data.defaultCurrency || 'TWD',
       createdAt: data.createdAt,
       createdAtString: formatFirebaseTimestamp(data.createdAt),
+      updatedAt: data.updatedAt || data.createdAt,
+      updatedAtString: formatFirebaseTimestamp(data.updatedAt || data.createdAt),
       userId: data.userId,
       totalExpenses: data.totalExpenses || 0,
       enabledTotalExpenses: data.enabledTotalExpenses || 0,
@@ -30,9 +32,12 @@ export const tripConverter: FirestoreDataConverter<Trip> = {
       expenseCount: data.expenseCount || 0,
       archived: data.archived || false,
       collaboratorCount: data.collaboratorCount || 0,
+      memberCount: data.memberCount || 0,
       isPublicInviteEnabled: data.isPublicInviteEnabled || true,
       collaboratorUserIds: data.collaboratorUserIds || [data.userId],
       ownerDisplayName: data.ownerDisplayName || '',
+      memberEmojis: data.memberEmojis || [],
+      lastExpenseDescription: data.lastExpenseDescription || '',
     } as Trip
   },
 }
