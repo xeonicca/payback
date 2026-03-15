@@ -11,5 +11,7 @@
     <main class="container mx-auto px-6 pb-30">
       <slot />
     </main>
+
+    <back-to-top-button />
   </div>
 </template>
