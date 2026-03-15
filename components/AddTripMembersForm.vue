@@ -152,6 +152,7 @@ function selectAvatar(emoji: string) {
         <!-- Avatar picker toggle -->
         <button
           type="button"
+          aria-label="選擇頭像"
           class="w-12 h-12 flex items-center justify-center text-2xl bg-white border-2 rounded-lg shrink-0 transition-colors"
           :class="showAvatarPicker ? 'border-indigo-400 bg-indigo-50' : 'border-gray-200 hover:border-gray-300'"
           @click="showAvatarPicker = !showAvatarPicker"
@@ -177,6 +178,7 @@ function selectAvatar(emoji: string) {
         <ui-button
           type="submit"
           size="icon"
+          aria-label="新增成員"
           class="w-12 h-12 shrink-0"
           :disabled="availableEmojis.length === 0"
         >
@@ -198,7 +200,7 @@ function selectAvatar(emoji: string) {
               'bg-indigo-500 ring-2 ring-indigo-500 ring-offset-1': form.values.avatar === emoji,
               'bg-white hover:bg-gray-100': form.values.avatar !== emoji,
             }"
-            class="aspect-square flex items-center justify-center text-xl rounded-lg border border-gray-200 transition-all cursor-pointer"
+            class="aspect-square flex items-center justify-center text-xl rounded-lg border border-gray-200 transition-colors cursor-pointer"
             @click="selectAvatar(emoji)"
           >
             {{ emoji }}

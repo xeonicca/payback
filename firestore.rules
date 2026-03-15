@@ -43,9 +43,19 @@ service cloud.firestore {
         allow read: if request.auth != null &&
           request.auth.uid in get(/databases/$(database)/documents/trips/$(tripId)).data.collaboratorUserIds;
 
-        // Only owner can manage trip members
-        allow create, update, delete: if request.auth != null &&
+        // Only owner can create/delete trip members
+        allow create, delete: if request.auth != null &&
           get(/databases/$(database)/documents/trips/$(tripId)).data.userId == request.auth.uid;
+
+        // Owner can update any member
+        // Collaborators can update their own linked member (name and avatar only)
+        allow update: if request.auth != null && (
+          get(/databases/$(database)/documents/trips/$(tripId)).data.userId == request.auth.uid
+          || (
+            resource.data.linkedUserId == request.auth.uid
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name', 'avatarEmoji'])
+          )
+        );
       }
 
       // Expenses subcollection

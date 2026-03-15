@@ -71,7 +71,7 @@ const router = useRouter()
 
 const defaultMembers: NewTripMember[] = [
   {
-    name: sessionUser.value!.displayName || 'User 1',
+    name: sessionUser.value!.displayName || '使用者',
     avatarEmoji: '🐭',
     isHost: true,
     createdAt: serverTimestamp(),
@@ -162,10 +162,10 @@ function onMembersChange(updatedMembers: NewTripMember[]) {
       <template v-for="step in 3" :key="step">
         <button
           type="button"
-          class="flex items-center justify-center w-8 h-8 rounded-full text-sm font-semibold transition-colors"
+          class="flex items-center justify-center w-8 h-8 rounded-full text-sm font-semibold transition-colors disabled:cursor-not-allowed"
           :class="{
             'bg-indigo-600 text-white': currentStep === step,
-            'bg-indigo-100 text-indigo-600': currentStep > step,
+            'bg-indigo-100 text-indigo-600 hover:bg-indigo-200': currentStep > step,
             'bg-gray-200 text-gray-400': currentStep < step,
           }"
           :disabled="currentStep < step"
@@ -228,7 +228,7 @@ function onMembersChange(updatedMembers: NewTripMember[]) {
           <ui-form-item>
             <ui-form-label>匯率換算</ui-form-label>
             <ui-form-control>
-              <ui-input type="number" step=".00001" :placeholder="exchangeRateToTwd" v-bind="componentField" />
+              <ui-input type="number" step=".00001" :placeholder="exchangeRateToTwd.toString()" v-bind="componentField" />
             </ui-form-control>
             <ui-form-description>
               1 {{ values.tripCurrency }} ≈ {{ exchangeRateToTwd }} TWD（已自動帶入參考匯率，可手動調整）
@@ -340,7 +340,7 @@ function onMembersChange(updatedMembers: NewTripMember[]) {
         <ui-button
           type="button"
           variant="outline"
-          class="shrink-0"
+          class="flex-1"
           @click="goToStep(2)"
         >
           <Icon name="lucide:arrow-left" :size="16" class="mr-1" />

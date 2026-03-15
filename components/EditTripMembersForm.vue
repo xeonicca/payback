@@ -13,8 +13,8 @@ const props = defineProps<{
 }>()
 
 const formSchema = z.object({
-  name: z.string().min(1, 'Member name cannot be empty'),
-  avatar: z.string().min(1, 'Please select an avatar for the member'),
+  name: z.string().min(1, '請輸入成員名稱'),
+  avatar: z.string().min(1, '請選擇一個頭像'),
 })
 
 type FormValues = z.infer<typeof formSchema>
@@ -27,10 +27,21 @@ const form = useForm({
   },
 })
 
+const showAvatarPicker = ref(false)
+
 // Compute available emojis (filter out already taken ones)
 const availableEmojis = computed(() => {
   const usedEmojis = props.members.map(m => m.avatarEmoji)
   return animalEmojis.filter(emoji => !usedEmojis.includes(emoji))
+})
+
+// Non-host members in reverse order (newest first)
+const nonHostMembers = computed(() => {
+  return [...props.members].filter(m => !m.isHost).reverse()
+})
+
+const hostMember = computed(() => {
+  return props.members.find(m => m.isHost)
 })
 
 // Update form avatar when available emojis change
@@ -47,7 +58,7 @@ const onSubmit = form.handleSubmit((values: FormValues) => {
     member => member.name.toLowerCase() === trimmedName.toLowerCase(),
   )
   if (nameExists) {
-    toast.error(`Member name "${trimmedName}" already exists.`)
+    toast.error(`「${trimmedName}」已經在成員列表中`)
     return
   }
 
@@ -64,8 +75,9 @@ const onSubmit = form.handleSubmit((values: FormValues) => {
 
   const updated = [...props.members, newMember]
   props.onMembersChange(updated)
-  toast.success(`Added ${trimmedName} to the trip`)
+  toast.success(`已新增「${trimmedName}」`)
   form.resetForm()
+  showAvatarPicker.value = false
 
   // Set next available emoji
   const usedAvatars = updated.map(m => m.avatarEmoji)
@@ -77,195 +89,167 @@ const onSubmit = form.handleSubmit((values: FormValues) => {
 
 function memberHasDebtRelations(memberId: string): boolean {
   return props.expenses.some((expense) => {
-    // Check if member is the payer
-    if (expense.paidByMemberId === memberId) {
+    if (expense.paidByMemberId === memberId)
       return true
-    }
-
-    // Check if member is sharing the expense
-    if (expense.sharedWithMemberIds.includes(memberId)) {
+    if (expense.sharedWithMemberIds.includes(memberId))
       return true
-    }
-
-    // Check if member is sharing any items
     if (expense.items && expense.items.length > 0) {
       return expense.items.some(item =>
         item.sharedByMemberIds && item.sharedByMemberIds.includes(memberId),
       )
     }
-
     return false
   })
 }
 
 function handleRemoveMemberFromList(member: TripMember) {
   if (member.isHost) {
-    toast.error('Cannot remove the host member')
+    toast.error('無法移除主辦人')
     return
   }
 
-  // Check if member has debt relationships
   if (memberHasDebtRelations(member.id)) {
-    toast.error(`Cannot remove ${member.name} - member has expense relationships`)
+    toast.error(`無法移除「${member.name}」，此成員有相關的支出記錄`)
     return
   }
 
   const updated = props.members.filter(m => m.id !== member.id)
   props.onMembersChange(updated)
-  toast.success(`Removed ${member.name} from the trip`)
+  toast.success(`已移除「${member.name}」`)
 }
 
 function selectAvatar(emoji: string) {
   form.setFieldValue('avatar', emoji)
+  showAvatarPicker.value = false
 }
 </script>
 
 <template>
-  <div class="space-y-6">
-    <div class="flex items-center justify-between">
-      <h3 class="m-0 text-lg font-semibold text-gray-700">
-        行程成員
-      </h3>
-      <ui-badge variant="secondary" class="text-xs">
-        {{ members.length }} 位成員
-      </ui-badge>
-    </div>
-
-    <!-- Add Member Form -->
-    <form class="space-y-4 p-6 bg-white border border-gray-200 rounded-xl shadow-sm" @submit.prevent="onSubmit">
-      <!-- Name Input -->
-      <ui-form-field v-slot="{ componentField }" name="name">
-        <ui-form-item>
-          <ui-form-label class="text-sm font-semibold text-gray-700">成員名稱</ui-form-label>
-          <ui-form-control>
-            <div class="relative">
-              <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <Icon name="lucide:user" :size="18" class="text-gray-400" />
-              </div>
-              <ui-input
-                v-bind="componentField"
-                type="text"
-                placeholder="輸入成員名稱..."
-                class="pl-10 h-12 text-base"
-              />
-            </div>
-          </ui-form-control>
-          <ui-form-message />
-        </ui-form-item>
-      </ui-form-field>
-
-      <!-- Avatar Selector -->
-      <ui-form-field v-slot="{ componentField }" name="avatar">
-        <ui-form-item>
-          <ui-form-label class="text-sm font-semibold text-gray-700 mb-3 block">
-            選擇頭像
-            <span class="text-xs font-normal text-gray-500 ml-2">(點擊選擇)</span>
-          </ui-form-label>
-          <ui-form-control>
-            <div class="space-y-3">
-              <!-- Selected Avatar Preview -->
-              <div class="flex items-center gap-3 p-4 bg-indigo-50 border-2 border-indigo-200 rounded-lg">
-                <div class="text-4xl">{{ form.values.avatar }}</div>
-                <div class="flex-1">
-                  <p class="text-sm font-medium text-gray-700 m-0">已選擇頭像</p>
-                  <p class="text-xs text-gray-500 m-0">點擊下方圖示更換</p>
-                </div>
-              </div>
-
-              <!-- Avatar Grid -->
-              <div class="grid grid-cols-6 sm:grid-cols-8 md:grid-cols-10 gap-2 p-3 bg-gray-50 rounded-lg border border-gray-200 max-h-48 overflow-y-auto">
-                <button
-                  v-for="emoji in availableEmojis"
-                  :key="emoji"
-                  type="button"
-                  :class="{
-                    'bg-indigo-500 ring-2 ring-indigo-500 ring-offset-2 scale-110': form.values.avatar === emoji,
-                    'bg-white hover:bg-gray-100 hover:scale-105': form.values.avatar !== emoji,
-                  }"
-                  class="aspect-square flex items-center justify-center text-2xl rounded-lg border border-gray-200 transition-all cursor-pointer"
-                  @click="selectAvatar(emoji)"
-                >
-                  {{ emoji }}
-                </button>
-              </div>
-
-              <p v-if="availableEmojis.length === 0" class="text-sm text-amber-600 text-center py-2">
-                所有頭像已被使用
-              </p>
-            </div>
-          </ui-form-control>
-          <ui-form-message />
-        </ui-form-item>
-      </ui-form-field>
-
-      <!-- Submit Button -->
-      <ui-button
-        type="submit"
-        class="w-full h-12 text-base font-semibold"
-        :disabled="availableEmojis.length === 0"
+  <div class="space-y-4">
+    <!-- Members List (on top so new additions are visible) -->
+    <div class="space-y-2">
+      <!-- Host member (always first, not removable) -->
+      <div
+        v-if="hostMember"
+        class="flex items-center gap-3 px-3 py-2.5 bg-indigo-50 border border-indigo-100 rounded-lg"
       >
-        <Icon name="lucide:user-plus" :size="20" class="mr-2" />
-        新增成員
-      </ui-button>
-    </form>
+        <div class="w-10 h-10 flex items-center justify-center bg-white rounded-full text-xl shrink-0">
+          {{ hostMember.avatarEmoji }}
+        </div>
+        <div class="flex-1 min-w-0">
+          <p class="text-sm font-semibold text-gray-900 truncate m-0">
+            {{ hostMember.name }}
+          </p>
+        </div>
+        <ui-badge variant="default" class="text-xs shrink-0">
+          <Icon name="lucide:crown" :size="12" class="mr-1" />
+          主辦人
+        </ui-badge>
+      </div>
 
-    <!-- Members List -->
-    <div v-if="members.length > 0" class="space-y-3">
-      <h4 class="text-sm font-semibold text-gray-700 px-2">
-        成員列表
-      </h4>
-      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <div
-          v-for="member in members"
-          :key="member.id"
-          class="flex items-center gap-4 p-4 bg-white border border-gray-200 rounded-xl hover:shadow-md transition-shadow"
+      <!-- Other members (newest first) -->
+      <div
+        v-for="member in nonHostMembers"
+        :key="member.id"
+        class="flex items-center gap-3 px-3 py-2.5 bg-white border border-gray-200 rounded-lg"
+      >
+        <div class="w-10 h-10 flex items-center justify-center bg-gray-50 rounded-full text-xl shrink-0">
+          {{ member.avatarEmoji }}
+        </div>
+        <div class="flex-1 min-w-0">
+          <p class="text-sm font-semibold text-gray-900 truncate m-0">
+            {{ member.name }}
+          </p>
+          <p v-if="memberHasDebtRelations(member.id)" class="text-xs text-gray-400 m-0">
+            有支出記錄
+          </p>
+        </div>
+
+        <!-- Remove or lock -->
+        <ui-button
+          v-if="!memberHasDebtRelations(member.id)"
+          type="button"
+          variant="ghost"
+          size="icon"
+          class="shrink-0 w-8 h-8 text-gray-400 hover:text-red-600 hover:bg-red-50"
+          @click="handleRemoveMemberFromList(member)"
         >
-          <!-- Avatar -->
-          <div class="w-14 h-14 flex items-center justify-center bg-gradient-to-br from-indigo-50 to-purple-50 rounded-full text-3xl shrink-0">
-            {{ member.avatarEmoji }}
-          </div>
-
-          <!-- Member Info -->
-          <div class="flex-1 min-w-0">
-            <div class="flex items-center gap-2 mb-1">
-              <p class="text-base font-semibold text-gray-900 truncate m-0">
-                {{ member.name }}
-              </p>
-              <ui-badge v-if="member.isHost" variant="default" class="text-xs shrink-0">
-                <Icon name="lucide:crown" :size="12" class="mr-1" />
-                主辦人
-              </ui-badge>
-            </div>
-            <p class="text-xs text-gray-500 m-0">
-              {{ memberHasDebtRelations(member.id) ? '有支出記錄' : '行程成員' }}
-            </p>
-          </div>
-
-          <!-- Remove Button -->
-          <ui-button
-            v-if="!member.isHost && !memberHasDebtRelations(member.id)"
-            type="button"
-            variant="ghost"
-            size="icon"
-            class="shrink-0 text-gray-400 hover:text-red-600 hover:bg-red-50"
-            @click="handleRemoveMemberFromList(member)"
-          >
-            <Icon name="lucide:trash-2" :size="18" />
-          </ui-button>
-          <ui-button
-            v-else-if="!member.isHost && memberHasDebtRelations(member.id)"
-            type="button"
-            variant="ghost"
-            size="icon"
-            class="shrink-0 text-gray-300 cursor-not-allowed"
-            title="此成員有支出記錄，無法刪除"
-            disabled
-          >
-            <Icon name="lucide:lock" :size="18" />
-          </ui-button>
-          <div v-else class="w-10 h-10 shrink-0" />
+          <Icon name="lucide:x" :size="16" />
+        </ui-button>
+        <div
+          v-else
+          class="shrink-0 w-8 h-8 flex items-center justify-center text-gray-300"
+          title="此成員有支出記錄，無法移除"
+        >
+          <Icon name="lucide:lock" :size="14" />
         </div>
       </div>
     </div>
+
+    <!-- Add Member Form (compact, below the list) -->
+    <form class="space-y-3 p-4 bg-gray-50 border border-dashed border-gray-300 rounded-lg" @submit.prevent="onSubmit">
+      <div class="flex items-start gap-2">
+        <!-- Avatar picker toggle -->
+        <button
+          type="button"
+          aria-label="選擇頭像"
+          class="w-12 h-12 flex items-center justify-center text-2xl bg-white border-2 rounded-lg shrink-0 transition-colors"
+          :class="showAvatarPicker ? 'border-indigo-400 bg-indigo-50' : 'border-gray-200 hover:border-gray-300'"
+          @click="showAvatarPicker = !showAvatarPicker"
+        >
+          {{ form.values.avatar }}
+        </button>
+
+        <!-- Name input + submit in one row -->
+        <ui-form-field v-slot="{ componentField }" name="name" class="flex-1">
+          <ui-form-item class="space-y-0">
+            <ui-form-control>
+              <ui-input
+                v-bind="componentField"
+                type="text"
+                placeholder="輸入成員名稱"
+                class="h-12 text-base"
+              />
+            </ui-form-control>
+            <ui-form-message />
+          </ui-form-item>
+        </ui-form-field>
+
+        <ui-button
+          type="submit"
+          size="icon"
+          aria-label="新增成員"
+          class="w-12 h-12 shrink-0"
+          :disabled="availableEmojis.length === 0"
+        >
+          <Icon name="lucide:plus" :size="20" />
+        </ui-button>
+      </div>
+
+      <!-- Avatar grid (expandable) -->
+      <div v-if="showAvatarPicker" class="space-y-2">
+        <p class="text-xs text-gray-500 m-0">
+          點擊選擇頭像
+        </p>
+        <div class="grid grid-cols-8 sm:grid-cols-10 gap-1.5">
+          <button
+            v-for="emoji in availableEmojis"
+            :key="emoji"
+            type="button"
+            :class="{
+              'bg-indigo-500 ring-2 ring-indigo-500 ring-offset-1': form.values.avatar === emoji,
+              'bg-white hover:bg-gray-100': form.values.avatar !== emoji,
+            }"
+            class="aspect-square flex items-center justify-center text-xl rounded-lg border border-gray-200 transition-colors cursor-pointer"
+            @click="selectAvatar(emoji)"
+          >
+            {{ emoji }}
+          </button>
+        </div>
+        <p v-if="availableEmojis.length === 0" class="text-sm text-amber-600 text-center py-2">
+          所有頭像已被使用，如需更多成員請先移除再重新分配
+        </p>
+      </div>
+    </form>
   </div>
 </template>
