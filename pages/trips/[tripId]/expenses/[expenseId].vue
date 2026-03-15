@@ -319,7 +319,7 @@ async function reanalyzeReceipt() {
           付款人
         </div>
         <div class="flex items-center gap-2">
-          <span class="text-sm">{{ paidByMember?.avatarEmoji }}</span>
+          <member-avatar v-if="paidByMember" :emoji="paidByMember.avatarEmoji" size="sm" />
           <span class="font-bold">{{ paidByMember?.name }}</span>
         </div>
       </div>
@@ -338,7 +338,7 @@ async function reanalyzeReceipt() {
             <ui-accordion-trigger class="flex items-center justify-between py-2 px-3 hover:no-underline">
               <div class="flex flex-1 items-center justify-between py-2 hover:no-underline">
                 <div class="flex items-center gap-2">
-                  <span class="text-sm">{{ member.avatarEmoji }}</span>
+                  <member-avatar :emoji="member.avatarEmoji" size="sm" />
                   <span class="text-sm font-medium">{{ member.name }}</span>
                 </div>
                 <div class="text-right mr-4">
@@ -395,7 +395,7 @@ async function reanalyzeReceipt() {
         <!-- Who Paid -->
         <div class="bg-white rounded-lg p-4 border border-gray-100">
           <div class="flex items-center gap-2 pb-3 border-b border-gray-100 mb-3">
-            <span class="text-lg">{{ paidByMember?.avatarEmoji }}</span>
+            <member-avatar v-if="paidByMember" :emoji="paidByMember.avatarEmoji" size="md" />
             <span class="text-base font-semibold text-gray-900">{{ paidByMember?.name }}</span>
             <span class="text-xs text-gray-500 px-2 py-1 bg-blue-50 rounded-full">付款人</span>
           </div>
@@ -423,7 +423,7 @@ async function reanalyzeReceipt() {
               class="flex items-center justify-between py-2 px-3 bg-gray-50 rounded-lg"
             >
               <div class="flex items-center gap-2">
-                <span class="text-sm">{{ member.avatarEmoji }}</span>
+                <member-avatar :emoji="member.avatarEmoji" size="sm" />
                 <span class="text-sm font-medium text-gray-900">{{ member.name }}</span>
               </div>
               <div class="text-right">

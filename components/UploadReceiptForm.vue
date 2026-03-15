@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import type { NewExpense, Trip, TripMember } from '@/types'
 import { toTypedSchema } from '@vee-validate/zod'
-import { addDoc, collection, serverTimestamp, updateDoc } from 'firebase/firestore'
-import { getDownloadURL, getStorage, ref as storageRef, uploadBytes } from 'firebase/storage'
+import { addDoc, collection, serverTimestamp } from 'firebase/firestore'
+import { getStorage, ref as storageRef, uploadBytes } from 'firebase/storage'
 import { useForm } from 'vee-validate'
 import { ref } from 'vue'
 import { toast } from 'vue-sonner'
@@ -128,7 +128,7 @@ const submit = handleSubmit(async (values) => {
             />
           </ui-form-control>
           <ui-form-label class="font-normal flex items-center gap-1">
-            <span class="text-sm">{{ member.avatarEmoji }}</span>
+            <member-avatar :emoji="member.avatarEmoji" size="sm" />
             <span class="text-sm">{{ member.name }}</span>
           </ui-form-label>
           <ui-form-message />
@@ -149,7 +149,7 @@ const submit = handleSubmit(async (values) => {
                 <ui-radio-group-item :value="member.id" />
               </ui-form-control>
               <ui-form-label class="font-normal flex items-center gap-1">
-                <span class="text-sm">{{ member.avatarEmoji }}</span>
+                <member-avatar :emoji="member.avatarEmoji" size="sm" />
                 <span class="text-sm">{{ member.name }}</span>
               </ui-form-label>
             </ui-form-item>

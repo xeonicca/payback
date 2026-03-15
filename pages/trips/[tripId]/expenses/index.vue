@@ -202,30 +202,21 @@ const displayedExpenses = computed(() => {
     </div>
 
     <!-- Empty State -->
-    <div v-else class="flex flex-col items-center justify-center py-12 text-center">
-      <div class="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-3">
-        <Icon name="lucide-search" class="w-6 h-6 text-gray-400" />
-      </div>
-      <p class="text-sm text-gray-600 font-medium mb-1">
-        找不到符合的支出
-      </p>
-      <p class="text-xs text-gray-500">
-        試試調整搜尋條件
-      </p>
-    </div>
+    <empty-state
+      v-else
+      icon="lucide:search"
+      title="找不到符合的支出"
+      description="試試調整搜尋條件"
+    />
   </div>
 
   <!-- Empty State: No Expenses -->
-  <div v-else class="flex flex-col items-center justify-center py-20 text-center">
-    <div class="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mb-4">
-      <Icon name="lucide-receipt" class="w-10 h-10 text-gray-400" />
-    </div>
-    <h3 class="text-lg font-semibold text-gray-900 mb-2">
-      尚無支出記錄
-    </h3>
-    <p class="text-sm text-gray-600 mb-6 max-w-xs">
-      還沒有任何購買明細。開始記錄您的旅程支出吧！
-    </p>
+  <empty-state
+    v-else
+    icon="lucide:receipt"
+    title="尚無支出記錄"
+    description="還沒有任何購買明細。開始記錄您的旅程支出吧！"
+  >
     <ui-button
       variant="default"
       size="sm"
@@ -234,7 +225,7 @@ const displayedExpenses = computed(() => {
       <Icon name="lucide-arrow-left" class="w-4 h-4 mr-1" />
       回到旅程頁面
     </ui-button>
-  </div>
+  </empty-state>
 
   <!-- Debt Relationship Section -->
   <div v-if="enabledExpenses.length > 0" class="mt-4 space-y-3">
@@ -250,7 +241,7 @@ const displayedExpenses = computed(() => {
       >
         <!-- Member Header -->
         <div class="flex items-center gap-2 pb-3 border-b border-gray-100">
-          <span class="text-lg">{{ member.avatarEmoji }}</span>
+          <member-avatar :emoji="member.avatarEmoji" size="md" />
           <span class="text-base font-semibold text-gray-900">{{ member.name }}</span>
         </div>
 
@@ -301,7 +292,7 @@ const displayedExpenses = computed(() => {
               class="flex items-center justify-between py-2 px-3 bg-gray-50 rounded-lg"
             >
               <div class="flex items-center gap-2">
-                <span class="text-sm">{{ otherMember.avatarEmoji }}</span>
+                <member-avatar :emoji="otherMember.avatarEmoji" size="sm" />
                 <span class="text-sm font-medium text-gray-900">{{ otherMember.name }}</span>
               </div>
               <div class="text-right">

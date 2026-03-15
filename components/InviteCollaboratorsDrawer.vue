@@ -12,6 +12,7 @@ const emit = defineEmits<{
 }>()
 
 const { createInvitation, revokeInvitation, listInvitations } = useInvitation()
+const { copyToClipboard } = useCopyToClipboard()
 const baseUrl = useRequestURL().origin
 
 const invitations = ref<Invitation[]>([])
@@ -80,16 +81,6 @@ async function handleRevokeInvitation(invitationId: string) {
   catch (error: any) {
     console.error('Error revoking invitation:', error)
     toast.error(error.message || '撤銷邀請失敗')
-  }
-}
-
-async function copyToClipboard(text: string) {
-  try {
-    await navigator.clipboard.writeText(text)
-    toast.success('已複製到剪貼簿')
-  }
-  catch {
-    toast.error('複製失敗')
   }
 }
 
@@ -306,15 +297,16 @@ const usedInvitations = computed(() =>
           </div>
 
           <!-- Empty State -->
-          <div v-if="!isLoading && invitations.length === 0" class="text-center py-8">
-            <Icon name="lucide:users" class="w-16 h-16 text-gray-300 mx-auto mb-4" />
-            <p class="text-gray-500">尚無邀請記錄</p>
-            <p class="text-sm text-gray-400">建立第一個邀請連結來邀請協作者</p>
-          </div>
+          <empty-state
+            v-if="!isLoading && invitations.length === 0"
+            icon="lucide:users"
+            title="尚無邀請記錄"
+            description="建立第一個邀請連結來邀請協作者"
+          />
 
           <!-- Loading State -->
           <div v-if="isLoading" class="flex justify-center py-8">
-            <Icon name="lucide:loader-circle" class="w-8 h-8 text-indigo-600 animate-spin" />
+            <loading-spinner />
           </div>
         </div>
       </div>

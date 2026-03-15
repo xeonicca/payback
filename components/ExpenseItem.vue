@@ -24,11 +24,10 @@ const usedHomeCurrency = computed(() =>
         <Icon v-if="!expense.enabled" name="lucide:eye-off" class="w-4 h-4 text-gray-500" />
       </p>
       <div class="text-lg text-gray-500 self-start relative flex flex-wrap gap-1 justify-end">
-        <span
+        <member-avatar
           v-for="member in expenseMembers(expense)" :key="member.id"
-          class="p-1 size-6 flex items-center justify-center"
-        >
-          {{ member.avatarEmoji }}</span>
+          :emoji="member.avatarEmoji" size="sm"
+        />
       </div>
       <p class="text-xs text-gray-500">
         {{ expense.paidAtString }}
@@ -38,9 +37,7 @@ const usedHomeCurrency = computed(() =>
       <div class="text-sm font-extrabold text-slate-800 text-right">
         {{ expense.paidAtObject.month }}/{{ expense.paidAtObject.day }}
       </div>
-      <p class="size-6 text-lg text-gray-500">
-        {{ paidByMember?.avatarEmoji }}
-      </p>
+      <member-avatar v-if="paidByMember" :emoji="paidByMember.avatarEmoji" size="sm" />
       <div class="w-[120px] md:w-[200px] text-right self-end">
         <div v-if="usedHomeCurrency" class="flex items-center text-sm font-mono text-blue-600 justify-end gap-2">
           <Icon name="lucide:home" class="inline-block size-4" />

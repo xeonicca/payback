@@ -203,7 +203,8 @@ function handleReset() {
 }
 
 function handleArchiveClick() {
-  if (!trip.value) return
+  if (!trip.value)
+    return
 
   // If already archived, unarchive directly
   if (trip.value.archived) {
@@ -216,7 +217,8 @@ function handleArchiveClick() {
 }
 
 async function handleArchiveToggle() {
-  if (!trip.value) return
+  if (!trip.value)
+    return
 
   const newArchivedState = !trip.value.archived
 
@@ -263,19 +265,9 @@ async function handleArchiveToggle() {
     </div>
 
     <!-- Archived Notice -->
-    <div v-if="trip?.archived" class="p-4 bg-amber-50 border border-amber-200 rounded-lg">
-      <div class="flex items-start gap-3">
-        <Icon name="lucide:archive" class="w-5 h-5 text-amber-600 mt-0.5" />
-        <div class="flex-1">
-          <h3 class="text-sm font-semibold text-amber-900 m-0 mb-1">
-            此行程已封存
-          </h3>
-          <p class="text-sm text-amber-700 m-0">
-            封存的行程無法編輯或新增支出。現有支出仍可編輯。如需修改行程設定，請先取消封存。
-          </p>
-        </div>
-      </div>
-    </div>
+    <alert-banner v-if="trip?.archived" icon="lucide:archive" title="此行程已封存" variant="warning">
+      封存的行程無法編輯或新增支出。現有支出仍可編輯。如需修改行程設定，請先取消封存。
+    </alert-banner>
 
     <div class="space-y-4">
       <ui-form-field v-slot="{ componentField }" name="name" :validate-on-blur="!isFieldDirty">

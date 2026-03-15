@@ -238,7 +238,7 @@ onMounted(() => {
                       <ui-radio-group-item :value="member.id" />
                     </ui-form-control>
                     <ui-form-label class="font-normal flex items-center gap-1">
-                      <span class="text-sm">{{ member.avatarEmoji }}</span>
+                      <member-avatar :emoji="member.avatarEmoji" size="sm" />
                       <span class="text-sm">{{ member.name }}</span>
                     </ui-form-label>
                   </ui-form-item>
@@ -271,7 +271,7 @@ onMounted(() => {
                     />
                   </ui-form-control>
                   <ui-form-label class="font-normal flex items-center gap-1">
-                    <span class="text-sm">{{ member.avatarEmoji }}</span>
+                    <member-avatar :emoji="member.avatarEmoji" size="sm" />
                     <span class="text-sm">{{ member.name }}</span>
                   </ui-form-label>
                   <ui-form-message />

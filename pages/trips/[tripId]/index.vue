@@ -103,7 +103,7 @@ watch(trip, (tripValue) => {
           <!-- Member Header -->
           <div class="flex items-center justify-between mb-2">
             <div class="flex items-center gap-2">
-              <span class="text-base">{{ member.avatarEmoji }}</span>
+              <member-avatar :emoji="member.avatarEmoji" size="md" />
               <span class="text-sm font-semibold text-gray-900">{{ member.name }}</span>
             </div>
             <div

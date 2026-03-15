@@ -65,22 +65,14 @@ definePageMeta({
 <template>
   <div class="min-h-screen">
     <!-- Error Display -->
-    <div v-if="tripsError" class="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
-      <div class="flex items-start gap-3">
-        <Icon name="lucide:alert-circle" class="w-5 h-5 text-red-600 mt-0.5 shrink-0" />
-        <div class="flex-1">
-          <h3 class="text-sm font-semibold text-red-900 m-0 mb-1">
-            Firestore Error
-          </h3>
-          <p class="text-sm text-red-700 m-0 mb-2 font-mono">
-            {{ tripsError.message }}
-          </p>
-          <p class="text-xs text-red-600 m-0">
-            Check the browser console (F12) for the link to create the missing index.
-          </p>
-        </div>
-      </div>
-    </div>
+    <alert-banner v-if="tripsError" icon="lucide:alert-circle" title="Firestore Error" variant="error" class="mb-6">
+      <p class="m-0 mb-2 font-mono">
+        {{ tripsError.message }}
+      </p>
+      <p class="text-xs m-0">
+        Check the browser console (F12) for the link to create the missing index.
+      </p>
+    </alert-banner>
 
     <!-- Header Section -->
     <header class="mb-10">
@@ -111,25 +103,21 @@ definePageMeta({
 
     <!-- Loading State -->
     <div v-if="tripsPending" class="flex justify-center py-20">
-      <Icon name="lucide:loader-circle" class="w-8 h-8 text-indigo-600 animate-spin" />
+      <loading-spinner />
     </div>
 
     <!-- Empty State -->
-    <div v-else-if="!tripsError && filteredTrips.length === 0" class="flex flex-col items-center justify-center py-20 text-center">
-      <div class="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mb-4">
-        <Icon name="lucide-search" class="w-8 h-8 text-gray-400" />
-      </div>
-      <h2 class="text-xl font-semibold text-gray-900 mb-2">
-        找不到行程
-      </h2>
-      <p class="text-gray-500 mb-6">
-        試試調整搜尋條件或新增一個行程
-      </p>
+    <empty-state
+      v-else-if="!tripsError && filteredTrips.length === 0"
+      icon="lucide:search"
+      title="找不到行程"
+      description="試試調整搜尋條件或新增一個行程"
+    >
       <ui-button @click="navigateTo('/trips/new')">
         <Icon name="lucide-plus" size="20" />
         新增行程
       </ui-button>
-    </div>
+    </empty-state>
 
     <!-- Trip Grid -->
     <div v-else-if="!tripsError" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
