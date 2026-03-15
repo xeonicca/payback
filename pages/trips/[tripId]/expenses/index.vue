@@ -96,18 +96,8 @@ const displayedExpenses = computed(() => {
 <template>
   <!-- Sticky Header -->
   <div class="sticky top-0 z-10 bg-slate-200 dark:bg-background -mx-6 px-6 pb-3 space-y-2">
-    <!-- Row 1: Back + Search -->
+    <!-- Search -->
     <div class="flex items-center gap-2">
-      <ui-button
-        class="text-muted-foreground flex items-center gap-1 px-0 shrink-0"
-        variant="link"
-        size="sm"
-        @click="router.push(`/trips/${tripId}`)"
-      >
-        <Icon name="lucide:arrow-left" :size="16" />
-        返回
-      </ui-button>
-
       <div class="relative flex-1">
         <Icon name="lucide:search" class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
         <ui-input
