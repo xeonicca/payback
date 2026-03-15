@@ -31,6 +31,8 @@ export const tripConverter: FirestoreDataConverter<Trip> = {
       archived: data.archived || false,
       collaboratorCount: data.collaboratorCount || 0,
       isPublicInviteEnabled: data.isPublicInviteEnabled || true,
+      collaboratorUserIds: data.collaboratorUserIds || [data.userId],
+      ownerDisplayName: data.ownerDisplayName || '',
     } as Trip
   },
 }
@@ -50,6 +52,7 @@ export const tripMemberConverter: FirestoreDataConverter<TripMember> = {
       createdAtString: formatFirebaseTimestamp(data.createdAt),
       isHost: data.isHost || false,
       spending: data.spending || 0,
+      linkedUserId: data.linkedUserId || undefined,
     } as TripMember
   },
 }

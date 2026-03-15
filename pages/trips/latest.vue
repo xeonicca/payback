@@ -11,7 +11,7 @@ const tripsQuery = computed(() => {
     return null
   return query(
     collection(db, 'trips'),
-    where('userId', '==', sessionUser.value.uid),
+    where('collaboratorUserIds', 'array-contains', sessionUser.value.uid),
     orderBy('createdAt', 'desc'),
     limit(1),
   )

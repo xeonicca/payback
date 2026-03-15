@@ -20,6 +20,19 @@ interface AcceptInvitationResponse {
   tripId: string
 }
 
+interface InvitationMember {
+  id: string
+  name: string
+  avatarEmoji: string
+  isHost: boolean
+  linkedUserId: string | null
+}
+
+interface InvitationMembersResponse {
+  tripId: string
+  members: InvitationMember[]
+}
+
 export function useInvitation() {
   async function createInvitation(params: CreateInvitationParams): Promise<CreateInvitationResponse> {
     try {
@@ -35,17 +48,33 @@ export function useInvitation() {
     }
   }
 
-  async function acceptInvitation(invitationCode: string): Promise<AcceptInvitationResponse> {
+  async function acceptInvitation(
+    invitationCode: string,
+    memberChoice: { memberId: string } | { newMember: { name: string, avatarEmoji: string } },
+  ): Promise<AcceptInvitationResponse> {
     try {
       const response = await $fetch<AcceptInvitationResponse>('/api/invitations/accept', {
         method: 'POST',
-        body: { invitationCode },
+        body: { invitationCode, ...memberChoice },
       })
       return response
     }
     catch (error: any) {
       console.error('Error accepting invitation:', error)
       throw new Error(error.data?.message || error.message || 'Failed to accept invitation')
+    }
+  }
+
+  async function getInvitationMembers(invitationCode: string): Promise<InvitationMembersResponse> {
+    try {
+      const response = await $fetch<InvitationMembersResponse>('/api/invitations/members', {
+        query: { invitationCode },
+      })
+      return response
+    }
+    catch (error: any) {
+      console.error('Error fetching invitation members:', error)
+      throw new Error(error.data?.message || error.message || 'Failed to fetch trip members')
     }
   }
 
@@ -101,5 +130,6 @@ export function useInvitation() {
     revokeInvitation,
     listInvitations,
     getInvitationByCode,
+    getInvitationMembers,
   }
 }

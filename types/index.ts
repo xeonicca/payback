@@ -17,6 +17,7 @@ export interface NewTripMember {
   createdAt: Timestamp | FieldValue
   spending: number
   isHost: boolean
+  linkedUserId?: string
 }
 
 export interface TripMember extends NewTripMember {
@@ -35,6 +36,8 @@ export interface NewTrip {
   archived?: boolean
   collaboratorCount?: number
   isPublicInviteEnabled?: boolean
+  collaboratorUserIds?: string[]
+  ownerDisplayName?: string
 }
 
 export interface Trip extends NewTrip {
@@ -46,6 +49,8 @@ export interface Trip extends NewTrip {
   archived: boolean
   collaboratorCount: number
   isPublicInviteEnabled: boolean
+  collaboratorUserIds: string[]
+  ownerDisplayName: string
 }
 
 export interface ExpenseDetailItem {

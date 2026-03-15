@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { NewTrip, NewTripMember } from '@/types'
 import { toTypedSchema } from '@vee-validate/zod'
-import { addDoc, collection, serverTimestamp } from 'firebase/firestore'
+import { addDoc, collection, doc, serverTimestamp, setDoc } from 'firebase/firestore'
 import { useForm } from 'vee-validate'
 import { computed, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
@@ -64,6 +64,7 @@ const defaultMembers: NewTripMember[] = [
     isHost: true,
     createdAt: serverTimestamp(),
     spending: 0,
+    linkedUserId: sessionUser.value!.uid,
   },
 ]
 
@@ -84,12 +85,14 @@ const onSubmit = handleSubmit(async (values) => {
       archived: false,
       collaboratorCount: 1, // Owner is the first collaborator
       isPublicInviteEnabled: true,
+      collaboratorUserIds: [sessionUser.value!.uid],
+      ownerDisplayName: sessionUser.value!.displayName || '',
     }
 
     const docRef = await writeTrip(tripData)
 
     // Initialize owner as collaborator
-    await writeTripCollaborator(docRef.id, {
+    await writeTripCollaborator(docRef.id, sessionUser.value!.uid, {
       userId: sessionUser.value!.uid,
       email: sessionUser.value!.email,
       displayName: sessionUser.value!.displayName,
@@ -129,8 +132,9 @@ async function writeTripMembers(tripId: string, member: NewTripMember) {
   return docRef
 }
 
-async function writeTripCollaborator(tripId: string, collaborator: any) {
-  const docRef = await addDoc(collection(db, 'trips', tripId, 'collaborators'), collaborator)
+async function writeTripCollaborator(tripId: string, userId: string, collaborator: any) {
+  const docRef = doc(db, 'trips', tripId, 'collaborators', userId)
+  await setDoc(docRef, collaborator)
   return docRef
 }
 

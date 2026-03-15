@@ -12,6 +12,7 @@ const emit = defineEmits<{
 }>()
 
 const { createInvitation, revokeInvitation, listInvitations } = useInvitation()
+const baseUrl = useRequestURL().origin
 
 const invitations = ref<Invitation[]>([])
 const isLoading = ref(false)
@@ -82,9 +83,14 @@ async function handleRevokeInvitation(invitationId: string) {
   }
 }
 
-function copyToClipboard(text: string) {
-  navigator.clipboard.writeText(text)
-  toast.success('已複製到剪貼簿')
+async function copyToClipboard(text: string) {
+  try {
+    await navigator.clipboard.writeText(text)
+    toast.success('已複製到剪貼簿')
+  }
+  catch {
+    toast.error('複製失敗')
+  }
 }
 
 function getStatusBadgeVariant(status: string) {
@@ -230,11 +236,11 @@ const usedInvitations = computed(() =>
                     <div class="text-sm text-gray-600 space-y-1">
                       <p class="m-0">
                         <Icon name="lucide:calendar" class="w-4 h-4 inline mr-1" />
-                        建立於：{{ new Date(invitation.createdAtString).toLocaleDateString('zh-TW') }}
+                        建立於：{{ new Date(invitation.createdAt as string).toLocaleDateString('zh-TW') }}
                       </p>
                       <p class="m-0">
                         <Icon name="lucide:clock" class="w-4 h-4 inline mr-1" />
-                        到期日：{{ new Date(invitation.expiresAtString).toLocaleDateString('zh-TW') }}
+                        到期日：{{ new Date(invitation.expiresAt as string).toLocaleDateString('zh-TW') }}
                       </p>
                     </div>
 
@@ -242,7 +248,7 @@ const usedInvitations = computed(() =>
                       <ui-button
                         size="sm"
                         variant="outline"
-                        @click="copyToClipboard(`${window.location.origin}/invite/${invitation.invitationCode}`)"
+                        @click="copyToClipboard(`${baseUrl}/invite/${invitation.invitationCode}`)"
                       >
                         <Icon name="lucide:copy" :size="16" class="mr-1" />
                         複製連結
@@ -287,10 +293,10 @@ const usedInvitations = computed(() =>
 
                     <div class="text-sm text-gray-600">
                       <p class="m-0">
-                        建立於：{{ new Date(invitation.createdAtString).toLocaleDateString('zh-TW') }}
+                        建立於：{{ new Date(invitation.createdAt as string).toLocaleDateString('zh-TW') }}
                       </p>
-                      <p v-if="invitation.usedAtString" class="m-0">
-                        使用於：{{ new Date(invitation.usedAtString).toLocaleDateString('zh-TW') }}
+                      <p v-if="invitation.usedAt" class="m-0">
+                        使用於：{{ new Date(invitation.usedAt as string).toLocaleDateString('zh-TW') }}
                       </p>
                     </div>
                   </div>

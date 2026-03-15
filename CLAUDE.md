@@ -162,3 +162,27 @@ Uses `@antfu/eslint-config` with custom rules:
 - **Layouts**: Two layouts available:
   - `default.vue` - Standard layout
   - `defaultWithBottomBar.vue` - Layout with bottom navigation (used in trip pages)
+
+## Design Context
+
+### Users
+Friends on group trips — casual groups splitting costs for restaurants, transport, and activities while traveling. Primarily mobile usage during trips, quick entries between activities. Taiwanese audience (Traditional Chinese UI), with multi-currency support for international travel.
+
+### Brand Personality
+**Clean, Efficient, Modern** — a professional tool that gets out of the way and lets users track expenses fast.
+
+### Aesthetic Direction
+- **Visual tone**: Minimal and clean. White cards on light slate backgrounds, indigo as the primary accent, subtle shadows that elevate on interaction.
+- **Reference**: Splitwise — clear expense splitting with straightforward UX. Not playful or over-designed.
+- **Anti-reference**: Overly decorative or gamified finance apps. No unnecessary animations or visual noise.
+- **Theme**: Light mode primary. Dark mode supported via CSS variables (OKLch color space).
+- **Typography**: System fonts + Noto Sans TC Light for CJK. Monospace for currency amounts. Clear size hierarchy (xs→2xl).
+- **Color system**: Indigo primary, slate grays for structure, amber for active states, red for destructive, green for positive.
+- **Spacing**: Generous — p-6 cards, gap-6 grids, comfortable touch targets.
+
+### Design Principles
+1. **Speed over spectacle** — Every interaction should feel instant. The user is mid-trip, probably standing in a restaurant. Two taps to log an expense, not five.
+2. **Clarity through hierarchy** — Amounts are the most important information. Use size, weight, and monospace to make numbers scannable. Secondary info (dates, members) stays small and muted.
+3. **Quiet confidence** — The interface should feel reliable without being loud. Subtle shadows, smooth transitions (300ms), restrained color usage. No gratuitous decoration.
+4. **Mobile-first, touch-friendly** — Bottom navigation, large tap targets (44px+), thumb-reachable actions. Desktop is a nice-to-have, not the primary context.
+5. **Collaborative but not noisy** — Shared trips should feel natural. Show who's involved without making collaboration the centerpiece — the expenses are what matter.

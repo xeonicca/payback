@@ -19,20 +19,18 @@ service cloud.firestore {
       allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
 
       // Users can read trips they own or collaborate on
-      // For list queries: check if userId matches (for owned trips)
-      // For individual reads: check owner or collaborator
+      // Uses collaboratorUserIds array for list queries (array-contains)
       allow read: if request.auth != null &&
-        (resource.data.userId == request.auth.uid || isCollaborator(tripId));
+        request.auth.uid in resource.data.collaboratorUserIds;
 
       // Only owner can update/delete trip settings
       allow update, delete: if request.auth != null && resource.data.userId == request.auth.uid;
 
       // Collaborators subcollection
-      match /collaborators/{userId} {
+      match /collaborators/{collaboratorId} {
         // Owners and collaborators can read the collaborator list
         allow read: if request.auth != null &&
-          (get(/databases/$(database)/documents/trips/$(tripId)).data.userId == request.auth.uid ||
-           isCollaborator(tripId));
+          request.auth.uid in get(/databases/$(database)/documents/trips/$(tripId)).data.collaboratorUserIds;
 
         // Only owner can manage collaborators
         allow write: if request.auth != null &&
@@ -43,8 +41,7 @@ service cloud.firestore {
       match /members/{memberId} {
         // Owners and collaborators can read members
         allow read: if request.auth != null &&
-          (get(/databases/$(database)/documents/trips/$(tripId)).data.userId == request.auth.uid ||
-           isCollaborator(tripId));
+          request.auth.uid in get(/databases/$(database)/documents/trips/$(tripId)).data.collaboratorUserIds;
 
         // Only owner can manage trip members
         allow create, update, delete: if request.auth != null &&
@@ -53,22 +50,16 @@ service cloud.firestore {
 
       // Expenses subcollection
       match /expenses/{expenseId} {
-        // Owners and collaborators can read expenses
-        allow read: if request.auth != null &&
-          (get(/databases/$(database)/documents/trips/$(tripId)).data.userId == request.auth.uid ||
-           isCollaborator(tripId));
-
-        // Both owners and collaborators can manage expenses
-        allow create, update, delete: if request.auth != null &&
-          (get(/databases/$(database)/documents/trips/$(tripId)).data.userId == request.auth.uid ||
-           isCollaborator(tripId));
+        // Owners and collaborators can read/manage expenses
+        allow read, create, update, delete: if request.auth != null &&
+          request.auth.uid in get(/databases/$(database)/documents/trips/$(tripId)).data.collaboratorUserIds;
       }
     }
 
     // Invitations collection
     match /invitations/{invitationId} {
-      // Anyone authenticated can read invitations (needed to accept them)
-      allow read: if request.auth != null;
+      // Anyone can read invitations (invitation code acts as secret, needed for invite page before login)
+      allow read: if true;
 
       // Only trip owner can create invitations
       allow create: if request.auth != null &&

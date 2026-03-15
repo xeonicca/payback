@@ -11,12 +11,26 @@ export default defineEventHandler(async (event) => {
     })
   }
 
-  const { invitationCode } = await readBody(event)
+  const { invitationCode, memberId, newMember } = await readBody(event)
 
   if (!invitationCode) {
     throw createError({
       statusCode: 400,
       statusMessage: 'invitationCode is required',
+    })
+  }
+
+  if (!memberId && !newMember) {
+    throw createError({
+      statusCode: 400,
+      statusMessage: 'Either memberId or newMember is required',
+    })
+  }
+
+  if (newMember && (!newMember.name || !newMember.avatarEmoji)) {
+    throw createError({
+      statusCode: 400,
+      statusMessage: 'newMember requires name and avatarEmoji',
     })
   }
 
@@ -90,6 +104,52 @@ export default defineEventHandler(async (event) => {
       invitedBy: invitation.invitedByUserId,
     })
 
+    // Link to existing member or create new member
+    if (memberId) {
+      // Verify the member exists and isn't already linked
+      const memberRef = db
+        .collection('trips')
+        .doc(tripId)
+        .collection('members')
+        .doc(memberId)
+      const memberDoc = await memberRef.get()
+
+      if (!memberDoc.exists) {
+        throw createError({
+          statusCode: 404,
+          statusMessage: 'Member not found',
+        })
+      }
+
+      const memberData = memberDoc.data()
+      if (memberData?.linkedUserId) {
+        throw createError({
+          statusCode: 400,
+          statusMessage: 'This member is already linked to another user',
+        })
+      }
+
+      // Link the member to this user
+      await memberRef.update({
+        linkedUserId: user.uid,
+      })
+    }
+    else if (newMember) {
+      // Create a new member and link it
+      await db
+        .collection('trips')
+        .doc(tripId)
+        .collection('members')
+        .add({
+          name: newMember.name,
+          avatarEmoji: newMember.avatarEmoji,
+          isHost: false,
+          spending: 0,
+          createdAt: FieldValue.serverTimestamp(),
+          linkedUserId: user.uid,
+        })
+    }
+
     // Update invitation status
     await invitationDoc.ref.update({
       status: 'accepted',
@@ -97,10 +157,11 @@ export default defineEventHandler(async (event) => {
       usedAt: FieldValue.serverTimestamp(),
     })
 
-    // Increment collaborator count on trip
+    // Increment collaborator count and add user to collaboratorUserIds
     const tripRef = db.collection('trips').doc(tripId)
     await tripRef.update({
       collaboratorCount: FieldValue.increment(1),
+      collaboratorUserIds: FieldValue.arrayUnion(user.uid),
     })
 
     return {

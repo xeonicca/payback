@@ -1,4 +1,7 @@
 <script setup lang="ts">
+import 'vue-sonner/style.css'
+import { Toaster } from '@/components/ui/sonner'
+
 const { $pwa } = useNuxtApp()
 const showUpdateDialog = ref(false)
 
@@ -14,6 +17,8 @@ onMounted(() => {
     <NuxtPage />
     <NuxtPwaManifest />
   </NuxtLayout>
+
+  <Toaster position="top-center" />
 
   <ui-alert-dialog v-model:open="showUpdateDialog">
     <ui-alert-dialog-content>

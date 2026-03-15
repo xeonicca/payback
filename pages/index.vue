@@ -9,15 +9,15 @@ const db = useFirestore()
 const sessionUser = useSessionUser()
 
 // Fetch trips client-side only using useAsyncData
-const { data: ownedTrips, error: tripsError, pending: tripsPending } = await useAsyncData(
-  'owned-trips',
+const { data: myTrips, error: tripsError, pending: tripsPending } = await useAsyncData(
+  'my-trips',
   async () => {
     if (!sessionUser.value?.uid)
       return []
 
     const tripsQuery = query(
       collection(db, 'trips'),
-      where('userId', '==', sessionUser.value.uid),
+      where('collaboratorUserIds', 'array-contains', sessionUser.value.uid),
       orderBy('createdAt', 'desc'),
     ).withConverter(tripConverter)
 
@@ -43,7 +43,7 @@ watch(tripsError, (error) => {
   }
 }, { immediate: true })
 
-const trips = computed(() => ownedTrips.value || [])
+const trips = computed(() => myTrips.value || [])
 
 function navigateTo(path: string) {
   router.push(path)
@@ -146,6 +146,10 @@ definePageMeta({
               <h3 class="text-lg font-semibold text-gray-900 truncate group-hover:text-indigo-600 transition-colors flex-1">
                 {{ trip.name }}
               </h3>
+              <ui-badge v-if="trip.collaboratorCount > 1" variant="outline" class="text-xs shrink-0">
+                <Icon name="lucide:users" class="w-3 h-3 mr-1" />
+                共享 {{ trip.collaboratorCount }}人
+              </ui-badge>
               <ui-badge v-if="trip.archived" variant="secondary" class="text-xs shrink-0">
                 <Icon name="lucide:archive" class="w-3 h-3 mr-1" />
                 已封存
@@ -154,6 +158,9 @@ definePageMeta({
             <p class="text-xs text-gray-500 font-medium flex items-center gap-1">
               <Icon name="lucide-calendar" class="w-3.5 h-3.5" />
               {{ trip.createdAtString }}
+            </p>
+            <p v-if="trip.userId !== sessionUser?.uid && trip.ownerDisplayName" class="text-xs text-gray-400 mt-1">
+              由 {{ trip.ownerDisplayName }} 建立
             </p>
           </div>
 
