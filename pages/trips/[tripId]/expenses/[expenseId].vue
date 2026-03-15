@@ -14,6 +14,7 @@ import { expenseConverter, tripConverter } from '@/utils/converter'
 definePageMeta({
   middleware: ['auth'],
   layout: 'default-with-bottom-bar',
+  hideLayoutBackButton: true,
 })
 
 const db = useFirestore()
@@ -243,218 +244,237 @@ async function reanalyzeReceipt() {
 </script>
 
 <template>
-  <!-- Top bar: visibility toggle + actions -->
-  <div v-if="canManageExpenses" class="flex items-center justify-end gap-2 mb-2">
-    <div class="flex items-center gap-2">
-      <ui-label for="enabled" class="text-xs text-muted-foreground">
-        {{ expense?.enabled ? '顯示中' : '已隱藏' }}
-      </ui-label>
-      <ui-switch id="enabled" :model-value="expense?.enabled ?? true" @update:model-value="updateExpense" />
+  <!-- Loading state -->
+  <template v-if="!expense || !trip">
+    <div class="space-y-3 pt-2">
+      <ui-skeleton class="h-8 w-40" />
+      <ui-skeleton class="h-4 w-64" />
+      <ui-skeleton class="h-4 w-32" />
+      <ui-skeleton class="h-48 w-full rounded-xl mt-4" />
     </div>
-    <ui-dropdown-menu>
-      <ui-dropdown-menu-trigger as-child>
-        <ui-button variant="ghost" size="icon" class="size-8" aria-label="更多操作">
-          <Icon name="lucide:more-vertical" :size="16" />
-        </ui-button>
-      </ui-dropdown-menu-trigger>
-      <ui-dropdown-menu-content align="end">
-        <ui-dropdown-menu-item @click="showEditDialog = true">
-          <Icon name="lucide:edit-3" :size="14" class="mr-2" />
-          編輯
-        </ui-dropdown-menu-item>
-        <ui-dropdown-menu-separator />
-        <ui-dropdown-menu-item class="text-destructive" @click="showDeleteDialog = true">
-          <Icon name="lucide:trash-2" :size="14" class="mr-2" />
-          刪除
-        </ui-dropdown-menu-item>
-      </ui-dropdown-menu-content>
-    </ui-dropdown-menu>
-  </div>
-
-  <!-- Amount + description -->
-  <div class="mb-4">
-    <h1 class="text-2xl font-bold font-mono">
-      <template v-if="usedHomeCurrency">
-        <span class="text-primary">{{ trip?.defaultCurrency }} {{ convertToDefaultCurrency.toFixed(2) }}</span>
-      </template>
-      <template v-else>
-        <span class="text-primary">{{ trip?.tripCurrency }} {{ expense?.grandTotal.toFixed(2) }}</span>
-        <span class="text-sm text-muted-foreground font-normal inline-flex items-center gap-1 ml-1">
-          ≈ {{ trip?.defaultCurrency }} {{ convertToDefaultCurrency.toFixed(2) }}
-        </span>
-      </template>
-    </h1>
-    <p class="text-sm text-foreground mt-1">
-      {{ expense?.description }}
-    </p>
-    <p class="text-xs text-muted-foreground mt-0.5">
-      {{ expense?.paidAtString }}
-    </p>
-  </div>
-
-  <div class="space-y-4">
-    <div class="bg-card rounded-xl border p-4 space-y-4">
-      <div class="flex items-center justify-between">
-        <div class="text-sm text-muted-foreground">
-          付款人
-        </div>
-        <div class="flex items-center gap-2">
-          <member-avatar v-if="paidByMember" :emoji="paidByMember.avatarEmoji" size="sm" />
-          <span class="font-bold text-foreground">{{ paidByMember?.name }}</span>
-        </div>
+  </template>
+  <template v-else>
+    <!-- Top bar: back + visibility + actions -->
+    <div class="flex items-center justify-between mb-2">
+      <ui-button
+        class="text-muted-foreground flex items-center gap-1 px-0"
+        variant="link"
+        size="sm"
+        @click="router.back()"
+      >
+        <Icon name="lucide:arrow-left" :size="16" /> 上一頁
+      </ui-button>
+      <div v-if="canManageExpenses" class="flex items-center gap-2">
+        <ui-label for="enabled" class="text-xs text-muted-foreground">
+          {{ expense?.enabled ? '顯示中' : '已隱藏' }}
+        </ui-label>
+        <ui-switch id="enabled" :model-value="expense?.enabled ?? true" @update:model-value="updateExpense" />
+        <ui-dropdown-menu>
+          <ui-dropdown-menu-trigger as-child>
+            <ui-button variant="ghost" size="icon" class="size-8" aria-label="更多操作">
+              <Icon name="lucide:more-vertical" :size="16" />
+            </ui-button>
+          </ui-dropdown-menu-trigger>
+          <ui-dropdown-menu-content align="end">
+            <ui-dropdown-menu-item @click="showEditDialog = true">
+              <Icon name="lucide:edit-3" :size="14" class="mr-2" />
+              編輯
+            </ui-dropdown-menu-item>
+            <ui-dropdown-menu-separator />
+            <ui-dropdown-menu-item class="text-destructive" @click="showDeleteDialog = true">
+              <Icon name="lucide:trash-2" :size="14" class="mr-2" />
+              刪除
+            </ui-dropdown-menu-item>
+          </ui-dropdown-menu-content>
+        </ui-dropdown-menu>
       </div>
-      <ui-separator />
-      <div v-if="Object.keys(sharedTotalByMember).length > 0" class="space-y-2">
-        <div class="text-sm text-muted-foreground">
-          成員分攤明細
-        </div>
-        <ui-accordion type="multiple" class="space-y-2">
-          <ui-accordion-item
-            v-for="member in sharedWithMembers"
-            :key="member.id"
-            :value="member.id"
-            class="bg-muted/50 rounded-lg border-0"
-          >
-            <ui-accordion-trigger class="flex items-center justify-between py-2 px-3 hover:no-underline">
-              <div class="flex flex-1 items-center justify-between py-2 hover:no-underline">
-                <div class="flex items-center gap-2">
-                  <member-avatar :emoji="member.avatarEmoji" size="sm" />
-                  <span class="text-sm font-medium text-foreground">{{ member.name }}</span>
-                </div>
-                <div class="text-right mr-4">
-                  <div v-if="usedHomeCurrency" class="text-sm font-mono text-primary">
-                    {{ trip?.defaultCurrency }} {{ sharedTotalByMember[member.id].convertedTotal.toFixed(2) || '0.00' }}
-                  </div>
-                  <template v-else>
-                    <div class="text-sm font-mono text-green-600 dark:text-green-400">
-                      {{ trip?.tripCurrency }} {{ sharedTotalByMember[member.id].total.toFixed(2) || '0.00' }}
-                    </div>
-                    <div v-if="trip?.exchangeRate && trip.exchangeRate !== 1" class="text-xs text-muted-foreground inline-flex items-center gap-1">
-                      <Icon name="lucide:equal-approximately" class="text-muted-foreground" size="12" />
-                      <p>{{ trip?.defaultCurrency }} {{ (sharedTotalByMember[member.id].convertedTotal).toFixed(2) }}</p>
-                    </div>
-                  </template>
-                </div>
-              </div>
-            </ui-accordion-trigger>
-            <ui-accordion-content class="px-3 pb-3">
-              <div class="space-y-2 text-xs">
-                <div
-                  v-for="(item, index) in memberItemBreakdown[member.id] || []"
-                  :key="index"
-                  class="flex justify-between items-center py-1 px-2 bg-accent rounded gap-4"
-                >
-                  <div class="flex-1">
-                    <span class="font-mono text-foreground">{{ item.itemName }}</span>
-                    <p class="text-muted-foreground">
-                      ({{ usedHomeCurrency ? trip?.defaultCurrency : trip?.tripCurrency }} {{ (usedHomeCurrency ? item.itemPrice * (trip?.exchangeRate || 1) : item.itemPrice).toFixed(2) }} × {{ item.itemQuantity }} ÷ {{ item.sharingMembers.length }}人)
-                    </p>
-                  </div>
-                  <div class="text-right font-mono" :class="usedHomeCurrency ? 'text-primary' : 'text-green-600 dark:text-green-400'">
-                    {{ usedHomeCurrency ? trip?.defaultCurrency : trip?.tripCurrency }} {{ (usedHomeCurrency ? item.sharePerMember * (trip?.exchangeRate || 1) : item.sharePerMember).toFixed(2) }}
-                  </div>
-                </div>
-                <div class="border-t border-border pt-1 flex justify-between items-center font-bold text-foreground">
-                  <span>小計:</span>
-                  <span :class="usedHomeCurrency ? 'text-primary' : 'text-green-600 dark:text-green-400'">
-                    {{ usedHomeCurrency ? trip?.defaultCurrency : trip?.tripCurrency }} {{ ((memberItemBreakdown[member.id] || []).reduce((sum, item) => sum + item.sharePerMember, 0) * (usedHomeCurrency ? (trip?.exchangeRate || 1) : 1)).toFixed(2) }}
-                  </span>
-                </div>
-              </div>
-            </ui-accordion-content>
-          </ui-accordion-item>
-        </ui-accordion>
-      </div>
+    </div>
 
-      <ui-separator />
-      <template v-if="expense?.items?.length">
-        <div class="text-sm text-muted-foreground">
-          購買明細
+    <!-- Amount + description -->
+    <div class="mb-4">
+      <h1 class="text-2xl font-bold font-mono">
+        <template v-if="usedHomeCurrency">
+          <span class="text-primary">{{ trip?.defaultCurrency }} {{ convertToDefaultCurrency.toFixed(2) }}</span>
+        </template>
+        <template v-else>
+          <span class="text-primary">{{ trip?.tripCurrency }} {{ expense?.grandTotal.toFixed(2) }}</span>
+          <span class="text-sm text-muted-foreground font-normal inline-flex items-center gap-1 ml-1">
+            ≈ {{ trip?.defaultCurrency }} {{ convertToDefaultCurrency.toFixed(2) }}
+          </span>
+        </template>
+      </h1>
+      <p class="text-sm text-foreground mt-1">
+        {{ expense?.description }}
+      </p>
+      <p class="text-xs text-muted-foreground mt-0.5">
+        {{ expense?.paidAtString }}
+      </p>
+    </div>
+
+    <div class="space-y-4">
+      <div class="bg-card rounded-xl border p-4 space-y-4">
+        <div class="flex items-center justify-between">
+          <div class="text-sm text-muted-foreground">
+            付款人
+          </div>
+          <div class="flex items-center gap-2">
+            <member-avatar v-if="paidByMember" :emoji="paidByMember.avatarEmoji" size="sm" />
+            <span class="font-bold text-foreground">{{ paidByMember?.name }}</span>
+          </div>
         </div>
-        <div class="space-y-1">
-          <expense-detail-item
-            v-for="item in expense.items"
-            :key="item.name"
-            :item="item"
-            :currency="trip?.tripCurrency || ''"
-            :exchange-rate="trip?.exchangeRate || 1"
-            :default-currency="trip?.defaultCurrency || 'TWD'"
-            :edit-mode="false"
+        <ui-separator />
+        <div v-if="Object.keys(sharedTotalByMember).length > 0" class="space-y-2">
+          <div class="text-sm text-muted-foreground">
+            成員分攤明細
+          </div>
+          <ui-accordion type="multiple" class="space-y-2">
+            <ui-accordion-item
+              v-for="member in sharedWithMembers"
+              :key="member.id"
+              :value="member.id"
+              class="bg-muted/50 rounded-lg border-0"
+            >
+              <ui-accordion-trigger class="flex items-center justify-between py-2 px-3 hover:no-underline">
+                <div class="flex flex-1 items-center justify-between py-2 hover:no-underline">
+                  <div class="flex items-center gap-2">
+                    <member-avatar :emoji="member.avatarEmoji" size="sm" />
+                    <span class="text-sm font-medium text-foreground">{{ member.name }}</span>
+                  </div>
+                  <div class="text-right mr-4">
+                    <div v-if="usedHomeCurrency" class="text-sm font-mono text-primary">
+                      {{ trip?.defaultCurrency }} {{ sharedTotalByMember[member.id].convertedTotal.toFixed(2) || '0.00' }}
+                    </div>
+                    <template v-else>
+                      <div class="text-sm font-mono text-green-600 dark:text-green-400">
+                        {{ trip?.tripCurrency }} {{ sharedTotalByMember[member.id].total.toFixed(2) || '0.00' }}
+                      </div>
+                      <div v-if="trip?.exchangeRate && trip.exchangeRate !== 1" class="text-xs text-muted-foreground inline-flex items-center gap-1">
+                        <Icon name="lucide:equal-approximately" class="text-muted-foreground" size="12" />
+                        <span>{{ trip?.defaultCurrency }} {{ (sharedTotalByMember[member.id].convertedTotal).toFixed(2) }}</span>
+                      </div>
+                    </template>
+                  </div>
+                </div>
+              </ui-accordion-trigger>
+              <ui-accordion-content class="px-3 pb-3">
+                <div class="space-y-2 text-xs">
+                  <div
+                    v-for="(item, index) in memberItemBreakdown[member.id] || []"
+                    :key="index"
+                    class="flex justify-between items-center py-1 px-2 bg-accent rounded gap-4"
+                  >
+                    <div class="flex-1">
+                      <span class="font-mono text-foreground">{{ item.itemName }}</span>
+                      <p class="text-muted-foreground">
+                        ({{ usedHomeCurrency ? trip?.defaultCurrency : trip?.tripCurrency }} {{ (usedHomeCurrency ? item.itemPrice * (trip?.exchangeRate || 1) : item.itemPrice).toFixed(2) }} × {{ item.itemQuantity }} ÷ {{ item.sharingMembers.length }}人)
+                      </p>
+                    </div>
+                    <div class="text-right font-mono" :class="usedHomeCurrency ? 'text-primary' : 'text-green-600 dark:text-green-400'">
+                      {{ usedHomeCurrency ? trip?.defaultCurrency : trip?.tripCurrency }} {{ (usedHomeCurrency ? item.sharePerMember * (trip?.exchangeRate || 1) : item.sharePerMember).toFixed(2) }}
+                    </div>
+                  </div>
+                  <div class="border-t border-border pt-1 flex justify-between items-center font-bold text-foreground">
+                    <span>小計:</span>
+                    <span :class="usedHomeCurrency ? 'text-primary' : 'text-green-600 dark:text-green-400'">
+                      {{ usedHomeCurrency ? trip?.defaultCurrency : trip?.tripCurrency }} {{ ((memberItemBreakdown[member.id] || []).reduce((sum, item) => sum + item.sharePerMember, 0) * (usedHomeCurrency ? (trip?.exchangeRate || 1) : 1)).toFixed(2) }}
+                    </span>
+                  </div>
+                </div>
+              </ui-accordion-content>
+            </ui-accordion-item>
+          </ui-accordion>
+        </div>
+
+        <ui-separator />
+        <template v-if="expense?.items?.length">
+          <div class="text-sm text-muted-foreground">
+            購買明細
+          </div>
+          <div class="space-y-1">
+            <expense-detail-item
+              v-for="item in expense.items"
+              :key="item.name"
+              :item="item"
+              :currency="trip?.tripCurrency || ''"
+              :exchange-rate="trip?.exchangeRate || 1"
+              :default-currency="trip?.defaultCurrency || 'TWD'"
+              :edit-mode="false"
+              :trip-members="tripMembers"
+              :shareable-members="sharedWithMembers"
+              :shared-by-member-ids="item.sharedByMemberIds"
+            />
+          </div>
+        </template>
+
+        <template v-if="receiptImageUrl">
+          <ui-separator />
+          <div class="space-y-2">
+            <div class="flex items-center justify-between">
+              <div class="text-sm text-muted-foreground">
+                收據圖片
+              </div>
+              <ui-button
+                v-if="canManageExpenses && !expense?.isProcessing"
+                variant="outline"
+                size="sm"
+                :disabled="isReanalyzing"
+                class="flex items-center gap-2"
+                @click="reanalyzeReceipt"
+              >
+                <Icon
+                  :name="isReanalyzing ? 'lucide:loader-2' : 'lucide:refresh-cw'"
+                  :size="14"
+                  :class="{ 'animate-spin': isReanalyzing }"
+                />
+                {{ isReanalyzing ? '分析中...' : '重新分析收據' }}
+              </ui-button>
+              <div v-else-if="expense?.isProcessing" class="flex items-center gap-2 text-sm text-amber-600">
+                <Icon name="lucide:loader-2" :size="14" class="animate-spin" />
+                處理中...
+              </div>
+            </div>
+            <div class="grid gap-2">
+              <img :src="receiptImageUrl" alt="收據圖片" loading="lazy" class="w-full max-h-96 object-contain rounded-lg">
+            </div>
+          </div>
+        </template>
+      </div>
+    </div>
+
+    <!-- Edit Expense Dialog -->
+    <ui-drawer v-if="canManageExpenses" v-model:open="showEditDialog">
+      <ui-drawer-content>
+        <div class="mx-auto w-full max-w-sm">
+          <edit-expense-form
+            v-if="expense && trip"
+            :expense="expense"
+            :trip="trip"
             :trip-members="tripMembers"
-            :shareable-members="sharedWithMembers"
-            :shared-by-member-ids="item.sharedByMemberIds"
+            @close="showEditDialog = false"
           />
         </div>
-      </template>
+      </ui-drawer-content>
+    </ui-drawer>
 
-      <template v-if="receiptImageUrl">
-        <ui-separator />
-        <div class="space-y-2">
-          <div class="flex items-center justify-between">
-            <div class="text-sm text-muted-foreground">
-              收據圖片
-            </div>
-            <ui-button
-              v-if="canManageExpenses && !expense?.isProcessing"
-              variant="outline"
-              size="sm"
-              :disabled="isReanalyzing"
-              class="flex items-center gap-2"
-              @click="reanalyzeReceipt"
-            >
-              <Icon
-                :name="isReanalyzing ? 'lucide:loader-2' : 'lucide:refresh-cw'"
-                :size="14"
-                :class="{ 'animate-spin': isReanalyzing }"
-              />
-              {{ isReanalyzing ? '分析中...' : '重新分析收據' }}
-            </ui-button>
-            <div v-else-if="expense?.isProcessing" class="flex items-center gap-2 text-sm text-amber-600">
-              <Icon name="lucide:loader-2" :size="14" class="animate-spin" />
-              處理中...
-            </div>
-          </div>
-          <div class="grid gap-2">
-            <img :src="receiptImageUrl" alt="收據圖片" loading="lazy" class="w-full max-h-96 object-contain rounded-lg">
-          </div>
-        </div>
-      </template>
-    </div>
-  </div>
-
-  <!-- Edit Expense Dialog -->
-  <ui-drawer v-if="canManageExpenses" v-model:open="showEditDialog">
-    <ui-drawer-content>
-      <div class="mx-auto w-full max-w-sm">
-        <edit-expense-form
-          v-if="expense && trip"
-          :expense="expense"
-          :trip="trip"
-          :trip-members="tripMembers"
-          @close="showEditDialog = false"
-        />
-      </div>
-    </ui-drawer-content>
-  </ui-drawer>
-
-  <!-- Delete Expense Confirmation Dialog -->
-  <ui-alert-dialog v-if="canManageExpenses" v-model:open="showDeleteDialog">
-    <ui-alert-dialog-content>
-      <ui-alert-dialog-header>
-        <ui-alert-dialog-title>刪除支出</ui-alert-dialog-title>
-        <ui-alert-dialog-description>
-          確定要刪除「{{ expense?.description }}」嗎？此操作無法復原。
-        </ui-alert-dialog-description>
-      </ui-alert-dialog-header>
-      <ui-alert-dialog-footer>
-        <ui-alert-dialog-cancel :disabled="isDeleting">
-          取消
-        </ui-alert-dialog-cancel>
-        <ui-button variant="destructive" :disabled="isDeleting" @click="deleteExpense">
-          <Icon v-if="isDeleting" name="lucide:loader-2" class="animate-spin mr-2" :size="16" />
-          {{ isDeleting ? '刪除中...' : '刪除' }}
-        </ui-button>
-      </ui-alert-dialog-footer>
-    </ui-alert-dialog-content>
-  </ui-alert-dialog>
+    <!-- Delete Expense Confirmation Dialog -->
+    <ui-alert-dialog v-if="canManageExpenses" v-model:open="showDeleteDialog">
+      <ui-alert-dialog-content>
+        <ui-alert-dialog-header>
+          <ui-alert-dialog-title>刪除支出</ui-alert-dialog-title>
+          <ui-alert-dialog-description>
+            確定要刪除「{{ expense?.description }}」嗎？此操作無法復原。
+          </ui-alert-dialog-description>
+        </ui-alert-dialog-header>
+        <ui-alert-dialog-footer>
+          <ui-alert-dialog-cancel :disabled="isDeleting">
+            取消
+          </ui-alert-dialog-cancel>
+          <ui-button variant="destructive" :disabled="isDeleting" @click="deleteExpense">
+            <Icon v-if="isDeleting" name="lucide:loader-2" class="animate-spin mr-2" :size="16" />
+            {{ isDeleting ? '刪除中...' : '刪除' }}
+          </ui-button>
+        </ui-alert-dialog-footer>
+      </ui-alert-dialog-content>
+    </ui-alert-dialog>
+  </template>
 </template>

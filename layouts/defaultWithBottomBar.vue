@@ -9,7 +9,7 @@ const router = useRouter()
 const db = useFirestore()
 
 const shouldShowBackButton = computed(() => {
-  return route.name !== 'trips-tripId'
+  return route.name !== 'trips-tripId' && !route.meta.hideLayoutBackButton
 })
 
 const tripId = computed(() => {
@@ -58,5 +58,6 @@ const trip = useDocument<Trip>(tripDocRef)
       <slot />
     </main>
   </div>
+  <back-to-top-button />
   <trip-bottom-bar v-if="tripId" :trip-id="tripId as string" />
 </template>

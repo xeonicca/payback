@@ -11,7 +11,15 @@ export function useTripMembers(tripId: string) {
     { ssrKey: `trip-members-${tripId}` },
   )
 
+  const sessionUser = useSessionUser()
+
   const hostMember = computed(() => tripMembers.value?.find(member => member.isHost))
+
+  const currentUserMember = computed(() => {
+    if (!sessionUser.value)
+      return undefined
+    return tripMembers.value?.find(member => member.linkedUserId === sessionUser.value!.uid)
+  })
 
   const tripMembersMap = computed(() => tripMembers.value?.reduce((acc, member) => {
     acc[member.id] = member
@@ -21,6 +29,7 @@ export function useTripMembers(tripId: string) {
   return {
     tripMembers,
     hostMember,
+    currentUserMember,
     tripMembersMap,
   }
 }

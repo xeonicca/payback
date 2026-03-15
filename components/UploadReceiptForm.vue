@@ -12,7 +12,7 @@ import { z } from 'zod'
 const props = defineProps<{
   trip: Trip
   tripMembers: TripMember[]
-  hostMember?: TripMember
+  defaultPayerMember?: TripMember
 }>()
 
 const emit = defineEmits<{
@@ -32,8 +32,8 @@ const formSchema = toTypedSchema(z.object({
 const { handleSubmit } = useForm({
   validationSchema: formSchema,
   initialValues: {
-    sharedWithMemberIds: props.hostMember?.id ? [props.hostMember.id] : [],
-    paidByMemberId: props.hostMember?.id,
+    sharedWithMemberIds: props.defaultPayerMember?.id ? [props.defaultPayerMember.id] : [],
+    paidByMemberId: props.defaultPayerMember?.id,
   },
 })
 

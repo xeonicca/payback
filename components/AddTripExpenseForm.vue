@@ -13,7 +13,7 @@ import { cn } from '@/lib/utils'
 const props = defineProps<{
   trip: Trip
   tripMembers: TripMember[]
-  hostMember?: TripMember
+  defaultPayerMember?: TripMember
 }>()
 
 const emit = defineEmits<{
@@ -56,8 +56,8 @@ const paidAtPlaceholder = ref()
 const { values, isFieldDirty, setFieldValue, handleSubmit } = useForm({
   validationSchema: formSchema,
   initialValues: {
-    sharedWithMemberIds: props.hostMember?.id ? [props.hostMember.id] : [],
-    paidByMemberId: props.hostMember?.id,
+    sharedWithMemberIds: props.defaultPayerMember?.id ? [props.defaultPayerMember.id] : [],
+    paidByMemberId: props.defaultPayerMember?.id,
     paidAt: today(timezone).toString(),
   },
 })

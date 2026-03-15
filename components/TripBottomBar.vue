@@ -3,7 +3,7 @@ const props = defineProps<{
   tripId: string
 }>()
 
-const { tripMembers, hostMember } = useTripMembers(props.tripId)
+const { tripMembers, hostMember, currentUserMember } = useTripMembers(props.tripId)
 const { trip } = useTrip(props.tripId)
 const { canManageExpenses } = useTripCollaborators(props.tripId)
 
@@ -49,7 +49,7 @@ const openUploadReceiptDrawer = ref(false)
         <upload-receipt-form
           :trip="trip"
           :trip-members="tripMembers"
-          :host-member="hostMember"
+          :default-payer-member="currentUserMember || hostMember"
           @close="openUploadReceiptDrawer = false"
         />
       </div>

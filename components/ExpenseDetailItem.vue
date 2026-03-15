@@ -78,18 +78,18 @@ const sharedByMemberAvatars = computed(() => {
 </script>
 
 <template>
-  <div class="flex flex-wrap items-start justify-between py-3 border-b border-gray-100 last:border-b-0">
+  <div class="flex flex-wrap items-start justify-between py-3 border-b border-border last:border-b-0">
     <div class="flex-1 min-w-0">
       <div class="flex flex-col items-start gap-1">
-        <span class="font-medium text-sm">{{ item.name }}</span>
-        <div class="font-mono text-xs text-gray-500">
+        <span class="font-medium text-sm text-foreground">{{ item.name }}</span>
+        <div class="font-mono text-xs text-muted-foreground">
           <span v-if="item.price !== 0">
             {{ currency }} {{ Math.round(item.price * 100) / 100 }}
           </span>
           <span> x{{ item.quantity ?? 1 }}</span>
         </div>
       </div>
-      <p v-if="item.translatedName" class="text-xs text-gray-500 mt-2">
+      <p v-if="item.translatedName" class="text-xs text-muted-foreground mt-2">
         翻譯: {{ item.translatedName }}
       </p>
       <div v-if="!editMode" class="mt-2 flex items-center gap-1">
@@ -99,18 +99,18 @@ const sharedByMemberAvatars = computed(() => {
       </div>
     </div>
     <div class="text-right font-mono text-sm ml-4">
-      <div class="text-green-600">
+      <div class="text-green-600 dark:text-green-400">
         {{ currency }} {{ Math.round(item.price * (item.quantity ?? 1) * 100) / 100 }}
       </div>
-      <div v-if="convertedPrice" class="text-xs text-gray-500 inline-flex items-center gap-1">
-        <Icon name="lucide:equal-approximately" class="text-gray-500" size="12" />
+      <div v-if="convertedPrice" class="text-xs text-muted-foreground inline-flex items-center gap-1">
+        <Icon name="lucide:equal-approximately" class="text-muted-foreground" size="12" />
         {{ defaultCurrency }} {{ convertedPrice }}
       </div>
     </div>
 
     <!-- Member selection section when in edit mode -->
-    <div v-if="editMode && tripMembers.length > 0" class="mt-3 w-full space-y-2 bg-slate-200 rounded-lg p-2">
-      <p class="text-xs text-gray-600 font-medium">
+    <div v-if="editMode && tripMembers.length > 0" class="mt-3 w-full space-y-2 bg-muted rounded-lg p-2">
+      <p class="text-xs text-muted-foreground font-medium">
         明細分攤成員
       </p>
       <div class="flex flex-wrap gap-2">
@@ -121,7 +121,7 @@ const sharedByMemberAvatars = computed(() => {
         >
           <ui-checkbox
             :id="`member-${item.name}-${member.id}`"
-            class="bg-white"
+            class="bg-card"
             :model-value="selectedMemberIds.includes(member.id)"
             @update:model-value="handleMemberToggle(member.id)"
           />
