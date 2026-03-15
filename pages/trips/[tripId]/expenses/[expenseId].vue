@@ -23,7 +23,9 @@ const { tripId, expenseId } = useRoute().params
 const trip = useDocument<Trip>(doc(db, 'trips', tripId as string).withConverter(tripConverter))
 const expense = useDocument<Expense>(doc(db, 'trips', tripId as string, 'expenses', expenseId as string).withConverter(expenseConverter))
 const { tripMembers } = useTripMembers(tripId as string)
-const sharedMembers = computed(() => tripMembers.value?.filter(member => expense.value?.sharedWithMemberIds.includes(member.id)))
+const { canManageExpenses } = useTripCollaborators(tripId as string)
+
+const sharedWithMembers = computed(() => tripMembers.value?.filter(member => expense.value?.sharedWithMemberIds.includes(member.id)))
 
 // Check if trip/expense exists after data loads
 watch([trip, expense], ([tripValue, expenseValue]) => {
@@ -39,7 +41,6 @@ const isDeleting = ref(false)
 const isReanalyzing = ref(false)
 
 const paidByMember = computed(() => tripMembers.value?.find(member => member.id === expense.value?.paidByMemberId))
-const sharedWithMembers = computed(() => tripMembers.value?.filter(member => expense.value?.sharedWithMemberIds.includes(member.id)))
 
 const receiptImageUrl = computedAsync(async () => {
   const storage = useFirebaseStorage()
@@ -113,7 +114,7 @@ const sharedTotalByMember = computed(() => {
   return memberTotals
 })
 
-// Detailed breakdown by member for debugging
+// Detailed breakdown by member
 const memberItemBreakdown = computed(() => {
   const sharedWithMemberIds = expense.value?.sharedWithMemberIds ?? []
   const breakdown: Record<string, Array<{
@@ -200,14 +201,6 @@ async function updateExpense(newValue: boolean) {
   }
 }
 
-function openEditDialog() {
-  showEditDialog.value = true
-}
-
-function closeEditDialog() {
-  showEditDialog.value = false
-}
-
 async function deleteExpense() {
   if (!expense.value)
     return
@@ -250,107 +243,94 @@ async function reanalyzeReceipt() {
 </script>
 
 <template>
-  <div class="flex items-end justify-between gap-2 bg-slate-200 mb-2">
-    <h1 class="text-2xl font-bold">
-      <template v-if="usedHomeCurrency">
-        <span class="text-blue-600 inline-flex items-center gap-2">
-          {{ trip?.defaultCurrency }} {{ convertToDefaultCurrency.toFixed(2) }}
-        </span>
-      </template>
-      <template v-else>
-        <span class="text-indigo-700">{{ trip?.tripCurrency }} {{ expense?.grandTotal.toFixed(2) }}</span>
-        <p class="text-sm text-slate-700 inline-flex items-center gap-1">
-          <Icon name="lucide:equal-approximately" class="text-slate-700" /> {{ trip?.defaultCurrency }} {{ convertToDefaultCurrency.toFixed(2) }}
-        </p>
-      </template>
-    </h1>
+  <!-- Top bar: visibility toggle + actions -->
+  <div v-if="canManageExpenses" class="flex items-center justify-end gap-2 mb-2">
     <div class="flex items-center gap-2">
-      <ui-button
-        variant="outline"
-        size="sm"
-        class="flex items-center gap-2"
-        @click="openEditDialog"
-      >
-        <Icon
-          name="lucide:edit-3"
-          :size="16"
-          class="text-gray-600"
-        />
-        編輯
-      </ui-button>
-      <ui-button
-        variant="destructive"
-        size="sm"
-        class="flex items-center gap-2"
-        @click="showDeleteDialog = true"
-      >
-        <Icon
-          name="lucide:trash-2"
-          :size="16"
-        />
-        刪除
-      </ui-button>
-    </div>
-  </div>
-
-  <div class="text-sm">
-    <span class="w-[150px] text-sm text-gray-500">{{ expense?.paidAtString }}</span>
-    <p class="text-sm mt-2">
-      {{ expense?.description }}
-    </p>
-  </div>
-
-  <div class="space-x-2 px-2 my-4 flex justify-between items-center bg-slate-500 rounded-lg">
-    <div class="flex items-center gap-2 pl-2">
-      <icon name="lucide:eye" class="text-white" size="20" />
-    </div>
-    <div class="p-2 flex-1 flex justify-end items-center space-x-2">
-      <ui-label for="enabled" class="text-white">
-        顯示這筆支出
+      <ui-label for="enabled" class="text-xs text-muted-foreground">
+        {{ expense?.enabled ? '顯示中' : '已隱藏' }}
       </ui-label>
       <ui-switch id="enabled" :model-value="expense?.enabled ?? true" @update:model-value="updateExpense" />
     </div>
+    <ui-dropdown-menu>
+      <ui-dropdown-menu-trigger as-child>
+        <ui-button variant="ghost" size="icon" class="size-8" aria-label="更多操作">
+          <Icon name="lucide:more-vertical" :size="16" />
+        </ui-button>
+      </ui-dropdown-menu-trigger>
+      <ui-dropdown-menu-content align="end">
+        <ui-dropdown-menu-item @click="showEditDialog = true">
+          <Icon name="lucide:edit-3" :size="14" class="mr-2" />
+          編輯
+        </ui-dropdown-menu-item>
+        <ui-dropdown-menu-separator />
+        <ui-dropdown-menu-item class="text-destructive" @click="showDeleteDialog = true">
+          <Icon name="lucide:trash-2" :size="14" class="mr-2" />
+          刪除
+        </ui-dropdown-menu-item>
+      </ui-dropdown-menu-content>
+    </ui-dropdown-menu>
   </div>
 
-  <div class="mt-4 space-y-4">
-    <div class="bg-white rounded-lg p-4 space-y-4">
+  <!-- Amount + description -->
+  <div class="mb-4">
+    <h1 class="text-2xl font-bold font-mono">
+      <template v-if="usedHomeCurrency">
+        <span class="text-primary">{{ trip?.defaultCurrency }} {{ convertToDefaultCurrency.toFixed(2) }}</span>
+      </template>
+      <template v-else>
+        <span class="text-primary">{{ trip?.tripCurrency }} {{ expense?.grandTotal.toFixed(2) }}</span>
+        <span class="text-sm text-muted-foreground font-normal inline-flex items-center gap-1 ml-1">
+          ≈ {{ trip?.defaultCurrency }} {{ convertToDefaultCurrency.toFixed(2) }}
+        </span>
+      </template>
+    </h1>
+    <p class="text-sm text-foreground mt-1">
+      {{ expense?.description }}
+    </p>
+    <p class="text-xs text-muted-foreground mt-0.5">
+      {{ expense?.paidAtString }}
+    </p>
+  </div>
+
+  <div class="space-y-4">
+    <div class="bg-card rounded-xl border p-4 space-y-4">
       <div class="flex items-center justify-between">
-        <div class="text-sm text-gray-500 min-w-[100px]">
+        <div class="text-sm text-muted-foreground">
           付款人
         </div>
         <div class="flex items-center gap-2">
           <member-avatar v-if="paidByMember" :emoji="paidByMember.avatarEmoji" size="sm" />
-          <span class="font-bold">{{ paidByMember?.name }}</span>
+          <span class="font-bold text-foreground">{{ paidByMember?.name }}</span>
         </div>
       </div>
       <ui-separator />
       <div v-if="Object.keys(sharedTotalByMember).length > 0" class="space-y-2">
-        <div class="text-sm text-gray-500 min-w-[100px]">
+        <div class="text-sm text-muted-foreground">
           成員分攤明細
         </div>
         <ui-accordion type="multiple" class="space-y-2">
           <ui-accordion-item
-            v-for="member in sharedMembers"
+            v-for="member in sharedWithMembers"
             :key="member.id"
             :value="member.id"
-            class="bg-gray-50 rounded-lg border-0"
+            class="bg-muted/50 rounded-lg border-0"
           >
             <ui-accordion-trigger class="flex items-center justify-between py-2 px-3 hover:no-underline">
               <div class="flex flex-1 items-center justify-between py-2 hover:no-underline">
                 <div class="flex items-center gap-2">
                   <member-avatar :emoji="member.avatarEmoji" size="sm" />
-                  <span class="text-sm font-medium">{{ member.name }}</span>
+                  <span class="text-sm font-medium text-foreground">{{ member.name }}</span>
                 </div>
                 <div class="text-right mr-4">
-                  <div v-if="usedHomeCurrency" class="text-sm font-mono text-blue-600">
+                  <div v-if="usedHomeCurrency" class="text-sm font-mono text-primary">
                     {{ trip?.defaultCurrency }} {{ sharedTotalByMember[member.id].convertedTotal.toFixed(2) || '0.00' }}
                   </div>
                   <template v-else>
-                    <div class="text-sm font-mono text-green-600">
+                    <div class="text-sm font-mono text-green-600 dark:text-green-400">
                       {{ trip?.tripCurrency }} {{ sharedTotalByMember[member.id].total.toFixed(2) || '0.00' }}
                     </div>
-                    <div v-if="trip?.exchangeRate && trip.exchangeRate !== 1" class="text-xs text-gray-500 inline-flex items-center gap-1">
-                      <Icon name="lucide:equal-approximately" class="text-gray-500" size="12" />
+                    <div v-if="trip?.exchangeRate && trip.exchangeRate !== 1" class="text-xs text-muted-foreground inline-flex items-center gap-1">
+                      <Icon name="lucide:equal-approximately" class="text-muted-foreground" size="12" />
                       <p>{{ trip?.defaultCurrency }} {{ (sharedTotalByMember[member.id].convertedTotal).toFixed(2) }}</p>
                     </div>
                   </template>
@@ -362,21 +342,21 @@ async function reanalyzeReceipt() {
                 <div
                   v-for="(item, index) in memberItemBreakdown[member.id] || []"
                   :key="index"
-                  class="flex justify-between items-center py-1 px-2 bg-indigo-100 rounded gap-4"
+                  class="flex justify-between items-center py-1 px-2 bg-accent rounded gap-4"
                 >
                   <div class="flex-1">
-                    <span class="font-mono">{{ item.itemName }}</span>
-                    <p class="text-gray-500">
+                    <span class="font-mono text-foreground">{{ item.itemName }}</span>
+                    <p class="text-muted-foreground">
                       ({{ usedHomeCurrency ? trip?.defaultCurrency : trip?.tripCurrency }} {{ (usedHomeCurrency ? item.itemPrice * (trip?.exchangeRate || 1) : item.itemPrice).toFixed(2) }} × {{ item.itemQuantity }} ÷ {{ item.sharingMembers.length }}人)
                     </p>
                   </div>
-                  <div class="text-right font-mono" :class="usedHomeCurrency ? 'text-blue-600' : 'text-green-600'">
+                  <div class="text-right font-mono" :class="usedHomeCurrency ? 'text-primary' : 'text-green-600 dark:text-green-400'">
                     {{ usedHomeCurrency ? trip?.defaultCurrency : trip?.tripCurrency }} {{ (usedHomeCurrency ? item.sharePerMember * (trip?.exchangeRate || 1) : item.sharePerMember).toFixed(2) }}
                   </div>
                 </div>
-                <div class="border-t pt-1 flex justify-between items-center font-bold">
+                <div class="border-t border-border pt-1 flex justify-between items-center font-bold text-foreground">
                   <span>小計:</span>
-                  <span :class="usedHomeCurrency ? 'text-blue-600' : 'text-green-600'">
+                  <span :class="usedHomeCurrency ? 'text-primary' : 'text-green-600 dark:text-green-400'">
                     {{ usedHomeCurrency ? trip?.defaultCurrency : trip?.tripCurrency }} {{ ((memberItemBreakdown[member.id] || []).reduce((sum, item) => sum + item.sharePerMember, 0) * (usedHomeCurrency ? (trip?.exchangeRate || 1) : 1)).toFixed(2) }}
                   </span>
                 </div>
@@ -386,79 +366,9 @@ async function reanalyzeReceipt() {
         </ui-accordion>
       </div>
 
-      <!-- Debt Relationship Section -->
-      <div v-if="Object.keys(sharedTotalByMember).length > 0" class="space-y-3">
-        <div class="text-sm font-semibold text-gray-700">
-          債務關係
-        </div>
-
-        <!-- Who Paid -->
-        <div class="bg-white rounded-lg p-4 border border-gray-100">
-          <div class="flex items-center gap-2 pb-3 border-b border-gray-100 mb-3">
-            <member-avatar v-if="paidByMember" :emoji="paidByMember.avatarEmoji" size="md" />
-            <span class="text-base font-semibold text-gray-900">{{ paidByMember?.name }}</span>
-            <span class="text-xs text-gray-500 px-2 py-1 bg-blue-50 rounded-full">付款人</span>
-          </div>
-
-          <div class="flex items-center justify-between py-2 px-3 bg-blue-50 rounded-lg border border-blue-100">
-            <span class="text-xs text-gray-700 font-medium">
-              已付款
-            </span>
-            <span class="text-sm font-mono font-semibold text-blue-600">
-              {{ usedHomeCurrency ? trip?.defaultCurrency : trip?.tripCurrency }} {{ (usedHomeCurrency ? convertToDefaultCurrency : expense?.grandTotal)?.toFixed(2) }}
-            </span>
-          </div>
-        </div>
-
-        <!-- Other Members Owe -->
-        <div v-if="sharedMembers.filter(m => m.id !== expense?.paidByMemberId).length > 0" class="bg-white rounded-lg p-4 border border-gray-100 space-y-3">
-          <p class="text-xs font-semibold text-gray-700 pb-2 border-b border-gray-100">
-            其他成員應付金額
-          </p>
-
-          <div class="space-y-2">
-            <div
-              v-for="member in sharedMembers.filter(m => m.id !== expense?.paidByMemberId)"
-              :key="member.id"
-              class="flex items-center justify-between py-2 px-3 bg-gray-50 rounded-lg"
-            >
-              <div class="flex items-center gap-2">
-                <member-avatar :emoji="member.avatarEmoji" size="sm" />
-                <span class="text-sm font-medium text-gray-900">{{ member.name }}</span>
-              </div>
-              <div class="text-right">
-                <div class="text-sm font-mono font-semibold text-red-600">
-                  {{ usedHomeCurrency ? trip?.defaultCurrency : trip?.tripCurrency }} {{ (usedHomeCurrency ? sharedTotalByMember[member.id].convertedTotal : sharedTotalByMember[member.id].total).toFixed(2) }}
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Summary -->
-        <div class="bg-indigo-50 rounded-lg p-4 border border-indigo-100 space-y-2">
-          <p class="text-xs font-semibold text-gray-700 mb-2">
-            結算摘要
-          </p>
-          <div class="space-y-2">
-            <div class="flex items-center justify-between py-2 px-3 bg-white rounded-lg">
-              <span class="text-xs text-gray-600">付款人 {{ paidByMember?.name }} 自付額</span>
-              <span class="text-sm font-mono font-semibold text-blue-600">
-                {{ usedHomeCurrency ? trip?.defaultCurrency : trip?.tripCurrency }} {{ (((expense?.grandTotal || 0) - (sharedMembers.filter(m => m.id !== expense?.paidByMemberId).reduce((sum, m) => sum + (sharedTotalByMember[m.id]?.total || 0), 0))) * (usedHomeCurrency ? (trip?.exchangeRate || 1) : 1)).toFixed(2) }}
-              </span>
-            </div>
-            <div class="flex items-center justify-between py-2 px-3 bg-white rounded-lg">
-              <span class="text-xs text-gray-600">其他成員總計應付</span>
-              <span class="text-sm font-mono font-semibold text-red-600">
-                {{ usedHomeCurrency ? trip?.defaultCurrency : trip?.tripCurrency }} {{ (sharedMembers.filter(m => m.id !== expense?.paidByMemberId).reduce((sum, m) => sum + (sharedTotalByMember[m.id]?.total || 0), 0) * (usedHomeCurrency ? (trip?.exchangeRate || 1) : 1)).toFixed(2) }}
-              </span>
-            </div>
-          </div>
-        </div>
-      </div>
       <ui-separator />
       <template v-if="expense?.items?.length">
-        <div class="text-sm text-gray-500 min-w-[100px]">
+        <div class="text-sm text-muted-foreground">
           購買明細
         </div>
         <div class="space-y-1">
@@ -481,11 +391,11 @@ async function reanalyzeReceipt() {
         <ui-separator />
         <div class="space-y-2">
           <div class="flex items-center justify-between">
-            <div class="text-sm text-gray-500">
+            <div class="text-sm text-muted-foreground">
               收據圖片
             </div>
             <ui-button
-              v-if="!expense?.isProcessing"
+              v-if="canManageExpenses && !expense?.isProcessing"
               variant="outline"
               size="sm"
               :disabled="isReanalyzing"
@@ -499,13 +409,13 @@ async function reanalyzeReceipt() {
               />
               {{ isReanalyzing ? '分析中...' : '重新分析收據' }}
             </ui-button>
-            <div v-else class="flex items-center gap-2 text-sm text-amber-600">
+            <div v-else-if="expense?.isProcessing" class="flex items-center gap-2 text-sm text-amber-600">
               <Icon name="lucide:loader-2" :size="14" class="animate-spin" />
               處理中...
             </div>
           </div>
           <div class="grid gap-2">
-            <img :src="receiptImageUrl" class="w-full h-full object-cover">
+            <img :src="receiptImageUrl" alt="收據圖片" loading="lazy" class="w-full max-h-96 object-contain rounded-lg">
           </div>
         </div>
       </template>
@@ -513,7 +423,7 @@ async function reanalyzeReceipt() {
   </div>
 
   <!-- Edit Expense Dialog -->
-  <ui-drawer v-model:open="showEditDialog">
+  <ui-drawer v-if="canManageExpenses" v-model:open="showEditDialog">
     <ui-drawer-content>
       <div class="mx-auto w-full max-w-sm">
         <edit-expense-form
@@ -521,14 +431,14 @@ async function reanalyzeReceipt() {
           :expense="expense"
           :trip="trip"
           :trip-members="tripMembers"
-          @close="closeEditDialog"
+          @close="showEditDialog = false"
         />
       </div>
     </ui-drawer-content>
   </ui-drawer>
 
   <!-- Delete Expense Confirmation Dialog -->
-  <ui-alert-dialog v-model:open="showDeleteDialog">
+  <ui-alert-dialog v-if="canManageExpenses" v-model:open="showDeleteDialog">
     <ui-alert-dialog-content>
       <ui-alert-dialog-header>
         <ui-alert-dialog-title>刪除支出</ui-alert-dialog-title>

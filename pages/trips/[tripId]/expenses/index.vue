@@ -19,22 +19,23 @@ const router = useRouter()
 
 function toggleSort(type: 'time' | 'total' | 'uploaded') {
   if (sortBy.value === type) {
-    // Toggle order if clicking the same sort option
     sortOrder.value = sortOrder.value === 'desc' ? 'asc' : 'desc'
   }
   else {
-    // Switch to new sort option with default descending order
     sortBy.value = type
     sortOrder.value = 'desc'
   }
 }
 
+const sortOptions = [
+  { key: 'time' as const, label: '購買時間' },
+  { key: 'total' as const, label: '金額' },
+  { key: 'uploaded' as const, label: '上傳時間' },
+]
+
 const trip = useDocument<Trip>(doc(db, 'trips', tripId as string).withConverter(tripConverter))
 const { tripExpenses, enabledExpenses } = useTripExpenses(tripId as string)
 const { tripMembers } = useTripMembers(tripId as string)
-
-// Use balance calculations composable
-const { getMemberPaidAmount, getMemberOwedAmount, getMemberBalance, getDebtAmount } = useTripBalances(tripId as string)
 
 const displayedExpenses = computed(() => {
   let expenses = showHiddenExpenses.value ? tripExpenses.value : enabledExpenses.value
@@ -43,22 +44,18 @@ const displayedExpenses = computed(() => {
   if (searchTerm.value) {
     const search = searchTerm.value.trim()
     expenses = expenses.filter((expense) => {
-      // Check for amount conditions (>, <)
       const gtMatch = search.match(/^>\s*(\d+(?:\.\d*)?)$/)
       const ltMatch = search.match(/^<\s*(\d+(?:\.\d*)?)$/)
 
       if (gtMatch) {
-        // Greater than condition
         const threshold = Number.parseFloat(gtMatch[1])
         return expense.grandTotal > threshold
       }
       else if (ltMatch) {
-        // Less than condition
         const threshold = Number.parseFloat(ltMatch[1])
         return expense.grandTotal < threshold
       }
       else {
-        // Regular search by description or amount
         const searchLower = search.toLowerCase()
         const matchesDescription = expense.description.toLowerCase().includes(searchLower)
         const matchesAmount = expense.grandTotal.toString().includes(searchLower)
@@ -78,13 +75,11 @@ const displayedExpenses = computed(() => {
       comparison = a.grandTotal - b.grandTotal
     }
     else if (sortBy.value === 'uploaded') {
-      // Sort by upload/creation date only
       const aTime = getTimeMillis(a.createdAt) || 0
       const bTime = getTimeMillis(b.createdAt) || 0
       comparison = aTime - bTime
     }
     else {
-      // Sort by time (paidAt, then createdAt)
       const aTime = getTimeMillis(a.paidAt) || getTimeMillis(a.createdAt) || 0
       const bTime = getTimeMillis(b.paidAt) || getTimeMillis(b.createdAt) || 0
       comparison = aTime - bTime
@@ -98,21 +93,22 @@ const displayedExpenses = computed(() => {
 </script>
 
 <template>
-  <!-- Sticky Header with Back Button, Search, and Sort -->
-  <div class="sticky top-0 z-10 bg-slate-200 -mx-6 px-6 pb-2 space-y-2">
-    <!-- Row 1: Back Button and Search -->
+  <!-- Sticky Header -->
+  <div class="sticky top-0 z-10 bg-slate-200 dark:bg-background -mx-6 px-6 pb-3 space-y-2">
+    <!-- Row 1: Back + Search -->
     <div class="flex items-center gap-2">
       <ui-button
-        class="text-gray-500 flex items-center gap-1 px-0 flex-shrink-0"
+        class="text-muted-foreground flex items-center gap-1 px-0 shrink-0"
         variant="link"
         size="sm"
         @click="router.push(`/trips/${tripId}`)"
       >
-        <icon name="lucide:arrow-left" size="16" /> 回到旅程
+        <Icon name="lucide:arrow-left" :size="16" />
+        返回
       </ui-button>
 
       <div class="relative flex-1">
-        <Icon name="lucide-search" class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+        <Icon name="lucide:search" class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
         <ui-input
           v-model="searchTerm"
           type="text"
@@ -122,86 +118,63 @@ const displayedExpenses = computed(() => {
         <button
           v-if="searchTerm"
           type="button"
-          class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+          aria-label="清除搜尋"
+          class="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
           @click="searchTerm = ''"
         >
-          <Icon name="lucide-x" class="w-4 h-4" />
+          <Icon name="lucide:x" class="w-4 h-4" />
         </button>
       </div>
     </div>
 
-    <!-- Row 2: Sort Options -->
-    <div class="flex items-center gap-3 text-xs">
-      <span class="text-gray-600">排序</span>
+    <!-- Row 2: Sort pills -->
+    <div class="flex items-center gap-1.5">
       <button
+        v-for="option in sortOptions"
+        :key="option.key"
         type="button"
-        class="flex items-center gap-1 transition-colors" :class="[
-          sortBy === 'time' ? 'text-indigo-700 font-semibold' : 'text-gray-600 hover:text-gray-900',
-        ]"
-        @click="toggleSort('time')"
+        :aria-pressed="sortBy === option.key"
+        class="flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium transition-colors"
+        :class="sortBy === option.key
+          ? 'bg-primary text-primary-foreground'
+          : 'bg-muted text-muted-foreground hover:text-foreground'"
+        @click="toggleSort(option.key)"
       >
-        <span>購買時間</span>
+        {{ option.label }}
         <Icon
-          v-if="sortBy === 'time'"
-          :name="sortOrder === 'desc' ? 'lucide-arrow-down' : 'lucide-arrow-up'"
-          class="w-3 h-3"
-        />
-      </button>
-      <span class="text-gray-300">|</span>
-      <button
-        type="button"
-        class="flex items-center gap-1 transition-colors" :class="[
-          sortBy === 'total' ? 'text-indigo-700 font-semibold' : 'text-gray-600 hover:text-gray-900',
-        ]"
-        @click="toggleSort('total')"
-      >
-        <span>金額大小</span>
-        <Icon
-          v-if="sortBy === 'total'"
-          :name="sortOrder === 'desc' ? 'lucide-arrow-down' : 'lucide-arrow-up'"
-          class="w-3 h-3"
-        />
-      </button>
-      <span class="text-gray-300">|</span>
-      <button
-        type="button"
-        class="flex items-center gap-1 transition-colors" :class="[
-          sortBy === 'uploaded' ? 'text-indigo-700 font-semibold' : 'text-gray-600 hover:text-gray-900',
-        ]"
-        @click="toggleSort('uploaded')"
-      >
-        <span>上傳時間</span>
-        <Icon
-          v-if="sortBy === 'uploaded'"
-          :name="sortOrder === 'desc' ? 'lucide-arrow-down' : 'lucide-arrow-up'"
-          class="w-3 h-3"
+          v-if="sortBy === option.key"
+          :name="sortOrder === 'desc' ? 'lucide:arrow-down' : 'lucide:arrow-up'"
+          :size="12"
         />
       </button>
     </div>
   </div>
 
-  <div v-if="tripExpenses.length" class="space-y-3 bg-white rounded-sm p-4">
+  <div v-if="tripExpenses.length" class="space-y-3 bg-card rounded-xl border p-4">
     <div class="flex justify-between items-center">
-      <div class="text-sm text-gray-500 min-w-[100px]">
-        購買明細 ({{ tripExpenses.length }} 筆)
+      <div class="text-sm text-muted-foreground">
+        {{ tripExpenses.length }} 筆支出
       </div>
       <div class="flex items-center gap-2">
-        <ui-label for="enabled">
-          顯示隱藏支出
+        <ui-label for="show-hidden" class="text-xs">
+          顯示隱藏
         </ui-label>
-        <ui-switch id="enabled" :model-value="showHiddenExpenses" @update:model-value="showHiddenExpenses = !showHiddenExpenses" />
+        <ui-switch id="show-hidden" :model-value="showHiddenExpenses" @update:model-value="showHiddenExpenses = !showHiddenExpenses" />
       </div>
     </div>
 
     <!-- Expense List -->
-    <div v-if="displayedExpenses.length > 0">
-      <template v-for="expense in displayedExpenses" :key="expense.id">
-        <expense-item :expense="expense" :trip-members="tripMembers" :trip="trip!" />
-        <ui-separator />
-      </template>
+    <div v-if="displayedExpenses.length > 0" class="divide-y divide-border">
+      <expense-item
+        v-for="expense in displayedExpenses"
+        :key="expense.id"
+        :expense="expense"
+        :trip-members="tripMembers"
+        :trip="trip!"
+      />
     </div>
 
-    <!-- Empty State -->
+    <!-- Empty search state -->
     <empty-state
       v-else
       icon="lucide:search"
@@ -215,117 +188,15 @@ const displayedExpenses = computed(() => {
     v-else
     icon="lucide:receipt"
     title="尚無支出記錄"
-    description="還沒有任何購買明細。開始記錄您的旅程支出吧！"
+    description="回到行程頁面新增第一筆支出"
   >
     <ui-button
       variant="default"
       size="sm"
       @click="router.push(`/trips/${tripId}`)"
     >
-      <Icon name="lucide-arrow-left" class="w-4 h-4 mr-1" />
-      回到旅程頁面
+      <Icon name="lucide:arrow-left" :size="16" class="mr-1" />
+      回到行程
     </ui-button>
   </empty-state>
-
-  <!-- Debt Relationship Section -->
-  <div v-if="enabledExpenses.length > 0" class="mt-4 space-y-3">
-    <h2 class="text-xl font-bold text-indigo-700 px-2">
-      債務關係
-    </h2>
-
-    <div class="space-y-3">
-      <div
-        v-for="member in tripMembers"
-        :key="member.id"
-        class="bg-white rounded-lg p-4 border border-gray-100 space-y-3"
-      >
-        <!-- Member Header -->
-        <div class="flex items-center gap-2 pb-3 border-b border-gray-100">
-          <member-avatar :emoji="member.avatarEmoji" size="md" />
-          <span class="text-base font-semibold text-gray-900">{{ member.name }}</span>
-        </div>
-
-        <!-- Summary Stats -->
-        <div class="space-y-2">
-          <div class="flex items-center justify-between py-2 px-3 bg-gray-50 rounded-lg">
-            <span class="text-xs text-gray-600 font-medium">
-              已付款
-            </span>
-            <span class="text-sm font-mono font-semibold text-blue-600">
-              {{ trip?.tripCurrency }} {{ getMemberPaidAmount(member.id).toFixed(2) }}
-            </span>
-          </div>
-          <div class="flex items-center justify-between py-2 px-3 bg-gray-50 rounded-lg">
-            <span class="text-xs text-gray-600 font-medium">
-              應付金額
-            </span>
-            <span class="text-sm font-mono font-semibold text-orange-600">
-              {{ trip?.tripCurrency }} {{ getMemberOwedAmount(member.id).toFixed(2) }}
-            </span>
-          </div>
-          <div class="flex items-center justify-between py-2 px-3 bg-indigo-50 rounded-lg border border-indigo-100">
-            <span class="text-xs text-gray-700 font-semibold">
-              餘額
-            </span>
-            <span
-              :class="{
-                'text-green-600': getMemberBalance(member.id) > 0,
-                'text-red-600': getMemberBalance(member.id) < 0,
-                'text-gray-700': getMemberBalance(member.id) === 0,
-              }"
-              class="text-sm font-mono font-bold"
-            >
-              {{ trip?.tripCurrency }} {{ getMemberBalance(member.id).toFixed(2) }}
-            </span>
-          </div>
-        </div>
-
-        <!-- Debt Relationships with Other Members -->
-        <div v-if="tripMembers.filter(m => m.id !== member.id).length > 0" class="pt-2 space-y-2">
-          <p class="text-xs font-medium text-gray-600">
-            與其他成員的債務關係
-          </p>
-          <div class="space-y-2">
-            <div
-              v-for="otherMember in tripMembers.filter(m => m.id !== member.id)"
-              :key="otherMember.id"
-              class="flex items-center justify-between py-2 px-3 bg-gray-50 rounded-lg"
-            >
-              <div class="flex items-center gap-2">
-                <member-avatar :emoji="otherMember.avatarEmoji" size="sm" />
-                <span class="text-sm font-medium text-gray-900">{{ otherMember.name }}</span>
-              </div>
-              <div class="text-right">
-                <div
-                  :class="{
-                    'text-green-600': getDebtAmount(member.id, otherMember.id) > 0,
-                    'text-red-600': getDebtAmount(member.id, otherMember.id) < 0,
-                    'text-gray-600': getDebtAmount(member.id, otherMember.id) === 0,
-                  }"
-                  class="text-xs font-semibold"
-                >
-                  <span v-if="getDebtAmount(member.id, otherMember.id) > 0">應收</span>
-                  <span v-else-if="getDebtAmount(member.id, otherMember.id) < 0">應付</span>
-                  <span v-else>已結清</span>
-                </div>
-                <div
-                  :class="{
-                    'text-green-600': getDebtAmount(member.id, otherMember.id) > 0,
-                    'text-red-600': getDebtAmount(member.id, otherMember.id) < 0,
-                    'text-gray-600': getDebtAmount(member.id, otherMember.id) === 0,
-                  }"
-                  class="text-xs font-mono mt-0.5"
-                >
-                  {{ trip?.tripCurrency }} {{ Math.abs(getDebtAmount(member.id, otherMember.id)).toFixed(2) }}
-                </div>
-                <div v-if="trip?.exchangeRate && trip.exchangeRate !== 1" class="text-xs text-gray-500 font-mono mt-0.5">
-                  {{ trip?.defaultCurrency }} {{ Math.abs(getDebtAmount(member.id, otherMember.id) * (trip?.exchangeRate || 1)).toFixed(2) }}
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
 </template>

@@ -7,7 +7,7 @@ const props = defineProps<{
   trip: Trip
 }>()
 
-const expenseMembers = computed(() => (expense: Expense) => props.tripMembers.filter(member => expense.sharedWithMemberIds.includes(member.id)))
+const sharedMembers = computed(() => props.tripMembers.filter(member => props.expense.sharedWithMemberIds.includes(member.id)))
 const paidByMember = computed(() => props.tripMembers.find(member => member.id === props.expense.paidByMemberId))
 
 // Check if expense was entered in home currency
@@ -17,41 +17,40 @@ const usedHomeCurrency = computed(() =>
 </script>
 
 <template>
-  <nuxt-link :to="`/trips/${trip.id}/expenses/${expense.id}`" :class="{ 'opacity-50': !expense.enabled }" class="flex gap-3 pt-3 pb-2 px-2 items-start">
-    <div class="flex flex-col justify-center gap-2 flex-1">
-      <p class="text-sm font-bold flex items-center gap-2">
-        <span>{{ expense.description }}</span>
-        <Icon v-if="!expense.enabled" name="lucide:eye-off" class="w-4 h-4 text-gray-500" />
+  <nuxt-link
+    :to="`/trips/${trip.id}/expenses/${expense.id}`"
+    :class="{ 'opacity-50': !expense.enabled }"
+    class="flex items-center gap-3 py-3 px-2"
+  >
+    <!-- Payer avatar -->
+    <member-avatar v-if="paidByMember" :emoji="paidByMember.avatarEmoji" size="md" />
+
+    <!-- Description + meta -->
+    <div class="flex-1 min-w-0">
+      <p class="text-sm font-semibold text-foreground m-0 line-clamp-2 leading-snug">
+        {{ expense.description }}
+        <Icon v-if="!expense.enabled" name="lucide:eye-off" class="w-3.5 h-3.5 text-muted-foreground inline-block align-text-top ml-0.5" />
       </p>
-      <div class="text-lg text-gray-500 self-start relative flex flex-wrap gap-1 justify-end">
-        <member-avatar
-          v-for="member in expenseMembers(expense)" :key="member.id"
-          :emoji="member.avatarEmoji" size="sm"
-        />
-      </div>
-      <p class="text-xs text-gray-500">
-        {{ expense.paidAtString }}
+      <p class="text-xs text-muted-foreground m-0 mt-0.5">
+        {{ expense.paidAtObject.month }}/{{ expense.paidAtObject.day }}
+        <span class="mx-1">·</span>
+        {{ sharedMembers.length }}人分攤
       </p>
     </div>
-    <div class="flex flex-col justify-between gap-2 items-end">
-      <div class="text-sm font-extrabold text-slate-800 text-right">
-        {{ expense.paidAtObject.month }}/{{ expense.paidAtObject.day }}
+
+    <!-- Amount (primary info — right-aligned, prominent) -->
+    <div class="text-right shrink-0">
+      <div v-if="usedHomeCurrency" class="text-sm font-mono font-bold text-primary">
+        {{ trip.defaultCurrency }} {{ ((expense.grandTotal || 0) * trip.exchangeRate).toFixed(2) }}
       </div>
-      <member-avatar v-if="paidByMember" :emoji="paidByMember.avatarEmoji" size="sm" />
-      <div class="w-[120px] md:w-[200px] text-right self-end">
-        <div v-if="usedHomeCurrency" class="flex items-center text-sm font-mono text-blue-600 justify-end gap-2">
-          <Icon name="lucide:home" class="inline-block size-4" />
-          <div>{{ trip.defaultCurrency }} {{ ((expense.grandTotal || 0) * trip.exchangeRate).toFixed(2) }}</div>
+      <template v-else>
+        <div class="text-sm font-mono font-bold text-foreground">
+          {{ trip.tripCurrency }} {{ (expense.grandTotal || 0).toFixed(2) }}
         </div>
-        <template v-else>
-          <div class="text-sm font-mono text-green-600">
-            {{ trip.tripCurrency }} {{ (expense.grandTotal || 0).toFixed(2) }}
-          </div>
-          <div v-if="trip?.exchangeRate && trip.exchangeRate !== 1" class="text-xs text-gray-400 font-mono mt-0.5">
-            ≈ {{ trip?.defaultCurrency }} {{ ((expense.grandTotal || 0) * trip.exchangeRate).toFixed(2) }}
-          </div>
-        </template>
-      </div>
+        <div v-if="trip?.exchangeRate && trip.exchangeRate !== 1" class="text-xs text-muted-foreground font-mono">
+          ≈ {{ trip?.defaultCurrency }} {{ ((expense.grandTotal || 0) * trip.exchangeRate).toFixed(2) }}
+        </div>
+      </template>
     </div>
   </nuxt-link>
 </template>
