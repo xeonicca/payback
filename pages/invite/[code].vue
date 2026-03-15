@@ -2,6 +2,10 @@
 import { toast } from 'vue-sonner'
 import { animalEmojis } from '@/constants'
 
+definePageMeta({
+  layout: false,
+})
+
 const route = useRoute()
 const router = useRouter()
 const invitationCode = route.params.code as string
@@ -54,15 +58,6 @@ const canAccept = computed(() => {
   return selectedMemberId.value !== null
 })
 
-// Current step for progress indicator
-const currentStep = computed(() => {
-  if (!isUserLoggedIn.value)
-    return 1
-  if (!membersLoaded.value)
-    return 2
-  return 2
-})
-
 // Load members when user logs in and invitation is valid
 watch([isUserLoggedIn, invitation], async ([loggedIn, inv]) => {
   if (loggedIn && inv && inv.status === 'pending' && !isExpired.value) {
@@ -78,7 +73,6 @@ async function loadMembers() {
     members.value = result.members
     membersLoaded.value = true
 
-    // Default emoji to first available
     if (availableEmojis.value.length > 0) {
       newMemberEmoji.value = availableEmojis.value[0]
     }
@@ -134,170 +128,133 @@ async function handleLogin() {
 </script>
 
 <template>
-  <div class="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50 flex items-center justify-center p-4">
+  <div class="min-h-screen bg-slate-200 flex items-center justify-center p-6">
     <div class="w-full max-w-md">
       <!-- Loading State -->
-      <div v-if="isLoading" class="bg-white rounded-2xl shadow-xl p-8">
+      <div v-if="isLoading" class="bg-white rounded-2xl shadow-lg border border-gray-100 p-10">
         <div class="flex flex-col items-center justify-center space-y-4">
           <loading-spinner size="lg" />
-          <p class="text-gray-500 text-sm">
+          <p class="text-sm text-gray-500 m-0">
             載入邀請資訊...
           </p>
         </div>
       </div>
 
       <!-- Invitation Not Found -->
-      <div v-else-if="!invitation" class="bg-white rounded-2xl shadow-xl p-8">
-        <div class="flex flex-col items-center justify-center space-y-4 text-center">
-          <div class="w-16 h-16 bg-red-50 rounded-full flex items-center justify-center">
-            <Icon name="lucide:link-2-off" class="w-8 h-8 text-red-500" />
+      <div v-else-if="!invitation" class="bg-white rounded-2xl shadow-lg border border-gray-100 p-10">
+        <div class="flex flex-col items-center justify-center space-y-5 text-center">
+          <div class="w-20 h-20 bg-red-50 rounded-full flex items-center justify-center">
+            <Icon name="lucide:link-2-off" class="w-9 h-9 text-red-500" />
           </div>
-          <div class="space-y-1">
-            <h1 class="text-xl font-bold text-gray-900 m-0">
+          <div class="space-y-2">
+            <h1 class="text-xl font-bold text-gray-900 m-0 tracking-tight">
               連結無效
             </h1>
-            <p class="text-sm text-gray-500 m-0">
+            <p class="text-sm text-gray-500 m-0 leading-relaxed">
               此邀請連結不存在或已被刪除，請向邀請人索取新連結
             </p>
           </div>
-          <ui-button variant="outline" @click="router.push('/')">
-            <Icon name="lucide:home" :size="16" class="mr-1.5" />
+          <ui-button variant="link" size="sm" @click="router.push('/')">
             返回首頁
           </ui-button>
         </div>
       </div>
 
       <!-- Expired Invitation -->
-      <div v-else-if="isExpired" class="bg-white rounded-2xl shadow-xl p-8">
-        <div class="flex flex-col items-center justify-center space-y-4 text-center">
-          <div class="w-16 h-16 bg-amber-50 rounded-full flex items-center justify-center">
-            <Icon name="lucide:timer-off" class="w-8 h-8 text-amber-500" />
+      <div v-else-if="isExpired" class="bg-white rounded-2xl shadow-lg border border-gray-100 p-10">
+        <div class="flex flex-col items-center justify-center space-y-5 text-center">
+          <div class="w-20 h-20 bg-amber-50 rounded-full flex items-center justify-center">
+            <Icon name="lucide:timer-off" class="w-9 h-9 text-amber-500" />
           </div>
-          <div class="space-y-1">
-            <h1 class="text-xl font-bold text-gray-900 m-0">
+          <div class="space-y-2">
+            <h1 class="text-xl font-bold text-gray-900 m-0 tracking-tight">
               邀請已過期
             </h1>
-            <p class="text-sm text-gray-500 m-0">
+            <p class="text-sm text-gray-500 m-0 leading-relaxed">
               此連結已於 {{ new Date(invitation.expiresAtString).toLocaleDateString('zh-TW') }} 過期
             </p>
           </div>
-          <div class="bg-gray-50 rounded-lg p-3 w-full">
-            <p class="text-xs text-gray-500 m-0">
-              請聯絡 <span class="font-medium text-gray-700">{{ invitation.invitedByName }}</span> 重新發送邀請
-            </p>
-          </div>
-          <ui-button variant="outline" @click="router.push('/')">
-            <Icon name="lucide:home" :size="16" class="mr-1.5" />
+          <p class="text-xs text-gray-400 m-0 leading-relaxed">
+            請聯絡 <span class="font-medium text-gray-600">{{ invitation.invitedByName }}</span> 重新發送邀請
+          </p>
+          <ui-button variant="link" size="sm" @click="router.push('/')">
             返回首頁
           </ui-button>
         </div>
       </div>
 
       <!-- Revoked Invitation -->
-      <div v-else-if="isRevoked" class="bg-white rounded-2xl shadow-xl p-8">
-        <div class="flex flex-col items-center justify-center space-y-4 text-center">
-          <div class="w-16 h-16 bg-red-50 rounded-full flex items-center justify-center">
-            <Icon name="lucide:ban" class="w-8 h-8 text-red-500" />
+      <div v-else-if="isRevoked" class="bg-white rounded-2xl shadow-lg border border-gray-100 p-10">
+        <div class="flex flex-col items-center justify-center space-y-5 text-center">
+          <div class="w-20 h-20 bg-red-50 rounded-full flex items-center justify-center">
+            <Icon name="lucide:ban" class="w-9 h-9 text-red-500" />
           </div>
-          <div class="space-y-1">
-            <h1 class="text-xl font-bold text-gray-900 m-0">
+          <div class="space-y-2">
+            <h1 class="text-xl font-bold text-gray-900 m-0 tracking-tight">
               邀請已取消
             </h1>
-            <p class="text-sm text-gray-500 m-0">
+            <p class="text-sm text-gray-500 m-0 leading-relaxed">
               此邀請已被主辦人撤銷，請聯絡主辦人了解詳情
             </p>
           </div>
-          <ui-button variant="outline" @click="router.push('/')">
-            <Icon name="lucide:home" :size="16" class="mr-1.5" />
+          <ui-button variant="link" size="sm" @click="router.push('/')">
             返回首頁
           </ui-button>
         </div>
       </div>
 
       <!-- Already Used -->
-      <div v-else-if="isAlreadyUsed" class="bg-white rounded-2xl shadow-xl p-8">
-        <div class="flex flex-col items-center justify-center space-y-4 text-center">
-          <div class="w-16 h-16 bg-green-50 rounded-full flex items-center justify-center">
-            <Icon name="lucide:check-circle-2" class="w-8 h-8 text-green-500" />
+      <div v-else-if="isAlreadyUsed" class="bg-white rounded-2xl shadow-lg border border-gray-100 p-10">
+        <div class="flex flex-col items-center justify-center space-y-5 text-center">
+          <div class="w-20 h-20 bg-green-50 rounded-full flex items-center justify-center">
+            <Icon name="lucide:check-circle-2" class="w-9 h-9 text-green-500" />
           </div>
-          <div class="space-y-1">
-            <h1 class="text-xl font-bold text-gray-900 m-0">
+          <div class="space-y-2">
+            <h1 class="text-xl font-bold text-gray-900 m-0 tracking-tight">
               已加入行程
             </h1>
-            <p class="text-sm text-gray-500 m-0">
+            <p class="text-sm text-gray-500 m-0 leading-relaxed">
               此邀請已被使用，你可以直接進入行程
             </p>
           </div>
           <ui-button @click="router.push(`/trips/${invitation.tripId}`)">
             前往行程
-            <Icon name="lucide:arrow-right" :size="16" class="ml-1.5" />
+            <Icon name="lucide:arrow-right" class="w-4 h-4 ml-1.5" />
           </ui-button>
         </div>
       </div>
 
       <!-- Valid Invitation -->
-      <div v-else class="bg-white rounded-2xl shadow-xl overflow-hidden">
-        <!-- Hero Header with Trip Name -->
-        <div class="bg-gradient-to-r from-indigo-600 to-purple-600 px-8 pt-8 pb-6 text-white text-center">
-          <p class="text-indigo-200 text-sm m-0 mb-3">
+      <div v-else class="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden">
+        <!-- Trip Info Header -->
+        <div class="bg-slate-50 px-6 pt-10 pb-6 text-center border-b border-gray-100">
+          <p class="text-sm text-muted-foreground m-0 mb-3">
             {{ invitation.invitedByName }} 邀請你加入
           </p>
-          <h1 class="text-2xl font-bold m-0 mb-1">
+          <h1 class="text-3xl font-bold text-gray-900 m-0 tracking-tight">
             {{ invitation.tripName }}
           </h1>
         </div>
 
-        <!-- Step Indicator -->
-        <div class="px-8 pt-5 pb-2">
-          <div class="flex items-center gap-2">
-            <div class="flex items-center gap-1.5">
-              <div
-                class="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold transition-colors"
-                :class="isUserLoggedIn
-                  ? 'bg-indigo-600 text-white'
-                  : 'bg-indigo-100 text-indigo-600 ring-2 ring-indigo-600'"
-              >
-                <Icon v-if="isUserLoggedIn" name="lucide:check" :size="14" />
-                <span v-else>1</span>
-              </div>
-              <span class="text-xs font-medium" :class="isUserLoggedIn ? 'text-gray-400' : 'text-gray-900'">登入</span>
-            </div>
-            <div class="flex-1 h-px bg-gray-200" />
-            <div class="flex items-center gap-1.5">
-              <div
-                class="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold transition-colors"
-                :class="currentStep >= 2
-                  ? 'bg-indigo-100 text-indigo-600 ring-2 ring-indigo-600'
-                  : 'bg-gray-100 text-gray-400'"
-              >
-                2
-              </div>
-              <span class="text-xs font-medium" :class="currentStep >= 2 ? 'text-gray-900' : 'text-gray-400'">選擇身份</span>
-            </div>
-          </div>
-        </div>
-
         <!-- Content -->
-        <div class="p-8 pt-4 space-y-5">
+        <div class="p-6 space-y-6">
           <!-- Step 1: Login Required -->
           <template v-if="!isUserLoggedIn">
-            <div class="text-center space-y-4">
-              <div class="space-y-1">
-                <p class="text-sm text-gray-600 m-0">
-                  登入後即可加入行程，和大家一起分帳
-                </p>
-              </div>
+            <div class="text-center">
+              <p class="text-sm text-muted-foreground m-0 leading-relaxed">
+                登入後即可加入行程，和大家一起分帳
+              </p>
 
               <ui-button
-                class="w-full"
+                class="w-full mt-6"
                 size="lg"
                 @click="handleLogin"
               >
-                <Icon name="lucide:log-in" :size="18" class="mr-2" />
+                <Icon name="lucide:log-in" class="w-5 h-5 mr-2" />
                 使用 Google 帳號登入
               </ui-button>
 
-              <p class="text-xs text-gray-400 m-0">
+              <p class="text-xs text-muted-foreground/60 m-0 mt-3">
                 首次使用會自動建立帳號
               </p>
             </div>
@@ -316,19 +273,19 @@ async function handleLogin() {
           <!-- Step 2: Member Selection -->
           <template v-else-if="membersLoaded">
             <div class="space-y-4">
-              <p class="text-sm text-gray-600 m-0">
+              <p class="text-sm text-muted-foreground m-0 leading-relaxed">
                 選擇你在行程中的身份，或以新成員加入：
               </p>
 
               <!-- Existing members to claim -->
-              <div v-if="availableMembers.length > 0" class="space-y-2">
+              <div v-if="availableMembers.length > 0" class="space-y-2.5">
                 <button
                   v-for="member in availableMembers"
                   :key="member.id"
-                  class="w-full flex items-center gap-3 p-3 rounded-xl border-2 transition-all text-left"
+                  class="w-full flex items-center gap-3 p-3.5 rounded-xl border-2 transition-all duration-300 text-left"
                   :class="selectedMemberId === member.id
-                    ? 'border-indigo-500 bg-indigo-50'
-                    : 'border-gray-200 hover:border-gray-300 bg-white'"
+                    ? 'border-indigo-500 bg-indigo-50 shadow-sm shadow-indigo-100'
+                    : 'border-gray-100 hover:border-gray-200 bg-white'"
                   @click="selectMember(member.id)"
                 >
                   <member-avatar :emoji="member.avatarEmoji" size="lg" />
@@ -350,20 +307,20 @@ async function handleLogin() {
 
               <!-- Divider -->
               <div v-if="availableMembers.length > 0" class="flex items-center gap-3">
-                <div class="flex-1 border-t border-gray-200" />
+                <div class="flex-1 border-t border-gray-100" />
                 <span class="text-xs text-gray-400">或</span>
-                <div class="flex-1 border-t border-gray-200" />
+                <div class="flex-1 border-t border-gray-100" />
               </div>
 
               <!-- Join as new member -->
               <button
-                class="w-full flex items-center gap-3 p-3 rounded-xl border-2 transition-all text-left"
+                class="w-full flex items-center gap-3 p-3.5 rounded-xl border-2 transition-all duration-300 text-left"
                 :class="joinAsNew
-                  ? 'border-indigo-500 bg-indigo-50'
-                  : 'border-gray-200 hover:border-gray-300 bg-white'"
+                  ? 'border-indigo-500 bg-indigo-50 shadow-sm shadow-indigo-100'
+                  : 'border-gray-100 hover:border-gray-200 bg-white'"
                 @click="selectJoinAsNew"
               >
-                <div class="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center">
+                <div class="size-10 bg-gray-100 rounded-full flex items-center justify-center">
                   <Icon name="lucide:user-plus" class="w-4 h-4 text-gray-500" />
                 </div>
                 <span class="flex-1 font-medium text-gray-900">以新成員加入</span>
@@ -382,7 +339,7 @@ async function handleLogin() {
               </button>
 
               <!-- New member form -->
-              <div v-if="joinAsNew" class="space-y-3 rounded-xl bg-gray-50 p-4">
+              <div v-if="joinAsNew" class="space-y-4 rounded-xl bg-gray-50 p-4">
                 <div>
                   <label class="text-sm font-medium text-gray-700 mb-1.5 block">你的名稱</label>
                   <ui-input
@@ -393,11 +350,11 @@ async function handleLogin() {
                 </div>
                 <div>
                   <label class="text-sm font-medium text-gray-700 mb-1.5 block">選擇頭像</label>
-                  <div class="flex flex-wrap gap-1.5">
+                  <div class="flex flex-wrap gap-2">
                     <button
                       v-for="emoji in availableEmojis"
                       :key="emoji"
-                      class="w-10 h-10 rounded-lg border-2 flex items-center justify-center text-xl transition-all"
+                      class="w-10 h-10 rounded-lg border-2 flex items-center justify-center text-xl transition-all duration-300"
                       :class="newMemberEmoji === emoji
                         ? 'border-indigo-500 bg-indigo-50 scale-110'
                         : 'border-gray-200 hover:border-gray-300'"
@@ -412,29 +369,24 @@ async function handleLogin() {
 
             <!-- Accept Button -->
             <ui-button
-              class="w-full"
+              class="w-full mt-2"
               size="lg"
               :disabled="!canAccept || isAccepting"
               @click="handleAccept"
             >
-              <Icon v-if="isAccepting" name="lucide:loader-circle" :size="18" class="mr-2 animate-spin" />
+              <Icon v-if="isAccepting" name="lucide:loader-circle" class="w-5 h-5 mr-2 animate-spin" />
               {{ isAccepting ? '加入中...' : '加入行程' }}
             </ui-button>
           </template>
 
           <!-- Cancel link -->
-          <div class="text-center pt-1">
-            <button class="text-xs text-gray-400 hover:text-gray-600 transition-colors" @click="router.push('/')">
+          <div class="text-center pt-2">
+            <button class="text-xs text-muted-foreground/50 hover:text-muted-foreground transition-colors" @click="router.push('/')">
               取消
             </button>
           </div>
         </div>
       </div>
-
-      <!-- App context for first-time users -->
-      <p v-if="invitation && !isExpired && !isRevoked && !isAlreadyUsed" class="text-center text-xs text-gray-400 mt-4">
-        Payback — 旅行分帳，輕鬆搞定
-      </p>
     </div>
   </div>
 </template>
