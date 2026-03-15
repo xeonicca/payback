@@ -128,13 +128,13 @@ async function handleLogin() {
 </script>
 
 <template>
-  <div class="min-h-screen bg-slate-200 flex items-center justify-center p-6">
+  <div class="min-h-svh bg-slate-200 flex items-center justify-center p-6">
     <div class="w-full max-w-md">
       <!-- Loading State -->
       <div v-if="isLoading" class="bg-white rounded-2xl shadow-lg border border-gray-100 p-10">
         <div class="flex flex-col items-center justify-center space-y-4">
           <loading-spinner size="lg" />
-          <p class="text-sm text-gray-500 m-0">
+          <p class="text-sm text-muted-foreground m-0">
             載入邀請資訊...
           </p>
         </div>
@@ -147,10 +147,10 @@ async function handleLogin() {
             <Icon name="lucide:link-2-off" class="w-9 h-9 text-red-500" />
           </div>
           <div class="space-y-2">
-            <h1 class="text-xl font-bold text-gray-900 m-0 tracking-tight">
+            <h1 class="text-xl font-bold text-foreground m-0 tracking-tight">
               連結無效
             </h1>
-            <p class="text-sm text-gray-500 m-0 leading-relaxed">
+            <p class="text-sm text-muted-foreground m-0 leading-relaxed">
               此邀請連結不存在或已被刪除，請向邀請人索取新連結
             </p>
           </div>
@@ -167,15 +167,15 @@ async function handleLogin() {
             <Icon name="lucide:timer-off" class="w-9 h-9 text-amber-500" />
           </div>
           <div class="space-y-2">
-            <h1 class="text-xl font-bold text-gray-900 m-0 tracking-tight">
+            <h1 class="text-xl font-bold text-foreground m-0 tracking-tight">
               邀請已過期
             </h1>
-            <p class="text-sm text-gray-500 m-0 leading-relaxed">
+            <p class="text-sm text-muted-foreground m-0 leading-relaxed">
               此連結已於 {{ new Date(invitation.expiresAtString).toLocaleDateString('zh-TW') }} 過期
             </p>
           </div>
-          <p class="text-xs text-gray-400 m-0 leading-relaxed">
-            請聯絡 <span class="font-medium text-gray-600">{{ invitation.invitedByName }}</span> 重新發送邀請
+          <p class="text-xs text-muted-foreground/70 m-0 leading-relaxed">
+            請聯絡 <span class="font-medium text-foreground/70">{{ invitation.invitedByName }}</span> 重新發送邀請
           </p>
           <ui-button variant="link" size="sm" @click="router.push('/')">
             返回首頁
@@ -190,10 +190,10 @@ async function handleLogin() {
             <Icon name="lucide:ban" class="w-9 h-9 text-red-500" />
           </div>
           <div class="space-y-2">
-            <h1 class="text-xl font-bold text-gray-900 m-0 tracking-tight">
+            <h1 class="text-xl font-bold text-foreground m-0 tracking-tight">
               邀請已取消
             </h1>
-            <p class="text-sm text-gray-500 m-0 leading-relaxed">
+            <p class="text-sm text-muted-foreground m-0 leading-relaxed">
               此邀請已被主辦人撤銷，請聯絡主辦人了解詳情
             </p>
           </div>
@@ -207,13 +207,13 @@ async function handleLogin() {
       <div v-else-if="isAlreadyUsed" class="bg-white rounded-2xl shadow-lg border border-gray-100 p-10">
         <div class="flex flex-col items-center justify-center space-y-5 text-center">
           <div class="w-20 h-20 bg-green-50 rounded-full flex items-center justify-center">
-            <Icon name="lucide:check-circle-2" class="w-9 h-9 text-green-500" />
+            <Icon name="lucide:check-circle-2" size="44" class="text-green-500" />
           </div>
           <div class="space-y-2">
-            <h1 class="text-xl font-bold text-gray-900 m-0 tracking-tight">
+            <h1 class="text-xl font-bold text-foreground m-0 tracking-tight">
               已加入行程
             </h1>
-            <p class="text-sm text-gray-500 m-0 leading-relaxed">
+            <p class="text-sm text-muted-foreground m-0 leading-relaxed">
               此邀請已被使用，你可以直接進入行程
             </p>
           </div>
@@ -231,7 +231,7 @@ async function handleLogin() {
           <p class="text-sm text-muted-foreground m-0 mb-3">
             {{ invitation.invitedByName }} 邀請你加入
           </p>
-          <h1 class="text-3xl font-bold text-gray-900 m-0 tracking-tight">
+          <h1 class="text-3xl font-bold text-foreground m-0 tracking-tight">
             {{ invitation.tripName }}
           </h1>
         </div>
@@ -264,7 +264,7 @@ async function handleLogin() {
           <template v-else-if="isLoadingMembers">
             <div class="flex flex-col items-center justify-center py-8 space-y-3">
               <loading-spinner />
-              <p class="text-sm text-gray-500 m-0">
+              <p class="text-sm text-muted-foreground m-0">
                 正在載入行程成員...
               </p>
             </div>
@@ -282,16 +282,16 @@ async function handleLogin() {
                 <button
                   v-for="member in availableMembers"
                   :key="member.id"
-                  class="w-full flex items-center gap-3 p-3.5 rounded-xl border-2 transition-all duration-300 text-left"
+                  class="w-full flex items-center gap-3 p-3.5 rounded-xl border-2 transition-all duration-300 text-left outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
                   :class="selectedMemberId === member.id
                     ? 'border-indigo-500 bg-indigo-50 shadow-sm shadow-indigo-100'
                     : 'border-gray-100 hover:border-gray-200 bg-white'"
                   @click="selectMember(member.id)"
                 >
                   <member-avatar :emoji="member.avatarEmoji" size="lg" />
-                  <span class="flex-1 font-medium text-gray-900">{{ member.name }}</span>
+                  <span class="flex-1 font-medium text-foreground">{{ member.name }}</span>
                   <div
-                    class="w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors"
+                    class="w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors duration-200"
                     :class="selectedMemberId === member.id
                       ? 'border-indigo-600 bg-indigo-600'
                       : 'border-gray-300'"
@@ -314,7 +314,7 @@ async function handleLogin() {
 
               <!-- Join as new member -->
               <button
-                class="w-full flex items-center gap-3 p-3.5 rounded-xl border-2 transition-all duration-300 text-left"
+                class="w-full flex items-center gap-3 p-3.5 rounded-xl border-2 transition-all duration-300 text-left outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
                 :class="joinAsNew
                   ? 'border-indigo-500 bg-indigo-50 shadow-sm shadow-indigo-100'
                   : 'border-gray-100 hover:border-gray-200 bg-white'"
@@ -323,9 +323,9 @@ async function handleLogin() {
                 <div class="size-10 bg-gray-100 rounded-full flex items-center justify-center">
                   <Icon name="lucide:user-plus" class="w-4 h-4 text-gray-500" />
                 </div>
-                <span class="flex-1 font-medium text-gray-900">以新成員加入</span>
+                <span class="flex-1 font-medium text-foreground">以新成員加入</span>
                 <div
-                  class="w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors"
+                  class="w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors duration-200"
                   :class="joinAsNew
                     ? 'border-indigo-600 bg-indigo-600'
                     : 'border-gray-300'"
@@ -354,7 +354,7 @@ async function handleLogin() {
                     <button
                       v-for="emoji in availableEmojis"
                       :key="emoji"
-                      class="w-10 h-10 rounded-lg border-2 flex items-center justify-center text-xl transition-all duration-300"
+                      class="w-11 h-11 rounded-lg border-2 flex items-center justify-center text-xl transition-all duration-300 outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
                       :class="newMemberEmoji === emoji
                         ? 'border-indigo-500 bg-indigo-50 scale-110'
                         : 'border-gray-200 hover:border-gray-300'"
@@ -381,7 +381,7 @@ async function handleLogin() {
 
           <!-- Cancel link -->
           <div class="text-center pt-2">
-            <button class="text-xs text-muted-foreground/50 hover:text-muted-foreground transition-colors" @click="router.push('/')">
+            <button class="text-xs text-muted-foreground/50 hover:text-muted-foreground transition-colors outline-none focus-visible:text-muted-foreground" @click="router.push('/')">
               取消
             </button>
           </div>
