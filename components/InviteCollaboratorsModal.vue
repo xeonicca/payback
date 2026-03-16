@@ -117,180 +117,16 @@ const usedInvitations = computed(() =>
 </script>
 
 <template>
-  <!-- Desktop: centered dialog -->
-  <ui-dialog v-if="isDesktop" :open="open" @update:open="emit('update:open', $event)">
-    <ui-dialog-content class="max-w-2xl max-h-[85vh] overflow-y-auto">
-      <ui-dialog-header>
-        <ui-dialog-title>邀請協作者</ui-dialog-title>
-        <ui-dialog-description>分享邀請連結讓其他人加入行程</ui-dialog-description>
-      </ui-dialog-header>
+  <ClientOnly>
+    <!-- Desktop: centered dialog -->
+    <ui-dialog v-if="isDesktop" :open="open" @update:open="emit('update:open', $event)">
+      <ui-dialog-content v-if="open" class="max-w-2xl max-h-[85vh] overflow-y-auto">
+        <ui-dialog-header>
+          <ui-dialog-title>邀請協作者</ui-dialog-title>
+          <ui-dialog-description>分享邀請連結讓其他人加入行程</ui-dialog-description>
+        </ui-dialog-header>
 
-      <div class="space-y-6 py-4">
-        <!-- Create Invitation Section -->
-        <div class="bg-accent rounded-xl p-6 space-y-4">
-          <div class="flex items-center gap-2">
-            <Icon name="lucide:link" class="w-5 h-5 text-primary" />
-            <h3 class="text-lg font-semibold text-foreground m-0">
-              建立新邀請連結
-            </h3>
-          </div>
-
-          <div class="space-y-2">
-            <label class="text-sm font-medium text-foreground">有效期限</label>
-            <ui-select v-model="expiresInDays">
-              <ui-select-trigger class="w-full">
-                <ui-select-value placeholder="選擇有效期限" />
-              </ui-select-trigger>
-              <ui-select-content>
-                <ui-select-group>
-                  <ui-select-item :value="1">
-                    1 天
-                  </ui-select-item>
-                  <ui-select-item :value="7">
-                    7 天
-                  </ui-select-item>
-                  <ui-select-item :value="30">
-                    30 天
-                  </ui-select-item>
-                  <ui-select-item :value="90">
-                    90 天
-                  </ui-select-item>
-                </ui-select-group>
-              </ui-select-content>
-            </ui-select>
-          </div>
-
-          <ui-button class="w-full" :disabled="isCreating" @click="handleCreateInvitation">
-            <Icon v-if="isCreating" name="lucide:loader-circle" :size="20" class="mr-2 animate-spin" />
-            <Icon v-else name="lucide:plus" :size="20" class="mr-2" />
-            {{ isCreating ? '建立中...' : '建立邀請連結' }}
-          </ui-button>
-
-          <div v-if="generatedInvitation" class="bg-card rounded-lg p-4 space-y-3 border">
-            <div class="flex items-center gap-2">
-              <Icon name="lucide:check-circle" class="w-5 h-5 text-green-600 dark:text-green-400" />
-              <p class="text-sm font-medium text-foreground m-0">
-                邀請連結已建立！
-              </p>
-            </div>
-            <div class="space-y-2">
-              <div class="flex items-center gap-2">
-                <ui-input :value="generatedInvitation.url" readonly class="flex-1 font-mono text-sm" />
-                <ui-button size="sm" variant="outline" @click="copyToClipboard(generatedInvitation.url)">
-                  <Icon name="lucide:copy" :size="16" />
-                </ui-button>
-              </div>
-              <p class="text-xs text-muted-foreground m-0">
-                有效期限：{{ new Date(generatedInvitation.expiresAt).toLocaleDateString('zh-TW') }}
-              </p>
-            </div>
-          </div>
-        </div>
-
-        <!-- Active Invitations -->
-        <div v-if="pendingInvitations.length > 0" class="space-y-3">
-          <h3 class="text-lg font-semibold text-foreground m-0">
-            待接受的邀請 ({{ pendingInvitations.length }})
-          </h3>
-          <div class="space-y-2">
-            <div
-              v-for="invitation in pendingInvitations"
-              :key="invitation.id"
-              class="bg-card border rounded-lg p-4"
-            >
-              <div class="flex items-start justify-between gap-3">
-                <div class="flex-1 space-y-2">
-                  <div class="flex items-center gap-2">
-                    <code class="text-sm font-mono bg-muted px-2 py-1 rounded">{{ invitation.invitationCode }}</code>
-                    <ui-badge :variant="getStatusBadgeVariant(invitation.status)">
-                      {{ getStatusText(invitation.status) }}
-                    </ui-badge>
-                  </div>
-                  <div class="text-sm text-muted-foreground space-y-1">
-                    <p class="m-0">
-                      <Icon name="lucide:calendar" class="w-4 h-4 inline mr-1" />
-                      建立於：{{ invitation.createdAtString }}
-                    </p>
-                    <p class="m-0">
-                      <Icon name="lucide:clock" class="w-4 h-4 inline mr-1" />
-                      到期日：{{ invitation.expiresAtString }}
-                    </p>
-                  </div>
-                  <div class="flex gap-2 mt-2">
-                    <ui-button size="sm" variant="outline" @click="copyToClipboard(`${baseUrl}/invite/${invitation.invitationCode}`)">
-                      <Icon name="lucide:copy" :size="16" class="mr-1" />
-                      複製連結
-                    </ui-button>
-                  </div>
-                </div>
-                <ui-button size="sm" variant="ghost" @click="handleRevokeInvitation(invitation.id)">
-                  <Icon name="lucide:trash-2" :size="16" class="text-destructive" />
-                </ui-button>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Used/Expired Invitations -->
-        <div v-if="usedInvitations.length > 0" class="space-y-3">
-          <h3 class="text-lg font-semibold text-foreground m-0">
-            歷史邀請 ({{ usedInvitations.length }})
-          </h3>
-          <div class="space-y-2">
-            <div
-              v-for="invitation in usedInvitations"
-              :key="invitation.id"
-              class="bg-muted/50 border rounded-lg p-4 opacity-75"
-            >
-              <div class="flex items-start justify-between gap-3">
-                <div class="flex-1 space-y-2">
-                  <div class="flex items-center gap-2">
-                    <code class="text-sm font-mono bg-card px-2 py-1 rounded">{{ invitation.invitationCode }}</code>
-                    <ui-badge :variant="getStatusBadgeVariant(invitation.status)">
-                      {{ getStatusText(invitation.status) }}
-                    </ui-badge>
-                  </div>
-                  <div class="text-sm text-muted-foreground">
-                    <p class="m-0">
-                      建立於：{{ invitation.createdAtString }}
-                    </p>
-                    <p v-if="invitation.usedAtString" class="m-0">
-                      使用於：{{ invitation.usedAtString }}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <empty-state v-if="!isLoading && invitations.length === 0" icon="lucide:users" title="尚無邀請記錄" description="建立第一個邀請連結來邀請協作者" />
-        <div v-if="isLoading" class="flex justify-center py-8">
-          <loading-spinner />
-        </div>
-      </div>
-    </ui-dialog-content>
-  </ui-dialog>
-
-  <!-- Mobile: bottom drawer -->
-  <ui-drawer v-else :open="open" @update:open="emit('update:open', $event)">
-    <ui-drawer-content>
-      <div class="mx-auto w-full max-w-2xl p-6 max-h-[90vh] overflow-y-auto">
-        <div class="space-y-6">
-          <div class="flex items-center justify-between">
-            <div>
-              <h2 class="text-2xl font-bold text-foreground m-0 mb-1">
-                邀請協作者
-              </h2>
-              <p class="text-sm text-muted-foreground m-0">
-                分享邀請連結讓其他人加入行程
-              </p>
-            </div>
-            <ui-button variant="ghost" size="icon" @click="emit('update:open', false)">
-              <Icon name="lucide:x" :size="20" />
-            </ui-button>
-          </div>
-
+        <div class="space-y-6 py-4">
           <!-- Create Invitation Section -->
           <div class="bg-accent rounded-xl p-6 space-y-4">
             <div class="flex items-center gap-2">
@@ -407,20 +243,22 @@ const usedInvitations = computed(() =>
                 :key="invitation.id"
                 class="bg-muted/50 border rounded-lg p-4 opacity-75"
               >
-                <div class="flex-1 space-y-2">
-                  <div class="flex items-center gap-2">
-                    <code class="text-sm font-mono bg-card px-2 py-1 rounded">{{ invitation.invitationCode }}</code>
-                    <ui-badge :variant="getStatusBadgeVariant(invitation.status)">
-                      {{ getStatusText(invitation.status) }}
-                    </ui-badge>
-                  </div>
-                  <div class="text-sm text-muted-foreground">
-                    <p class="m-0">
-                      建立於：{{ invitation.createdAtString }}
-                    </p>
-                    <p v-if="invitation.usedAtString" class="m-0">
-                      使用於：{{ invitation.usedAtString }}
-                    </p>
+                <div class="flex items-start justify-between gap-3">
+                  <div class="flex-1 space-y-2">
+                    <div class="flex items-center gap-2">
+                      <code class="text-sm font-mono bg-card px-2 py-1 rounded">{{ invitation.invitationCode }}</code>
+                      <ui-badge :variant="getStatusBadgeVariant(invitation.status)">
+                        {{ getStatusText(invitation.status) }}
+                      </ui-badge>
+                    </div>
+                    <div class="text-sm text-muted-foreground">
+                      <p class="m-0">
+                        建立於：{{ invitation.createdAtString }}
+                      </p>
+                      <p v-if="invitation.usedAtString" class="m-0">
+                        使用於：{{ invitation.usedAtString }}
+                      </p>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -432,7 +270,171 @@ const usedInvitations = computed(() =>
             <loading-spinner />
           </div>
         </div>
-      </div>
-    </ui-drawer-content>
-  </ui-drawer>
+      </ui-dialog-content>
+    </ui-dialog>
+
+    <!-- Mobile: bottom drawer -->
+    <ui-drawer v-else :open="open" @update:open="emit('update:open', $event)">
+      <ui-drawer-content>
+        <div class="mx-auto w-full max-w-2xl p-6 max-h-[90vh] overflow-y-auto">
+          <div class="space-y-6">
+            <div class="flex items-center justify-between">
+              <div>
+                <h2 class="text-2xl font-bold text-foreground m-0 mb-1">
+                  邀請協作者
+                </h2>
+                <p class="text-sm text-muted-foreground m-0">
+                  分享邀請連結讓其他人加入行程
+                </p>
+              </div>
+              <ui-button variant="ghost" size="icon" @click="emit('update:open', false)">
+                <Icon name="lucide:x" :size="20" />
+              </ui-button>
+            </div>
+
+            <!-- Create Invitation Section -->
+            <div class="bg-accent rounded-xl p-6 space-y-4">
+              <div class="flex items-center gap-2">
+                <Icon name="lucide:link" class="w-5 h-5 text-primary" />
+                <h3 class="text-lg font-semibold text-foreground m-0">
+                  建立新邀請連結
+                </h3>
+              </div>
+
+              <div class="space-y-2">
+                <label class="text-sm font-medium text-foreground">有效期限</label>
+                <ui-select v-model="expiresInDays">
+                  <ui-select-trigger class="w-full">
+                    <ui-select-value placeholder="選擇有效期限" />
+                  </ui-select-trigger>
+                  <ui-select-content>
+                    <ui-select-group>
+                      <ui-select-item :value="1">
+                        1 天
+                      </ui-select-item>
+                      <ui-select-item :value="7">
+                        7 天
+                      </ui-select-item>
+                      <ui-select-item :value="30">
+                        30 天
+                      </ui-select-item>
+                      <ui-select-item :value="90">
+                        90 天
+                      </ui-select-item>
+                    </ui-select-group>
+                  </ui-select-content>
+                </ui-select>
+              </div>
+
+              <ui-button class="w-full" :disabled="isCreating" @click="handleCreateInvitation">
+                <Icon v-if="isCreating" name="lucide:loader-circle" :size="20" class="mr-2 animate-spin" />
+                <Icon v-else name="lucide:plus" :size="20" class="mr-2" />
+                {{ isCreating ? '建立中...' : '建立邀請連結' }}
+              </ui-button>
+
+              <div v-if="generatedInvitation" class="bg-card rounded-lg p-4 space-y-3 border">
+                <div class="flex items-center gap-2">
+                  <Icon name="lucide:check-circle" class="w-5 h-5 text-green-600 dark:text-green-400" />
+                  <p class="text-sm font-medium text-foreground m-0">
+                    邀請連結已建立！
+                  </p>
+                </div>
+                <div class="space-y-2">
+                  <div class="flex items-center gap-2">
+                    <ui-input :value="generatedInvitation.url" readonly class="flex-1 font-mono text-sm" />
+                    <ui-button size="sm" variant="outline" @click="copyToClipboard(generatedInvitation.url)">
+                      <Icon name="lucide:copy" :size="16" />
+                    </ui-button>
+                  </div>
+                  <p class="text-xs text-muted-foreground m-0">
+                    有效期限：{{ new Date(generatedInvitation.expiresAt).toLocaleDateString('zh-TW') }}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <!-- Active Invitations -->
+            <div v-if="pendingInvitations.length > 0" class="space-y-3">
+              <h3 class="text-lg font-semibold text-foreground m-0">
+                待接受的邀請 ({{ pendingInvitations.length }})
+              </h3>
+              <div class="space-y-2">
+                <div
+                  v-for="invitation in pendingInvitations"
+                  :key="invitation.id"
+                  class="bg-card border rounded-lg p-4"
+                >
+                  <div class="flex items-start justify-between gap-3">
+                    <div class="flex-1 space-y-2">
+                      <div class="flex items-center gap-2">
+                        <code class="text-sm font-mono bg-muted px-2 py-1 rounded">{{ invitation.invitationCode }}</code>
+                        <ui-badge :variant="getStatusBadgeVariant(invitation.status)">
+                          {{ getStatusText(invitation.status) }}
+                        </ui-badge>
+                      </div>
+                      <div class="text-sm text-muted-foreground space-y-1">
+                        <p class="m-0">
+                          <Icon name="lucide:calendar" class="w-4 h-4 inline mr-1" />
+                          建立於：{{ invitation.createdAtString }}
+                        </p>
+                        <p class="m-0">
+                          <Icon name="lucide:clock" class="w-4 h-4 inline mr-1" />
+                          到期日：{{ invitation.expiresAtString }}
+                        </p>
+                      </div>
+                      <div class="flex gap-2 mt-2">
+                        <ui-button size="sm" variant="outline" @click="copyToClipboard(`${baseUrl}/invite/${invitation.invitationCode}`)">
+                          <Icon name="lucide:copy" :size="16" class="mr-1" />
+                          複製連結
+                        </ui-button>
+                      </div>
+                    </div>
+                    <ui-button size="sm" variant="ghost" @click="handleRevokeInvitation(invitation.id)">
+                      <Icon name="lucide:trash-2" :size="16" class="text-destructive" />
+                    </ui-button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Used/Expired Invitations -->
+            <div v-if="usedInvitations.length > 0" class="space-y-3">
+              <h3 class="text-lg font-semibold text-foreground m-0">
+                歷史邀請 ({{ usedInvitations.length }})
+              </h3>
+              <div class="space-y-2">
+                <div
+                  v-for="invitation in usedInvitations"
+                  :key="invitation.id"
+                  class="bg-muted/50 border rounded-lg p-4 opacity-75"
+                >
+                  <div class="flex-1 space-y-2">
+                    <div class="flex items-center gap-2">
+                      <code class="text-sm font-mono bg-card px-2 py-1 rounded">{{ invitation.invitationCode }}</code>
+                      <ui-badge :variant="getStatusBadgeVariant(invitation.status)">
+                        {{ getStatusText(invitation.status) }}
+                      </ui-badge>
+                    </div>
+                    <div class="text-sm text-muted-foreground">
+                      <p class="m-0">
+                        建立於：{{ invitation.createdAtString }}
+                      </p>
+                      <p v-if="invitation.usedAtString" class="m-0">
+                        使用於：{{ invitation.usedAtString }}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <empty-state v-if="!isLoading && invitations.length === 0" icon="lucide:users" title="尚無邀請記錄" description="建立第一個邀請連結來邀請協作者" />
+            <div v-if="isLoading" class="flex justify-center py-8">
+              <loading-spinner />
+            </div>
+          </div>
+        </div>
+      </ui-drawer-content>
+    </ui-drawer>
+  </ClientOnly>
 </template>
