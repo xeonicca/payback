@@ -27,7 +27,7 @@ onUnmounted(() => {
   >
     <button
       v-if="isVisible"
-      class="fixed right-4 bottom-safe-offset-24 z-10 size-10 rounded-full bg-card border border-border shadow-md flex items-center justify-center text-muted-foreground hover:text-foreground hover:shadow-lg transition-all duration-200"
+      class="fixed right-4 bottom-safe-offset-24 lg:bottom-safe-offset-56 z-10 size-10 rounded-full bg-card border border-border shadow-md flex items-center justify-center text-muted-foreground hover:text-foreground hover:shadow-lg transition-all duration-200"
       aria-label="回到頂部"
       @click="scrollToTop"
     >

@@ -194,7 +194,7 @@ async function handleLogin() {
               邀請已取消
             </h1>
             <p class="text-sm text-muted-foreground m-0 leading-relaxed">
-              此邀請已被主辦人撤銷，請聯絡主辦人了解詳情
+              此邀請已被建立者撤銷，請聯絡建立者了解詳情
             </p>
           </div>
           <ui-button variant="link" size="sm" @click="router.push('/')">
