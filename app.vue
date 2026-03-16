@@ -5,11 +5,9 @@ import { Toaster } from '@/components/ui/sonner'
 const { $pwa } = useNuxtApp()
 const showUpdateDialog = ref(false)
 
-onMounted(() => {
-  if ($pwa!.needRefresh) {
-    showUpdateDialog.value = true
-  }
-})
+watch(() => $pwa?.needRefresh?.value, (val) => {
+  if (val) showUpdateDialog.value = true
+}, { immediate: true })
 </script>
 
 <template>
