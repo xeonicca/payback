@@ -11,9 +11,17 @@ const router = useRouter()
 const invitationCode = route.params.code as string
 
 const { invitation, isLoading } = useInvitation().getInvitationByCode(invitationCode)
-const { isUserLoggedIn, loginWithGoogle } = useLogin()
+const { isUserLoggedIn, loginWithGoogle, checkRedirectResult } = useLogin()
 
+const isCheckingRedirect = ref(false)
 const isAccepting = ref(false)
+
+// Complete Google redirect login flow when returning to this page
+onMounted(async () => {
+  isCheckingRedirect.value = true
+  await checkRedirectResult()
+  isCheckingRedirect.value = false
+})
 const isExpired = computed(() => {
   if (!invitation.value)
     return false
@@ -131,7 +139,7 @@ async function handleLogin() {
   <div class="min-h-svh bg-slate-200 flex items-center justify-center p-6">
     <div class="w-full max-w-md">
       <!-- Loading State -->
-      <div v-if="isLoading" class="bg-white rounded-2xl shadow-lg border border-gray-100 p-10">
+      <div v-if="isLoading || isCheckingRedirect" class="bg-white rounded-2xl shadow-lg border border-gray-100 p-10">
         <div class="flex flex-col items-center justify-center space-y-4">
           <loading-spinner size="lg" />
           <p class="text-sm text-muted-foreground m-0">
