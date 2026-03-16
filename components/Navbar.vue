@@ -44,7 +44,7 @@ async function handleLogout() {
       to-slate-200
       via-slate-300
       via-80%
-      text-white pt-2 px-4 pb-4"
+      text-white pt-safe px-4 pb-4"
   >
     <div class="container mx-auto flex justify-between items-center">
       <!-- Logo and Breadcrumb -->

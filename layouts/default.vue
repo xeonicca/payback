@@ -3,7 +3,7 @@
 </script>
 
 <template>
-  <div class="min-h-screen bg-slate-200 pt-safe">
+  <div class="min-h-screen bg-slate-200">
     <keep-alive>
       <navbar />
     </keep-alive>
