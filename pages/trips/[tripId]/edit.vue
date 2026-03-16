@@ -4,7 +4,7 @@ import { toTypedSchema } from '@vee-validate/zod'
 import { addDoc, collection, deleteDoc, doc, updateDoc } from 'firebase/firestore'
 import { useForm } from 'vee-validate'
 import { computed, ref, watch } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router'
 import { toast } from 'vue-sonner'
 import { useFirestore } from 'vuefire'
 import * as z from 'zod'
@@ -67,6 +67,7 @@ const exchangeRateToTwd = computed(() => {
 })
 
 const isSubmitting = ref(false)
+const activeTab = ref('info')
 const isArchiving = ref(false)
 const showArchiveWarning = ref(false)
 const showInviteDrawer = ref(false)
@@ -79,6 +80,46 @@ const membersToAdd = ref<Omit<TripMember, 'id' | 'createdAtString'>[]>([])
 // Store original values for reset
 const originalTripData = ref<{ name: string, tripCurrency: string, exchangeRate: number } | null>(null)
 const originalMembers = ref<TripMember[]>([])
+
+// Track unsaved changes
+const hasUnsavedChanges = computed(() => {
+  if (!originalTripData.value) return false
+
+  const tripChanged = values.name !== originalTripData.value.name
+    || values.tripCurrency !== originalTripData.value.tripCurrency
+    || values.exchangeRate !== originalTripData.value.exchangeRate
+
+  const membersChanged = membersToDelete.value.length > 0 || membersToAdd.value.length > 0
+
+  return tripChanged || membersChanged
+})
+
+// Warn before browser close/refresh
+onBeforeUnmount(() => {
+  window.removeEventListener('beforeunload', handleBeforeUnload)
+})
+
+function handleBeforeUnload(e: BeforeUnloadEvent) {
+  if (hasUnsavedChanges.value) {
+    e.preventDefault()
+  }
+}
+
+watch(hasUnsavedChanges, (dirty) => {
+  if (dirty) {
+    window.addEventListener('beforeunload', handleBeforeUnload)
+  }
+  else {
+    window.removeEventListener('beforeunload', handleBeforeUnload)
+  }
+})
+
+// Warn before route navigation
+onBeforeRouteLeave(() => {
+  if (hasUnsavedChanges.value) {
+    return window.confirm('你有尚未儲存的變更，確定要離開嗎？')
+  }
+})
 
 // Initialize form values when trip data loads
 watch(trip, (newTrip) => {
@@ -151,17 +192,14 @@ watch(() => values.tripCurrency, () => {
 })
 
 function onMembersChange(updatedMembers: TripMember[]) {
-  // Find members that were removed
   const removedMembers = localMembers.value.filter(
     localMember => !updatedMembers.some(updatedMember => updatedMember.id === localMember.id),
   )
 
-  // Find members that were added (they won't have an id or will have a temporary id)
   const addedMembers = updatedMembers.filter(
     updatedMember => !localMembers.value.some(localMember => localMember.id === updatedMember.id),
   )
 
-  // Track deletions (only for members with real Firestore IDs)
   for (const removed of removedMembers) {
     if (removed.id && !removed.id.startsWith('temp-')) {
       if (!membersToDelete.value.includes(removed.id)) {
@@ -170,7 +208,6 @@ function onMembersChange(updatedMembers: TripMember[]) {
     }
   }
 
-  // Track additions
   for (const added of addedMembers) {
     if (!membersToAdd.value.some(m => m.name === added.name)) {
       membersToAdd.value.push({
@@ -187,14 +224,12 @@ function onMembersChange(updatedMembers: TripMember[]) {
 }
 
 function handleReset() {
-  // Reset form values to original
   if (originalTripData.value) {
     setFieldValue('name', originalTripData.value.name)
     setFieldValue('tripCurrency', originalTripData.value.tripCurrency)
     setFieldValue('exchangeRate', originalTripData.value.exchangeRate)
   }
 
-  // Reset members to original
   localMembers.value = [...originalMembers.value]
   membersToDelete.value = []
   membersToAdd.value = []
@@ -214,7 +249,6 @@ watch(currentUserMember, (member) => {
   }
 }, { immediate: true })
 
-// Available emojis for self-edit (current user's emoji is always available)
 const selfAvailableEmojis = computed(() => {
   const usedEmojis = tripMembers.value
     ?.filter(m => m.id !== currentUserMember.value?.id)
@@ -232,7 +266,6 @@ async function handleSelfSave() {
     return
   }
 
-  // Check for duplicate names (excluding self)
   const nameExists = tripMembers.value?.some(
     m => m.id !== currentUserMember.value!.id && m.name.toLowerCase() === trimmedName.toLowerCase(),
   )
@@ -264,12 +297,10 @@ function handleArchiveClick() {
   if (!trip.value)
     return
 
-  // If already archived, unarchive directly
   if (trip.value.archived) {
     handleArchiveToggle()
   }
   else {
-    // Show warning before archiving
     showArchiveWarning.value = true
   }
 }
@@ -302,255 +333,203 @@ async function handleArchiveToggle() {
 </script>
 
 <template>
-  <div class="max-w-2xl mx-auto space-y-6">
+  <div class="max-w-2xl mx-auto space-y-4">
     <!-- Header -->
-    <div class="bg-white p-6 rounded-lg shadow-xl" :class="{ 'pb-0': isOwner }">
-      <div class="flex items-center justify-between pb-4">
-        <div class="flex items-center gap-3">
-          <h2 class="text-lg font-semibold text-gray-700 m-0">
-            {{ isOwner ? '編輯行程' : '編輯個人資料' }}
-          </h2>
-          <ui-badge v-if="trip?.archived" variant="secondary" class="text-xs">
-            已封存
-          </ui-badge>
-        </div>
-        <ui-button
-          v-if="isOwner"
-          type="button"
-          variant="ghost"
-          size="icon"
-          aria-label="關閉"
-          @click="router.push(`/trips/${tripId}`)"
-        >
-          <Icon name="lucide:x" :size="20" />
-        </ui-button>
+    <div class="flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <h2 class="text-lg font-semibold text-foreground m-0">
+          {{ isOwner ? '編輯行程' : '編輯個人資料' }}
+        </h2>
+        <ui-badge v-if="trip?.archived" variant="secondary" class="text-xs">
+          已封存
+        </ui-badge>
       </div>
+      <ui-button
+        v-if="isOwner"
+        type="button"
+        variant="ghost"
+        size="icon"
+        aria-label="關閉"
+        @click="router.push(`/trips/${tripId}`)"
+      >
+        <Icon name="lucide:x" :size="20" />
+      </ui-button>
+    </div>
 
-      <!-- ===== Non-owner: Self-edit profile only ===== -->
-      <template v-if="!isOwner">
-        <form v-if="currentUserMember" class="space-y-5 pb-6" @submit.prevent="handleSelfSave">
-          <div class="flex items-center gap-4">
-            <div class="w-16 h-16 flex items-center justify-center text-3xl bg-indigo-50 border-2 border-indigo-200 rounded-xl shrink-0">
-              {{ selfEditAvatar }}
-            </div>
-            <div class="flex-1">
-              <label for="self-edit-name" class="text-sm font-medium text-gray-700 mb-1.5 block">顯示名稱</label>
-              <ui-input
-                id="self-edit-name"
-                v-model="selfEditName"
-                type="text"
-                placeholder="輸入你的名稱"
-                class="h-12 text-base"
-                :disabled="isSelfSubmitting"
-              />
-            </div>
+    <!-- ===== Non-owner: Self-edit profile only ===== -->
+    <template v-if="!isOwner">
+      <form v-if="currentUserMember" class="bg-card rounded-xl border p-5 space-y-5" @submit.prevent="handleSelfSave">
+        <div class="flex items-center gap-4">
+          <div class="w-16 h-16 flex items-center justify-center text-3xl bg-primary/10 border-2 border-primary/20 rounded-xl shrink-0">
+            {{ selfEditAvatar }}
           </div>
-
-          <!-- Avatar grid -->
-          <div class="space-y-1.5">
-            <label class="text-sm font-medium text-gray-700">選擇頭像</label>
-            <div class="grid grid-cols-8 sm:grid-cols-10 gap-1.5">
-              <button
-                v-for="emoji in selfAvailableEmojis"
-                :key="emoji"
-                type="button"
-                :class="{
-                  'bg-indigo-500 ring-2 ring-indigo-500 ring-offset-1': selfEditAvatar === emoji,
-                  'bg-white hover:bg-gray-100': selfEditAvatar !== emoji,
-                }"
-                class="aspect-square flex items-center justify-center text-xl rounded-lg border border-gray-200 transition-colors cursor-pointer"
-                @click="selfEditAvatar = emoji"
-              >
-                {{ emoji }}
-              </button>
-            </div>
-          </div>
-
-          <div class="flex gap-3">
-            <ui-button
-              type="button"
-              variant="outline"
-              class="flex-1"
+          <div class="flex-1">
+            <label for="self-edit-name" class="text-sm font-medium text-foreground mb-1.5 block">顯示名稱</label>
+            <ui-input
+              id="self-edit-name"
+              v-model="selfEditName"
+              type="text"
+              placeholder="輸入你的名稱"
+              class="h-12 text-base"
               :disabled="isSelfSubmitting"
-              @click="router.push(`/trips/${tripId}`)"
-            >
-              取消
-            </ui-button>
-            <ui-button
-              type="submit"
-              class="flex-1"
-              :disabled="isSelfSubmitting"
-            >
-              {{ isSelfSubmitting ? '儲存中...' : '儲存變更' }}
-            </ui-button>
+            />
           </div>
-        </form>
-
-        <!-- Loading state -->
-        <div v-else class="py-8 flex justify-center">
-          <ui-skeleton class="w-full h-32" />
         </div>
-      </template>
 
-      <!-- ===== Owner: Full edit with tabs ===== -->
-      <template v-else>
-        <!-- Archived Notice -->
-        <alert-banner v-if="trip?.archived" icon="lucide:archive" title="此行程已封存" variant="warning" class="mb-4">
-          封存的行程無法編輯或新增支出。如需修改，請先取消封存。
-        </alert-banner>
+        <!-- Avatar grid -->
+        <div class="space-y-1.5">
+          <label class="text-sm font-medium text-foreground">選擇頭像</label>
+          <div class="grid grid-cols-8 sm:grid-cols-10 gap-1.5">
+            <button
+              v-for="emoji in selfAvailableEmojis"
+              :key="emoji"
+              type="button"
+              :class="{
+                'bg-primary ring-2 ring-primary ring-offset-1': selfEditAvatar === emoji,
+                'bg-card hover:bg-muted': selfEditAvatar !== emoji,
+              }"
+              class="aspect-square flex items-center justify-center text-xl rounded-lg border border-border transition-colors cursor-pointer"
+              @click="selfEditAvatar = emoji"
+            >
+              {{ emoji }}
+            </button>
+          </div>
+        </div>
 
+        <div class="flex gap-3">
+          <ui-button
+            type="button"
+            variant="outline"
+            class="flex-1"
+            :disabled="isSelfSubmitting"
+            @click="router.push(`/trips/${tripId}`)"
+          >
+            取消
+          </ui-button>
+          <ui-button
+            type="submit"
+            class="flex-1"
+            :disabled="isSelfSubmitting"
+          >
+            {{ isSelfSubmitting ? '儲存中...' : '儲存變更' }}
+          </ui-button>
+        </div>
+      </form>
+
+      <!-- Loading state -->
+      <div v-else class="py-8 flex justify-center">
+        <ui-skeleton class="w-full h-32" />
+      </div>
+    </template>
+
+    <!-- ===== Owner: Full edit with tabs ===== -->
+    <template v-else>
+      <!-- Archived Notice -->
+      <alert-banner v-if="trip?.archived" icon="lucide:archive" title="此行程已封存" variant="warning">
+        如需修改行程設定，請先取消封存。
+      </alert-banner>
+
+      <div class="bg-card rounded-xl border">
         <!-- Tabs -->
-        <ui-tabs default-value="info">
-          <ui-tabs-list class="w-full">
+        <ui-tabs v-model="activeTab" default-value="info">
+          <ui-tabs-list class="w-full rounded-b-none border-b">
             <ui-tabs-trigger value="info" class="flex-1">
-              <Icon name="lucide:settings" :size="14" class="mr-1.5" />
               行程資訊
             </ui-tabs-trigger>
             <ui-tabs-trigger value="members" class="flex-1" :disabled="!!trip?.archived">
-              <Icon name="lucide:users" :size="14" class="mr-1.5" />
               成員
-              <ui-badge variant="secondary" class="text-xs ml-1.5">
-                {{ localMembers.length }}
-              </ui-badge>
             </ui-tabs-trigger>
             <ui-tabs-trigger value="collaborators" class="flex-1">
-              <Icon name="lucide:share-2" :size="14" class="mr-1.5" />
               協作
-              <ui-badge variant="secondary" class="text-xs ml-1.5">
-                {{ collaborators.length }}
-              </ui-badge>
+            </ui-tabs-trigger>
+            <ui-tabs-trigger value="settings" class="flex-1">
+              設定
             </ui-tabs-trigger>
           </ui-tabs-list>
 
           <!-- Tab: Trip Info -->
-          <ui-tabs-content value="info" force-mount class="pt-4 pb-6 data-[state=inactive]:hidden">
-            <form class="space-y-5" @submit.prevent="onSubmit">
-              <div class="space-y-4">
-                <ui-form-field v-slot="{ componentField }" name="name" :validate-on-blur="!isFieldDirty">
-                  <ui-form-item>
-                    <ui-form-label>行程名稱</ui-form-label>
+          <ui-tabs-content value="info" force-mount class="p-5 data-[state=inactive]:hidden">
+            <div class="space-y-4">
+              <ui-form-field v-slot="{ componentField }" name="name" :validate-on-blur="!isFieldDirty">
+                <ui-form-item>
+                  <ui-form-label>行程名稱</ui-form-label>
+                  <ui-form-control>
+                    <ui-input type="text" placeholder="日本東京旅遊" :disabled="trip?.archived" v-bind="componentField" />
+                  </ui-form-control>
+                  <ui-form-message />
+                </ui-form-item>
+              </ui-form-field>
+
+              <ui-form-field v-slot="{ componentField }" name="tripCurrency" :validate-on-blur="!isFieldDirty">
+                <ui-form-item>
+                  <ui-form-label>消費幣別</ui-form-label>
+                  <ui-select v-bind="componentField" :disabled="trip?.archived">
                     <ui-form-control>
-                      <ui-input type="text" placeholder="日本東京旅遊" :disabled="trip?.archived" v-bind="componentField" />
+                      <ui-select-trigger class="w-full">
+                        <ui-select-value placeholder="選擇旅行當地的幣別" />
+                      </ui-select-trigger>
+                      <ui-form-message />
                     </ui-form-control>
-                    <ui-form-message />
-                  </ui-form-item>
-                </ui-form-field>
+                    <ui-select-content>
+                      <ui-select-group>
+                        <ui-select-item v-for="currency in supportedCurrencies" :key="currency.code" :value="currency.code">
+                          {{ `${currency.code} - ${currency.name}` }}
+                        </ui-select-item>
+                      </ui-select-group>
+                    </ui-select-content>
+                  </ui-select>
+                </ui-form-item>
+              </ui-form-field>
 
-                <ui-form-field v-slot="{ componentField }" name="tripCurrency" :validate-on-blur="!isFieldDirty">
-                  <ui-form-item>
-                    <ui-form-label>消費幣別</ui-form-label>
-                    <ui-select v-bind="componentField" :disabled="trip?.archived">
-                      <ui-form-control>
-                        <ui-select-trigger class="w-full">
-                          <ui-select-value placeholder="選擇旅行當地的幣別" />
-                        </ui-select-trigger>
-                        <ui-form-message />
-                      </ui-form-control>
-                      <ui-select-content>
-                        <ui-select-group>
-                          <ui-select-item v-for="currency in supportedCurrencies" :key="currency.code" :value="currency.code">
-                            {{ `${currency.code} - ${currency.name}` }}
-                          </ui-select-item>
-                        </ui-select-group>
-                      </ui-select-content>
-                    </ui-select>
-                  </ui-form-item>
-                </ui-form-field>
-
-                <ui-form-field v-if="values.tripCurrency !== CurrencyCode.TWD" v-slot="{ componentField }" name="exchangeRate" :validate-on-blur="!isFieldDirty">
-                  <ui-form-item>
-                    <ui-form-label>匯率換算</ui-form-label>
-                    <ui-form-control>
-                      <ui-input type="number" step=".00001" :placeholder="exchangeRateToTwd.toString()" :disabled="trip?.archived" v-bind="componentField" />
-                    </ui-form-control>
-                    <ui-form-description>
-                      1 {{ values.tripCurrency }} ≈ {{ exchangeRateToTwd }} TWD（已自動帶入參考匯率，可手動調整）
-                    </ui-form-description>
-                    <ui-form-message />
-                  </ui-form-item>
-                </ui-form-field>
-              </div>
-
-              <div v-if="!trip?.archived" class="flex gap-3">
-                <ui-button
-                  type="button"
-                  variant="outline"
-                  class="flex-1"
-                  @click="handleReset"
-                >
-                  <Icon name="lucide:rotate-ccw" :size="16" class="mr-2" />
-                  還原
-                </ui-button>
-                <ui-button
-                  type="submit"
-                  :disabled="isSubmitting"
-                  class="flex-1"
-                  variant="default"
-                >
-                  {{ isSubmitting ? '儲存中...' : '儲存變更' }}
-                </ui-button>
-              </div>
-            </form>
+              <ui-form-field v-if="values.tripCurrency !== CurrencyCode.TWD" v-slot="{ componentField }" name="exchangeRate" :validate-on-blur="!isFieldDirty">
+                <ui-form-item>
+                  <ui-form-label>匯率換算</ui-form-label>
+                  <ui-form-control>
+                    <ui-input type="number" step=".00001" :placeholder="exchangeRateToTwd.toString()" :disabled="trip?.archived" v-bind="componentField" />
+                  </ui-form-control>
+                  <ui-form-description>
+                    1 {{ values.tripCurrency }} ≈ {{ exchangeRateToTwd }} TWD（可手動調整）
+                  </ui-form-description>
+                  <ui-form-message />
+                </ui-form-item>
+              </ui-form-field>
+            </div>
           </ui-tabs-content>
 
           <!-- Tab: Members -->
-          <ui-tabs-content value="members" force-mount class="pt-4 pb-6 data-[state=inactive]:hidden">
+          <ui-tabs-content value="members" force-mount class="p-5 data-[state=inactive]:hidden">
             <edit-trip-members-form
               v-if="localMembers.length > 0 && !trip?.archived"
               :members="localMembers"
               :expenses="enabledExpenses"
               :on-members-change="onMembersChange"
             />
-
-            <div v-if="!trip?.archived" class="flex gap-3 mt-5">
-              <ui-button
-                type="button"
-                variant="outline"
-                class="flex-1"
-                @click="handleReset"
-              >
-                <Icon name="lucide:rotate-ccw" :size="16" class="mr-2" />
-                還原
-              </ui-button>
-              <ui-button
-                type="button"
-                :disabled="isSubmitting"
-                class="flex-1"
-                variant="default"
-                @click="onSubmit"
-              >
-                {{ isSubmitting ? '儲存中...' : '儲存變更' }}
-              </ui-button>
-            </div>
           </ui-tabs-content>
 
           <!-- Tab: Collaborators -->
-          <ui-tabs-content value="collaborators" class="pt-4 pb-6">
-            <div class="space-y-4">
-              <!-- Collaborators List -->
-              <div v-if="collaborators.length > 0" class="space-y-2">
+          <ui-tabs-content value="collaborators" class="p-5">
+            <div class="space-y-3">
+              <div v-if="collaborators.length > 0" class="divide-y divide-border">
                 <div
                   v-for="collaborator in collaborators"
                   :key="collaborator.userId"
-                  class="flex items-center gap-3 px-3 py-2.5 bg-gray-50 rounded-lg border border-gray-200"
+                  class="flex items-center gap-3 py-3 first:pt-0 last:pb-0"
                 >
-                  <!-- Avatar -->
-                  <div class="w-10 h-10 rounded-full overflow-hidden bg-gray-200 flex items-center justify-center shrink-0">
+                  <div class="w-10 h-10 rounded-full overflow-hidden bg-muted flex items-center justify-center shrink-0">
                     <img
                       v-if="collaborator.photoURL"
                       :src="collaborator.photoURL"
                       :alt="collaborator.displayName || ''"
                       class="w-full h-full object-cover"
                     >
-                    <Icon v-else name="lucide:user" class="w-5 h-5 text-gray-400" />
+                    <Icon v-else name="lucide:user" class="w-5 h-5 text-muted-foreground" />
                   </div>
 
-                  <!-- Info -->
                   <div class="flex-1 min-w-0">
-                    <p class="text-sm font-semibold text-gray-900 truncate m-0">
+                    <p class="text-sm font-semibold text-foreground truncate m-0">
                       {{ collaborator.displayName || '未知使用者' }}
                     </p>
-                    <p class="text-xs text-gray-500 truncate m-0">
+                    <p class="text-xs text-muted-foreground truncate m-0">
                       {{ collaborator.email }}
                     </p>
                   </div>
@@ -565,7 +544,6 @@ async function handleArchiveToggle() {
                 </div>
               </div>
 
-              <!-- Invite Button -->
               <ui-button
                 v-if="canInvite"
                 type="button"
@@ -578,36 +556,61 @@ async function handleArchiveToggle() {
               </ui-button>
             </div>
           </ui-tabs-content>
-        </ui-tabs>
-      </template>
-    </div>
 
-    <!-- Archive Section (owner only) -->
-    <div v-if="isOwner" class="p-6 bg-white rounded-lg shadow-xl">
-      <div class="flex items-center justify-between">
-        <div>
-          <h3 class="text-sm font-semibold text-gray-900 m-0 mb-1">
-            {{ trip?.archived ? '取消封存' : '封存行程' }}
-          </h3>
-          <p class="text-xs text-gray-500 m-0">
-            {{ trip?.archived
-              ? '取消封存後即可繼續編輯和新增支出'
-              : '封存後將無法新增支出或修改行程設定'
-            }}
-          </p>
-        </div>
-        <ui-button
-          type="button"
-          :variant="trip?.archived ? 'outline' : 'destructive'"
-          size="sm"
-          :disabled="isArchiving"
-          @click="handleArchiveClick"
-        >
-          <Icon :name="trip?.archived ? 'lucide:archive-restore' : 'lucide:archive'" :size="14" class="mr-1.5" />
-          {{ isArchiving ? '處理中...' : (trip?.archived ? '取消封存' : '封存') }}
-        </ui-button>
+          <!-- Tab: Settings -->
+          <ui-tabs-content value="settings" class="p-5">
+            <div class="space-y-4">
+              <div>
+                <p class="text-sm font-semibold text-foreground m-0">
+                  {{ trip?.archived ? '取消封存行程' : '封存行程' }}
+                </p>
+                <p class="text-xs text-muted-foreground m-0 mt-1">
+                  {{ trip?.archived
+                    ? '取消封存後即可繼續編輯和新增支出'
+                    : '封存後將無法新增支出或修改行程設定。現有支出仍可查看和編輯。'
+                  }}
+                </p>
+              </div>
+              <ui-button
+                type="button"
+                :variant="trip?.archived ? 'outline' : 'destructive'"
+                class="w-full"
+                :disabled="isArchiving"
+                @click="handleArchiveClick"
+              >
+                <Icon :name="trip?.archived ? 'lucide:archive-restore' : 'lucide:archive'" :size="16" class="mr-2" />
+                {{ isArchiving ? '處理中...' : (trip?.archived ? '取消封存' : '封存行程') }}
+              </ui-button>
+            </div>
+          </ui-tabs-content>
+        </ui-tabs>
       </div>
-    </div>
+
+      <!-- Save bar (only for info/members tabs) -->
+      <div v-if="!trip?.archived && (activeTab === 'info' || activeTab === 'members')" class="space-y-2">
+        <p v-if="hasUnsavedChanges" class="text-xs text-amber-600 dark:text-amber-400 m-0 text-center">
+          有尚未儲存的變更
+        </p>
+        <div class="flex gap-3">
+          <ui-button
+            type="button"
+            variant="outline"
+            class="flex-1"
+            :disabled="!hasUnsavedChanges"
+            @click="handleReset"
+          >
+            還原
+          </ui-button>
+          <ui-button
+            :disabled="isSubmitting || !hasUnsavedChanges"
+            class="flex-1"
+            @click="onSubmit"
+          >
+          {{ isSubmitting ? '儲存中...' : '儲存變更' }}
+        </ui-button>
+        </div>
+      </div>
+    </template>
   </div>
 
   <!-- Invite Collaborators Drawer -->
@@ -623,46 +626,30 @@ async function handleArchiveToggle() {
     <ui-drawer-content>
       <div class="mx-auto w-full max-w-md p-6">
         <div class="space-y-6">
-          <!-- Warning Icon -->
-          <div class="flex justify-center">
-            <div class="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center">
-              <Icon name="lucide:alert-triangle" class="w-8 h-8 text-red-600" />
-            </div>
-          </div>
-
-          <!-- Warning Title -->
           <div class="text-center space-y-2">
-            <h2 class="text-xl font-bold text-gray-900 m-0">
+            <h2 class="text-xl font-bold text-foreground m-0">
               確定要封存「{{ trip?.name }}」？
             </h2>
-            <p class="text-sm text-gray-600 m-0">
+            <p class="text-sm text-muted-foreground m-0">
               封存後會限制以下功能
             </p>
           </div>
 
-          <!-- Warning Content -->
-          <div class="space-y-3 bg-amber-50 border border-amber-200 rounded-lg p-4">
-            <div class="flex items-start gap-2">
-              <Icon name="lucide:x-circle" class="w-5 h-5 text-amber-600 mt-0.5 shrink-0" />
-              <p class="text-sm text-gray-700 m-0">
-                無法新增支出或修改行程設定
-              </p>
+          <div class="space-y-2 text-sm">
+            <div class="flex items-center gap-2 px-3 py-2 bg-destructive/10 rounded-lg">
+              <Icon name="lucide:x" :size="14" class="text-destructive shrink-0" />
+              <span class="text-foreground">無法新增支出或修改行程設定</span>
             </div>
-            <div class="flex items-start gap-2">
-              <Icon name="lucide:check-circle" class="w-5 h-5 text-green-600 mt-0.5 shrink-0" />
-              <p class="text-sm text-gray-700 m-0">
-                現有支出仍可查看和編輯
-              </p>
+            <div class="flex items-center gap-2 px-3 py-2 bg-muted rounded-lg">
+              <Icon name="lucide:check" :size="14" class="text-green-600 dark:text-green-400 shrink-0" />
+              <span class="text-foreground">現有支出仍可查看和編輯</span>
             </div>
-            <div class="flex items-start gap-2">
-              <Icon name="lucide:info" class="w-5 h-5 text-blue-600 mt-0.5 shrink-0" />
-              <p class="text-sm text-gray-700 m-0">
-                隨時可以取消封存
-              </p>
+            <div class="flex items-center gap-2 px-3 py-2 bg-muted rounded-lg">
+              <Icon name="lucide:rotate-ccw" :size="14" class="text-muted-foreground shrink-0" />
+              <span class="text-foreground">隨時可以取消封存</span>
             </div>
           </div>
 
-          <!-- Action Buttons -->
           <div class="flex gap-3">
             <ui-button
               type="button"

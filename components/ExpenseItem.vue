@@ -32,7 +32,7 @@ const usedHomeCurrency = computed(() =>
         <Icon v-if="!expense.enabled" name="lucide:eye-off" class="w-3.5 h-3.5 text-muted-foreground inline-block align-text-top ml-0.5" />
       </p>
       <p class="text-xs text-muted-foreground m-0 mt-0.5">
-        {{ expense.paidAtObject.month }}/{{ expense.paidAtObject.day }}
+        {{ expense.paidAtObject.month }}/{{ expense.paidAtObject.day }} {{ expense.paidAtObject.hour }}:{{ expense.paidAtObject.minute }}
         <span class="mx-1">·</span>
         {{ sharedMembers.length }}人分攤
       </p>
