@@ -14,7 +14,19 @@
       "WebFetch(domain:vuefire.vuejs.org)",
       "WebFetch(domain:raw.githubusercontent.com)",
       "Bash(npx eslint:*)",
-      "Bash(npm install:*)"
+      "Bash(npm install:*)",
+      "Bash(sleep 3 && curl -s -X POST http://localhost:3000/api/admin/migrate-collaborator-ids 2>&1)",
+      "Bash(curl -s -X POST http://localhost:3000/api/admin/migrate-collaborator-ids 2>&1)",
+      "Bash(cd C:/Users/Steven/Workspace/payback && npx firebase-tools deploy --only firestore:rules 2>&1)",
+      "Bash(find:*)",
+      "Bash(grep:*)",
+      "Bash(git status:*)",
+      "Bash(npx:*)",
+      "Bash(pkill:*)",
+      "Bash(netstat:*)",
+      "Bash(taskkill:*)",
+      "Bash(cd:*)",
+      "Bash(git push:*)"
     ]
   }
 }

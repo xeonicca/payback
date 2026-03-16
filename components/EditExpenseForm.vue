@@ -206,7 +206,7 @@ function updateItemSharing(index: number, memberIds: string[]) {
         </ui-alert-dialog-title>
       </div>
 
-      <div class="overflow-y-auto flex-1 px-6 py-4 space-y-4">
+      <div class="overflow-y-auto flex-1 min-h-0 px-6 py-4 space-y-4">
         <!-- Basic Expense Info -->
         <ui-form-field v-slot="{ componentField }" name="description" :validate-on-blur="!isFieldDirty">
           <ui-form-item>
@@ -492,7 +492,7 @@ function updateItemSharing(index: number, memberIds: string[]) {
           </ui-drawer-title>
         </ui-drawer-header>
 
-        <div class="overflow-y-auto flex-1 px-4 py-4 space-y-4">
+        <div class="overflow-y-auto flex-1 min-h-0 px-4 py-4 space-y-4">
           <!-- form body duplicated for mobile container -->
           <ui-form-field v-slot="{ componentField }" name="description" :validate-on-blur="!isFieldDirty">
             <ui-form-item>

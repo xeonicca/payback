@@ -82,6 +82,19 @@ const paidAtDate = computed({
   set: val => val,
 })
 
+const allMembersSelected = computed(() =>
+  values.sharedWithMemberIds?.length === props.tripMembers.length,
+)
+
+function toggleSelectAllMembers() {
+  if (allMembersSelected.value) {
+    setFieldValue('sharedWithMemberIds', [])
+  }
+  else {
+    setFieldValue('sharedWithMemberIds', props.tripMembers.map(m => m.id))
+  }
+}
+
 // Reset form when opened
 watch(open, (val) => {
   if (val) {
@@ -203,7 +216,7 @@ async function submitManual(formValues: { description?: string, grandTotal?: num
         </ui-alert-dialog-title>
       </div>
 
-      <div class="overflow-y-auto flex-1 px-6 py-4 space-y-4">
+      <div class="overflow-y-auto flex-1 min-h-0 px-6 py-4 space-y-4">
         <!-- shared form content -->
         <ui-tabs v-model="activeTab">
           <ui-tabs-list class="grid w-full grid-cols-2">
@@ -345,9 +358,14 @@ async function submitManual(formValues: { description?: string, grandTotal?: num
           <div class="flex-1 px-2">
             <ui-form-item>
               <ui-form-field name="sharedWithMemberIds">
-                <ui-form-label class="text-sm">
-                  選擇平分的成員
-                </ui-form-label>
+                <div class="flex items-center justify-between">
+                  <ui-form-label class="text-sm">
+                    選擇平分的成員
+                  </ui-form-label>
+                  <ui-button type="button" variant="link" size="sm" class="h-auto p-0 text-xs" @click="toggleSelectAllMembers">
+                    {{ allMembersSelected ? '取消全選' : '全選' }}
+                  </ui-button>
+                </div>
                 <ui-form-field
                   v-for="member in tripMembers"
                   v-slot="{ value, handleChange }"
@@ -407,7 +425,7 @@ async function submitManual(formValues: { description?: string, grandTotal?: num
           </ui-drawer-title>
         </ui-drawer-header>
 
-        <div class="overflow-y-auto flex-1 px-4 py-2 space-y-4">
+        <div class="overflow-y-auto flex-1 min-h-0 px-4 py-2 space-y-4">
           <!-- Tabs -->
           <ui-tabs v-model="activeTab">
             <ui-tabs-list class="grid w-full grid-cols-2">
@@ -549,9 +567,14 @@ async function submitManual(formValues: { description?: string, grandTotal?: num
             <div class="flex-1 px-2">
               <ui-form-item>
                 <ui-form-field name="sharedWithMemberIds">
-                  <ui-form-label class="text-sm">
-                    選擇平分的成員
-                  </ui-form-label>
+                  <div class="flex items-center justify-between">
+                    <ui-form-label class="text-sm">
+                      選擇平分的成員
+                    </ui-form-label>
+                    <ui-button type="button" variant="link" size="sm" class="h-auto p-0 text-xs" @click="toggleSelectAllMembers">
+                      {{ allMembersSelected ? '取消全選' : '全選' }}
+                    </ui-button>
+                  </div>
                   <ui-form-field
                     v-for="member in tripMembers"
                     v-slot="{ value, handleChange }"
@@ -572,9 +595,9 @@ async function submitManual(formValues: { description?: string, grandTotal?: num
                         <member-avatar :emoji="member.avatarEmoji" size="sm" />
                         <span class="text-sm truncate">{{ member.name }}</span>
                       </ui-form-label>
-                      <ui-form-message />
                     </ui-form-item>
                   </ui-form-field>
+                  <ui-form-message />
                 </ui-form-field>
               </ui-form-item>
             </div>
