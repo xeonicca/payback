@@ -5,12 +5,7 @@ import { useDocument, useFirestore } from 'vuefire'
 import { tripConverter } from '@/utils/converter'
 
 const route = useRoute()
-const router = useRouter()
 const db = useFirestore()
-
-const shouldShowBackButton = computed(() => {
-  return route.name !== 'trips-tripId' && !route.meta.hideLayoutBackButton
-})
 
 const tripId = computed(() => {
   return route.params.tripId as string | undefined
@@ -46,15 +41,6 @@ const trip = useDocument<Trip>(tripDocRef)
     </div>
 
     <main class="container mx-auto px-6 pb-30">
-      <ui-button
-        v-if="shouldShowBackButton"
-        class="text-gray-500 flex items-center gap-1 mb-2 px-0"
-        variant="link"
-        size="sm"
-        @click="router.back()"
-      >
-        <icon name="lucide:arrow-left" size="16" /> 上一頁
-      </ui-button>
       <slot />
     </main>
   </div>

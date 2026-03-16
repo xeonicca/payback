@@ -14,7 +14,6 @@ import { expenseConverter, tripConverter } from '@/utils/converter'
 definePageMeta({
   middleware: ['auth'],
   layout: 'default-with-bottom-bar',
-  hideLayoutBackButton: true,
 })
 
 const db = useFirestore()
