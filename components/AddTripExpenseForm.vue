@@ -283,7 +283,7 @@ onMounted(() => {
       </div>
     </div>
 
-    <ui-drawer-footer>
+    <ui-drawer-footer class="pb-safe">
       <ui-button type="submit" @click="onSubmit">
         Submit
       </ui-button>

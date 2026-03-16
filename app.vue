@@ -16,7 +16,7 @@ watch(() => $pwa?.needRefresh?.value, (val) => {
     <NuxtPwaManifest />
   </NuxtLayout>
 
-  <Toaster position="top-center" />
+  <Toaster position="top-center" style="top: env(safe-area-inset-top, 0px)" />
 
   <ui-alert-dialog v-model:open="showUpdateDialog">
     <ui-alert-dialog-content>

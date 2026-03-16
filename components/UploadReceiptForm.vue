@@ -159,7 +159,7 @@ const submit = handleSubmit(async (values) => {
       </ui-form-item>
     </ui-form-field>
   </div>
-  <ui-drawer-footer>
+  <ui-drawer-footer class="pb-safe">
     <ui-button
       :disabled="isUploading"
       @click="submit"

@@ -511,7 +511,7 @@ onMounted(() => {
       </div>
     </div>
 
-    <ui-drawer-footer>
+    <ui-drawer-footer class="pb-safe">
       <ui-button @click="onSubmit">
         儲存變更
       </ui-button>
