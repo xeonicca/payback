@@ -33,7 +33,7 @@ const trip = useDocument<Trip>(tripDocRef)
     <!-- Archived Trip Banner -->
     <div
       v-if="trip?.archived"
-      class="sticky top-0 z-40 bg-amber-600 text-white shadow-md"
+      class="sticky top-safe z-40 bg-amber-600 text-white shadow-md"
     >
       <div class="container mx-auto px-6 py-3">
         <div class="flex items-center justify-center gap-2">
