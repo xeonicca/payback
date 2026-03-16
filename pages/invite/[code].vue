@@ -12,6 +12,7 @@ const invitationCode = route.params.code as string
 
 const { invitation, isLoading } = useInvitation().getInvitationByCode(invitationCode)
 const { isUserLoggedIn, loginWithGoogle, checkRedirectResult } = useLogin()
+const sessionUser = useSessionUser()
 
 const isCheckingRedirect = ref(false)
 const isAccepting = ref(false)
@@ -80,6 +81,17 @@ async function loadMembers() {
     const result = await getInvitationMembers(invitationCode)
     members.value = result.members
     membersLoaded.value = true
+
+    // If current user is already a member, redirect to trip page
+    const currentUid = sessionUser.value?.uid
+    if (currentUid && invitation.value) {
+      const alreadyLinked = result.members.some(m => m.linkedUserId === currentUid)
+      if (alreadyLinked) {
+        toast.info('你已經是此行程的成員')
+        router.replace(`/trips/${invitation.value.tripId}`)
+        return
+      }
+    }
 
     if (availableEmojis.value.length > 0) {
       newMemberEmoji.value = availableEmojis.value[0]
