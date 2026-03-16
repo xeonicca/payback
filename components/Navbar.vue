@@ -21,6 +21,23 @@ const tripDocRef = computed(() => {
 })
 const trip = useDocument<Trip>(tripDocRef)
 
+const navRef = useTemplateRef('navRef')
+
+function updateNavHeight() {
+  if (navRef.value) {
+    document.documentElement.style.setProperty('--navbar-height', `${navRef.value.offsetHeight}px`)
+  }
+}
+
+onMounted(() => {
+  updateNavHeight()
+  window.addEventListener('resize', updateNavHeight)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('resize', updateNavHeight)
+})
+
 async function handleLogout() {
   try {
     await logout()
@@ -36,7 +53,8 @@ async function handleLogout() {
 
 <template>
   <nav
-    class="border-0
+    ref="navRef"
+    class="sticky top-0 z-20 border-0
       bg-gradient-to-b
       scroll-mt-0
       from-slate-700

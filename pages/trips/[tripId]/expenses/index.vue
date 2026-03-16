@@ -95,7 +95,7 @@ const displayedExpenses = computed(() => {
 
 <template>
   <!-- Sticky Header -->
-  <div class="sticky top-safe z-10 bg-slate-200 dark:bg-background -mx-6 px-6 pb-3 space-y-2">
+  <div class="sticky z-10 bg-slate-200 dark:bg-background -mx-6 px-6 pb-3 space-y-2" style="top: var(--navbar-height, 0px)">
     <!-- Search -->
     <div class="flex items-center gap-2">
       <div class="relative flex-1">
