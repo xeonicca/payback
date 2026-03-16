@@ -7,7 +7,7 @@ const { tripMembers, hostMember, currentUserMember } = useTripMembers(props.trip
 const { trip } = useTrip(props.tripId)
 const { canManageExpenses } = useTripCollaborators(props.tripId)
 
-const openUploadReceiptDrawer = ref(false)
+const openExpenseDrawer = ref(false)
 </script>
 
 <template>
@@ -25,7 +25,7 @@ const openUploadReceiptDrawer = ref(false)
           'bg-gray-400 cursor-not-allowed': trip?.archived || !canManageExpenses,
         }"
         class="flex items-center justify-center w-14 h-14 rounded-full shadow-lg -mt-8"
-        @click="!trip?.archived && canManageExpenses && (openUploadReceiptDrawer = true)"
+        @click="!trip?.archived && canManageExpenses && (openExpenseDrawer = true)"
       >
         <icon v-if="trip?.archived" name="lucide:archive" size="24" class="text-white" />
         <icon v-else-if="!canManageExpenses" name="lucide:lock" size="24" class="text-white" />
@@ -43,16 +43,11 @@ const openUploadReceiptDrawer = ref(false)
     <div class="fixed bottom-0 left-0 right-0 h-24 pointer-events-none bg-gradient-to-t from-slate-400 to-transparent" />
   </div>
 
-  <ui-drawer v-if="trip" v-model:open="openUploadReceiptDrawer">
-    <ui-drawer-content>
-      <div class="mx-auto w-full max-w-sm">
-        <upload-receipt-form
-          :trip="trip"
-          :trip-members="tripMembers"
-          :default-payer-member="currentUserMember || hostMember"
-          @close="openUploadReceiptDrawer = false"
-        />
-      </div>
-    </ui-drawer-content>
-  </ui-drawer>
+  <add-expense-drawer
+    v-if="trip"
+    v-model:open="openExpenseDrawer"
+    :trip="trip"
+    :trip-members="tripMembers"
+    :default-payer-member="currentUserMember || hostMember"
+  />
 </template>

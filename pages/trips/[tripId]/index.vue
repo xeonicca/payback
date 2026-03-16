@@ -372,17 +372,12 @@ function formatConverted(amount: number) {
       </div>
     </section>
 
-    <ui-drawer v-model:open="openAddExpenseDrawer">
-      <ui-drawer-content>
-        <div class="mx-auto w-full max-w-sm">
-          <add-trip-expense-form
-            :trip="trip"
-            :trip-members="tripMembers"
-            :default-payer-member="currentUserMember || hostMember"
-            @close="openAddExpenseDrawer = false"
-          />
-        </div>
-      </ui-drawer-content>
-    </ui-drawer>
+    <add-expense-drawer
+      v-model:open="openAddExpenseDrawer"
+      :trip="trip"
+      :trip-members="tripMembers"
+      :default-payer-member="currentUserMember || hostMember"
+      default-tab="manual"
+    />
   </template>
 </template>
