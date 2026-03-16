@@ -92,7 +92,7 @@ const submit = handleSubmit(async (values) => {
       <Icon name="lucide:zap" class="w-4 h-4" /> 快速建立支出
     </ui-drawer-title>
   </ui-drawer-header>
-  <div class="space-y-4 px-4 py-4">
+  <div class="overflow-y-auto flex-1 space-y-4 px-4 py-4">
     <div class="grid w-full max-w-sm items-center gap-1.5">
       <ui-label for="picture">
         上傳收據（僅支援圖片格式）
@@ -106,42 +106,44 @@ const submit = handleSubmit(async (values) => {
     </div>
     <ui-separator />
     <ui-form-field name="sharedWithMemberIds">
-      <ui-form-item class="mb-4">
+      <ui-form-item class="mb-2">
         <ui-form-label class="text-sm">
           選擇平分的成員
         </ui-form-label>
       </ui-form-item>
-      <ui-form-field
-        v-for="member in tripMembers"
-        v-slot="{ value, handleChange }"
-        :key="member.id"
-        name="sharedWithMemberIds"
-        type="checkbox"
-        :value="member.id"
-        :unchecked-value="false"
-      >
-        <ui-form-item class="flex flex-row items-center space-x-2 space-y-0">
-          <ui-form-control>
-            <ui-checkbox
-              :model-value="value.includes(member.id)"
-              @update:model-value="handleChange"
-            />
-          </ui-form-control>
-          <ui-form-label class="font-normal flex items-center gap-1">
-            <member-avatar :emoji="member.avatarEmoji" size="sm" />
-            <span class="text-sm">{{ member.name }}</span>
-          </ui-form-label>
-          <ui-form-message />
-        </ui-form-item>
-      </ui-form-field>
+      <div class="grid grid-cols-2 gap-2">
+        <ui-form-field
+          v-for="member in tripMembers"
+          v-slot="{ value, handleChange }"
+          :key="member.id"
+          name="sharedWithMemberIds"
+          type="checkbox"
+          :value="member.id"
+          :unchecked-value="false"
+        >
+          <ui-form-item class="flex flex-row items-center space-x-2 space-y-0">
+            <ui-form-control>
+              <ui-checkbox
+                :model-value="value.includes(member.id)"
+                @update:model-value="handleChange"
+              />
+            </ui-form-control>
+            <ui-form-label class="font-normal flex items-center gap-1">
+              <member-avatar :emoji="member.avatarEmoji" size="sm" />
+              <span class="text-sm truncate">{{ member.name }}</span>
+            </ui-form-label>
+            <ui-form-message />
+          </ui-form-item>
+        </ui-form-field>
+      </div>
     </ui-form-field>
     <ui-separator />
     <ui-form-field v-slot="{ componentField }" type="radio" name="paidByMemberId">
-      <ui-form-item class="space-y-3">
+      <ui-form-item class="space-y-2">
         <ui-form-label>選擇付款人</ui-form-label>
         <ui-form-control>
           <ui-radio-group
-            class="flex flex-col space-y-1"
+            class="grid grid-cols-2 gap-2"
             v-bind="componentField"
           >
             <ui-form-item v-for="member in tripMembers" :key="member.id" class="flex items-center space-y-0 gap-x-3">
@@ -150,7 +152,7 @@ const submit = handleSubmit(async (values) => {
               </ui-form-control>
               <ui-form-label class="font-normal flex items-center gap-1">
                 <member-avatar :emoji="member.avatarEmoji" size="sm" />
-                <span class="text-sm">{{ member.name }}</span>
+                <span class="text-sm truncate">{{ member.name }}</span>
               </ui-form-label>
             </ui-form-item>
           </ui-radio-group>
