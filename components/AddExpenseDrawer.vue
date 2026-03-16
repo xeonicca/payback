@@ -196,7 +196,7 @@ async function submitManual(formValues: { description?: string, grandTotal?: num
 <template>
   <!-- Desktop: Dialog -->
   <ui-alert-dialog v-if="isDesktop" v-model:open="open">
-    <ui-alert-dialog-content class="max-w-lg max-h-[85vh] flex flex-col p-0 gap-0">
+    <ui-alert-dialog-content class="max-w-lg max-h-[85dvh] flex flex-col p-0 gap-0">
       <div class="px-6 pt-6 pb-4 border-b">
         <ui-alert-dialog-title class="text-lg font-bold text-primary">
           新增支出
@@ -400,7 +400,7 @@ async function submitManual(formValues: { description?: string, grandTotal?: num
   <!-- Mobile/Tablet: Drawer -->
   <ui-drawer v-else v-model:open="open">
     <ui-drawer-content>
-      <div class="mx-auto w-full max-w-sm flex flex-col max-h-[85vh]">
+      <div class="mx-auto w-full max-w-sm flex flex-col max-h-[85dvh]">
         <ui-drawer-header>
           <ui-drawer-title class="text-primary font-bold">
             新增支出

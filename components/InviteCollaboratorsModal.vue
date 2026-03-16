@@ -276,7 +276,7 @@ const usedInvitations = computed(() =>
     <!-- Mobile: bottom drawer -->
     <ui-drawer v-else :open="open" @update:open="emit('update:open', $event)">
       <ui-drawer-content>
-        <div class="mx-auto w-full max-w-2xl p-6 max-h-[90vh] overflow-y-auto">
+        <div class="mx-auto w-full max-w-2xl p-6 max-h-[85dvh] overflow-y-auto">
           <div class="space-y-6">
             <div class="flex items-center justify-between">
               <div>
