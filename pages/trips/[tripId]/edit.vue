@@ -16,7 +16,7 @@ import {
   FormLabel as UiFormLabel,
   FormMessage as UiFormMessage,
 } from '@/components/ui/form'
-import { CurrencyCode, animalEmojis, supportedCurrencies } from '@/constants'
+import { animalEmojis, CurrencyCode, supportedCurrencies } from '@/constants'
 
 definePageMeta({
   middleware: ['auth'],
@@ -83,7 +83,8 @@ const originalMembers = ref<TripMember[]>([])
 
 // Track unsaved changes
 const hasUnsavedChanges = computed(() => {
-  if (!originalTripData.value) return false
+  if (!originalTripData.value)
+    return false
 
   const tripChanged = values.name !== originalTripData.value.name
     || values.tripCurrency !== originalTripData.value.tripCurrency
@@ -606,15 +607,15 @@ async function handleArchiveToggle() {
             class="flex-1"
             @click="onSubmit"
           >
-          {{ isSubmitting ? '儲存中...' : '儲存變更' }}
-        </ui-button>
+            {{ isSubmitting ? '儲存中...' : '儲存變更' }}
+          </ui-button>
         </div>
       </div>
     </template>
   </div>
 
   <!-- Invite Collaborators Drawer -->
-  <invite-collaborators-drawer
+  <invite-collaborators-modal
     v-if="trip"
     :trip-id="tripId"
     :open="showInviteDrawer"

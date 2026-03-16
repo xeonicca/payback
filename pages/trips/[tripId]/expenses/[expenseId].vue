@@ -263,7 +263,7 @@ async function reanalyzeReceipt() {
       >
         <Icon name="lucide:arrow-left" :size="16" /> 上一頁
       </ui-button>
-      <div v-if="canManageExpenses" class="flex items-center gap-2">
+      <div v-if="canManageExpenses && !trip?.archived" class="flex items-center gap-2">
         <ui-label for="enabled" class="text-xs text-muted-foreground">
           {{ expense?.enabled ? '顯示中' : '已隱藏' }}
         </ui-label>
@@ -310,7 +310,9 @@ async function reanalyzeReceipt() {
       </p>
     </div>
 
-    <div class="space-y-4">
+    <!-- Desktop: two-column / Mobile: single column -->
+    <div class="lg:grid lg:grid-cols-2 lg:gap-6 space-y-4 lg:space-y-0">
+      <!-- Left: Payer + member split breakdown -->
       <div class="bg-card rounded-xl border p-4 space-y-4">
         <div class="flex items-center justify-between">
           <div class="text-sm text-muted-foreground">
@@ -383,9 +385,11 @@ async function reanalyzeReceipt() {
             </ui-accordion-item>
           </ui-accordion>
         </div>
+      </div>
 
-        <ui-separator />
-        <template v-if="expense?.items?.length">
+      <!-- Right: Item details + receipt -->
+      <div class="space-y-4">
+        <div v-if="expense?.items?.length" class="bg-card rounded-xl border p-4 space-y-4">
           <div class="text-sm text-muted-foreground">
             購買明細
           </div>
@@ -403,57 +407,48 @@ async function reanalyzeReceipt() {
               :shared-by-member-ids="item.sharedByMemberIds"
             />
           </div>
-        </template>
+        </div>
 
-        <template v-if="receiptImageUrl">
-          <ui-separator />
-          <div class="space-y-2">
-            <div class="flex items-center justify-between">
-              <div class="text-sm text-muted-foreground">
-                收據圖片
-              </div>
-              <ui-button
-                v-if="canManageExpenses && !expense?.isProcessing"
-                variant="outline"
-                size="sm"
-                :disabled="isReanalyzing"
-                class="flex items-center gap-2"
-                @click="reanalyzeReceipt"
-              >
-                <Icon
-                  :name="isReanalyzing ? 'lucide:loader-2' : 'lucide:refresh-cw'"
-                  :size="14"
-                  :class="{ 'animate-spin': isReanalyzing }"
-                />
-                {{ isReanalyzing ? '分析中...' : '重新分析收據' }}
-              </ui-button>
-              <div v-else-if="expense?.isProcessing" class="flex items-center gap-2 text-sm text-amber-600">
-                <Icon name="lucide:loader-2" :size="14" class="animate-spin" />
-                處理中...
-              </div>
+        <div v-if="receiptImageUrl" class="bg-card rounded-xl border p-4 space-y-2">
+          <div class="flex items-center justify-between">
+            <div class="text-sm text-muted-foreground">
+              收據圖片
             </div>
-            <div class="grid gap-2">
-              <img :src="receiptImageUrl" alt="收據圖片" loading="lazy" class="w-full max-h-96 object-contain rounded-lg">
+            <ui-button
+              v-if="canManageExpenses && !expense?.isProcessing"
+              variant="outline"
+              size="sm"
+              :disabled="isReanalyzing"
+              class="flex items-center gap-2"
+              @click="reanalyzeReceipt"
+            >
+              <Icon
+                :name="isReanalyzing ? 'lucide:loader-2' : 'lucide:refresh-cw'"
+                :size="14"
+                :class="{ 'animate-spin': isReanalyzing }"
+              />
+              {{ isReanalyzing ? '分析中...' : '重新分析收據' }}
+            </ui-button>
+            <div v-else-if="expense?.isProcessing" class="flex items-center gap-2 text-sm text-amber-600">
+              <Icon name="lucide:loader-2" :size="14" class="animate-spin" />
+              處理中...
             </div>
           </div>
-        </template>
+          <img :src="receiptImageUrl" alt="收據圖片" loading="lazy" class="w-full max-h-96 object-contain rounded-lg">
+        </div>
       </div>
     </div>
 
     <!-- Edit Expense Dialog -->
-    <ui-drawer v-if="canManageExpenses" v-model:open="showEditDialog">
-      <ui-drawer-content>
-        <div class="mx-auto w-full max-w-sm">
-          <edit-expense-form
-            v-if="expense && trip"
-            :expense="expense"
-            :trip="trip"
-            :trip-members="tripMembers"
-            @close="showEditDialog = false"
-          />
-        </div>
-      </ui-drawer-content>
-    </ui-drawer>
+    <ClientOnly>
+      <edit-expense-form
+        v-if="canManageExpenses && expense && trip"
+        v-model:open="showEditDialog"
+        :expense="expense"
+        :trip="trip"
+        :trip-members="tripMembers"
+      />
+    </ClientOnly>
 
     <!-- Delete Expense Confirmation Dialog -->
     <ui-alert-dialog v-if="canManageExpenses" v-model:open="showDeleteDialog">

@@ -34,8 +34,22 @@ const usedHomeCurrency = computed(() =>
       <p class="text-xs text-muted-foreground m-0 mt-0.5">
         {{ expense.paidAtObject.month }}/{{ expense.paidAtObject.day }} {{ expense.paidAtObject.hour }}:{{ expense.paidAtObject.minute }}
         <span class="mx-1">·</span>
+        <span v-if="paidByMember" class="hidden lg:inline">{{ paidByMember.name }} 付款 · </span>
         {{ sharedMembers.length }}人分攤
       </p>
+    </div>
+
+    <!-- Shared member avatars — desktop only -->
+    <div class="hidden lg:flex items-center gap-0.5 shrink-0">
+      <member-avatar
+        v-for="member in sharedMembers.slice(0, 4)"
+        :key="member.id"
+        :emoji="member.avatarEmoji"
+        size="sm"
+      />
+      <span v-if="sharedMembers.length > 4" class="text-xs text-muted-foreground ml-1">
+        +{{ sharedMembers.length - 4 }}
+      </span>
     </div>
 
     <!-- Amount (primary info — right-aligned, prominent) -->

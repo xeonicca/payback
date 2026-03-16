@@ -1,22 +1,9 @@
 <script setup lang="ts">
-import type { Trip } from '@/types'
-import { doc } from 'firebase/firestore'
-import { useDocument, useFirestore } from 'vuefire'
-import { tripConverter } from '@/utils/converter'
-
 const route = useRoute()
-const db = useFirestore()
 
 const tripId = computed(() => {
   return route.params.tripId as string | undefined
 })
-
-// Fetch trip to check archived status
-const tripDocRef = computed(() => {
-  return tripId.value ? doc(db, 'trips', tripId.value).withConverter(tripConverter) : null
-})
-
-const trip = useDocument<Trip>(tripDocRef)
 </script>
 
 <template>
@@ -25,25 +12,12 @@ const trip = useDocument<Trip>(tripDocRef)
       <navbar />
     </keep-alive>
 
-    <!-- Archived Trip Banner -->
-    <div
-      v-if="trip?.archived"
-      class="sticky z-40 bg-amber-600 text-white shadow-md" style="top: var(--navbar-height, 0px)"
-    >
-      <div class="container mx-auto px-6 py-3">
-        <div class="flex items-center justify-center gap-2">
-          <Icon name="lucide:archive" class="w-4 h-4" />
-          <p class="text-sm font-medium m-0">
-            此行程已封存 - 無法新增支出或編輯行程資訊
-          </p>
-        </div>
-      </div>
-    </div>
-
-    <main class="container mx-auto px-6 pb-30">
+    <main class="container mx-auto px-6 pb-30 lg:pb-20">
       <slot />
     </main>
   </div>
   <back-to-top-button />
-  <trip-bottom-bar v-if="tripId" :trip-id="tripId as string" />
+  <ClientOnly>
+    <trip-bottom-bar v-if="tripId" :trip-id="tripId as string" />
+  </ClientOnly>
 </template>
