@@ -107,8 +107,12 @@ function formatConverted(amount: number) {
   <template v-else>
     <!-- Page Header -->
     <div class="pb-2">
-      <h1 class="text-xl font-bold text-foreground">
+      <h1 class="text-xl font-bold text-foreground flex items-center gap-2">
         {{ trip.name }}
+        <ui-badge v-if="trip.archived" variant="secondary" class="text-xs font-normal">
+          <Icon name="lucide:archive" :size="12" class="mr-1" />
+          已封存
+        </ui-badge>
       </h1>
       <p class="text-sm text-muted-foreground">
         {{ trip.expenseCount }} 筆支出 · {{ tripMembers.length }} 位成員
