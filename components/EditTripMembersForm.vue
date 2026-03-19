@@ -104,7 +104,7 @@ function memberHasDebtRelations(memberId: string): boolean {
 
 function handleRemoveMemberFromList(member: TripMember) {
   if (member.isHost) {
-    toast.error('無法移除主辦人')
+    toast.error('無法移除建立者')
     return
   }
 
@@ -143,7 +143,7 @@ function selectAvatar(emoji: string) {
         </div>
         <ui-badge variant="default" class="text-xs shrink-0">
           <Icon name="lucide:crown" :size="12" class="mr-1" />
-          主辦人
+          建立者
         </ui-badge>
       </div>
 

@@ -11,9 +11,18 @@ const router = useRouter()
 const invitationCode = route.params.code as string
 
 const { invitation, isLoading } = useInvitation().getInvitationByCode(invitationCode)
-const { isUserLoggedIn, loginWithGoogle } = useLogin()
+const { isUserLoggedIn, loginWithGoogle, checkRedirectResult } = useLogin()
+const sessionUser = useSessionUser()
 
+const isCheckingRedirect = ref(false)
 const isAccepting = ref(false)
+
+// Complete Google redirect login flow when returning to this page
+onMounted(async () => {
+  isCheckingRedirect.value = true
+  await checkRedirectResult()
+  isCheckingRedirect.value = false
+})
 const isExpired = computed(() => {
   if (!invitation.value)
     return false
@@ -73,6 +82,17 @@ async function loadMembers() {
     members.value = result.members
     membersLoaded.value = true
 
+    // If current user is already a member, redirect to trip page
+    const currentUid = sessionUser.value?.uid
+    if (currentUid && invitation.value) {
+      const alreadyLinked = result.members.some(m => m.linkedUserId === currentUid)
+      if (alreadyLinked) {
+        toast.info('你已經是此行程的成員')
+        router.replace(`/trips/${invitation.value.tripId}`)
+        return
+      }
+    }
+
     if (availableEmojis.value.length > 0) {
       newMemberEmoji.value = availableEmojis.value[0]
     }
@@ -131,7 +151,7 @@ async function handleLogin() {
   <div class="min-h-svh bg-slate-200 flex items-center justify-center p-6">
     <div class="w-full max-w-md">
       <!-- Loading State -->
-      <div v-if="isLoading" class="bg-white rounded-2xl shadow-lg border border-gray-100 p-10">
+      <div v-if="isLoading || isCheckingRedirect" class="bg-white rounded-2xl shadow-lg border border-gray-100 p-10">
         <div class="flex flex-col items-center justify-center space-y-4">
           <loading-spinner size="lg" />
           <p class="text-sm text-muted-foreground m-0">
@@ -194,7 +214,7 @@ async function handleLogin() {
               邀請已取消
             </h1>
             <p class="text-sm text-muted-foreground m-0 leading-relaxed">
-              此邀請已被主辦人撤銷，請聯絡主辦人了解詳情
+              此邀請已被建立者撤銷，請聯絡建立者了解詳情
             </p>
           </div>
           <ui-button variant="link" size="sm" @click="router.push('/')">

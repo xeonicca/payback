@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { TripMember } from '@/types'
 import { toTypedSchema } from '@vee-validate/zod'
+import { useMediaQuery } from '@vueuse/core'
 import { addDoc, collection, deleteDoc, doc, updateDoc } from 'firebase/firestore'
 import { useForm } from 'vee-validate'
 import { computed, ref, watch } from 'vue'
@@ -16,7 +17,7 @@ import {
   FormLabel as UiFormLabel,
   FormMessage as UiFormMessage,
 } from '@/components/ui/form'
-import { CurrencyCode, animalEmojis, supportedCurrencies } from '@/constants'
+import { animalEmojis, CurrencyCode, supportedCurrencies } from '@/constants'
 
 definePageMeta({
   middleware: ['auth'],
@@ -70,7 +71,9 @@ const isSubmitting = ref(false)
 const activeTab = ref('info')
 const isArchiving = ref(false)
 const showArchiveWarning = ref(false)
+const showUnarchiveWarning = ref(false)
 const showInviteDrawer = ref(false)
+const isDesktop = useMediaQuery('(min-width: 1024px)')
 
 // Track members locally for add/remove operations
 const localMembers = ref<TripMember[]>([])
@@ -83,7 +86,8 @@ const originalMembers = ref<TripMember[]>([])
 
 // Track unsaved changes
 const hasUnsavedChanges = computed(() => {
-  if (!originalTripData.value) return false
+  if (!originalTripData.value)
+    return false
 
   const tripChanged = values.name !== originalTripData.value.name
     || values.tripCurrency !== originalTripData.value.tripCurrency
@@ -298,7 +302,7 @@ function handleArchiveClick() {
     return
 
   if (trip.value.archived) {
-    handleArchiveToggle()
+    showUnarchiveWarning.value = true
   }
   else {
     showArchiveWarning.value = true
@@ -321,6 +325,7 @@ async function handleArchiveToggle() {
 
     toast.success(newArchivedState ? '行程已封存' : '已取消封存')
     showArchiveWarning.value = false
+    showUnarchiveWarning.value = false
   }
   catch (error) {
     console.error('Error toggling archive:', error)
@@ -436,7 +441,7 @@ async function handleArchiveToggle() {
             <ui-tabs-trigger value="info" class="flex-1">
               行程資訊
             </ui-tabs-trigger>
-            <ui-tabs-trigger value="members" class="flex-1" :disabled="!!trip?.archived">
+            <ui-tabs-trigger value="members" class="flex-1">
               成員
             </ui-tabs-trigger>
             <ui-tabs-trigger value="collaborators" class="flex-1">
@@ -504,6 +509,27 @@ async function handleArchiveToggle() {
               :expenses="enabledExpenses"
               :on-members-change="onMembersChange"
             />
+
+            <!-- Read-only member list for archived trips -->
+            <div v-else-if="trip?.archived && localMembers.length > 0" class="space-y-2">
+              <div
+                v-for="member in localMembers"
+                :key="member.id"
+                class="flex items-center gap-3 py-2.5"
+              >
+                <div class="w-10 h-10 flex items-center justify-center bg-muted rounded-full text-xl shrink-0">
+                  {{ member.avatarEmoji }}
+                </div>
+                <div class="flex-1 min-w-0">
+                  <p class="text-sm font-semibold text-foreground truncate m-0">
+                    {{ member.name }}
+                  </p>
+                </div>
+                <ui-badge v-if="member.isHost" variant="default" class="text-xs shrink-0">
+                  建立者
+                </ui-badge>
+              </div>
+            </div>
           </ui-tabs-content>
 
           <!-- Tab: Collaborators -->
@@ -536,7 +562,7 @@ async function handleArchiveToggle() {
 
                   <ui-badge v-if="collaborator.role === 'owner'" variant="default" class="text-xs shrink-0">
                     <Icon name="lucide:crown" :size="12" class="mr-1" />
-                    主辦人
+                    建立者
                   </ui-badge>
                   <ui-badge v-else variant="secondary" class="text-xs shrink-0">
                     編輯者
@@ -549,10 +575,11 @@ async function handleArchiveToggle() {
                 type="button"
                 class="w-full"
                 variant="outline"
+                :disabled="!!trip?.archived"
                 @click="showInviteDrawer = true"
               >
                 <Icon name="lucide:user-plus" :size="16" class="mr-2" />
-                邀請協作者
+                {{ trip?.archived ? '行程已封存，無法邀請' : '邀請協作者' }}
               </ui-button>
             </div>
           </ui-tabs-content>
@@ -606,72 +633,162 @@ async function handleArchiveToggle() {
             class="flex-1"
             @click="onSubmit"
           >
-          {{ isSubmitting ? '儲存中...' : '儲存變更' }}
-        </ui-button>
+            {{ isSubmitting ? '儲存中...' : '儲存變更' }}
+          </ui-button>
         </div>
       </div>
     </template>
   </div>
 
   <!-- Invite Collaborators Drawer -->
-  <invite-collaborators-drawer
+  <invite-collaborators-modal
     v-if="trip"
     :trip-id="tripId"
     :open="showInviteDrawer"
     @update:open="showInviteDrawer = $event"
   />
 
-  <!-- Archive Warning Drawer -->
-  <ui-drawer v-model:open="showArchiveWarning">
-    <ui-drawer-content>
-      <div class="mx-auto w-full max-w-md p-6">
-        <div class="space-y-6">
-          <div class="text-center space-y-2">
-            <h2 class="text-xl font-bold text-foreground m-0">
-              確定要封存「{{ trip?.name }}」？
-            </h2>
-            <p class="text-sm text-muted-foreground m-0">
-              封存後會限制以下功能
-            </p>
-          </div>
+  <!-- Archive Warning — Dialog on desktop, Drawer on mobile -->
+  <ClientOnly>
+    <ui-dialog v-if="isDesktop" :open="showArchiveWarning" @update:open="showArchiveWarning = $event">
+      <ui-dialog-content v-if="showArchiveWarning" class="max-w-md" :show-close-button="false">
+        <ui-dialog-header>
+          <ui-dialog-title>確定要封存「{{ trip?.name }}」？</ui-dialog-title>
+          <ui-dialog-description>封存後會限制以下功能</ui-dialog-description>
+        </ui-dialog-header>
 
-          <div class="space-y-2 text-sm">
-            <div class="flex items-center gap-2 px-3 py-2 bg-destructive/10 rounded-lg">
-              <Icon name="lucide:x" :size="14" class="text-destructive shrink-0" />
-              <span class="text-foreground">無法新增支出或修改行程設定</span>
-            </div>
-            <div class="flex items-center gap-2 px-3 py-2 bg-muted rounded-lg">
-              <Icon name="lucide:check" :size="14" class="text-green-600 dark:text-green-400 shrink-0" />
-              <span class="text-foreground">現有支出仍可查看和編輯</span>
-            </div>
-            <div class="flex items-center gap-2 px-3 py-2 bg-muted rounded-lg">
-              <Icon name="lucide:rotate-ccw" :size="14" class="text-muted-foreground shrink-0" />
-              <span class="text-foreground">隨時可以取消封存</span>
-            </div>
+        <div class="space-y-2 text-sm">
+          <div class="flex items-center gap-2 px-3 py-2 bg-destructive/10 rounded-lg">
+            <Icon name="lucide:x" :size="14" class="text-destructive shrink-0" />
+            <span class="text-foreground">無法新增支出或修改行程設定</span>
           </div>
-
-          <div class="flex gap-3">
-            <ui-button
-              type="button"
-              variant="outline"
-              class="flex-1"
-              :disabled="isArchiving"
-              @click="showArchiveWarning = false"
-            >
-              取消
-            </ui-button>
-            <ui-button
-              type="button"
-              variant="destructive"
-              class="flex-1"
-              :disabled="isArchiving"
-              @click="handleArchiveToggle"
-            >
-              {{ isArchiving ? '處理中...' : '確定封存' }}
-            </ui-button>
+          <div class="flex items-center gap-2 px-3 py-2 bg-muted rounded-lg">
+            <Icon name="lucide:check" :size="14" class="text-green-600 dark:text-green-400 shrink-0" />
+            <span class="text-foreground">現有支出仍可查看和編輯</span>
+          </div>
+          <div class="flex items-center gap-2 px-3 py-2 bg-muted rounded-lg">
+            <Icon name="lucide:rotate-ccw" :size="14" class="text-muted-foreground shrink-0" />
+            <span class="text-foreground">隨時可以取消封存</span>
           </div>
         </div>
-      </div>
-    </ui-drawer-content>
-  </ui-drawer>
+
+        <ui-dialog-footer>
+          <ui-button type="button" variant="outline" :disabled="isArchiving" @click="showArchiveWarning = false">
+            取消
+          </ui-button>
+          <ui-button type="button" variant="destructive" :disabled="isArchiving" @click="handleArchiveToggle">
+            {{ isArchiving ? '處理中...' : '確定封存' }}
+          </ui-button>
+        </ui-dialog-footer>
+      </ui-dialog-content>
+    </ui-dialog>
+
+    <ui-drawer v-else v-model:open="showArchiveWarning">
+      <ui-drawer-content>
+        <div class="mx-auto w-full max-w-md p-6">
+          <div class="space-y-6">
+            <div class="text-center space-y-2">
+              <h2 class="text-xl font-bold text-foreground m-0">
+                確定要封存「{{ trip?.name }}」？
+              </h2>
+              <p class="text-sm text-muted-foreground m-0">
+                封存後會限制以下功能
+              </p>
+            </div>
+
+            <div class="space-y-2 text-sm">
+              <div class="flex items-center gap-2 px-3 py-2 bg-destructive/10 rounded-lg">
+                <Icon name="lucide:x" :size="14" class="text-destructive shrink-0" />
+                <span class="text-foreground">無法新增支出或修改行程設定</span>
+              </div>
+              <div class="flex items-center gap-2 px-3 py-2 bg-muted rounded-lg">
+                <Icon name="lucide:check" :size="14" class="text-green-600 dark:text-green-400 shrink-0" />
+                <span class="text-foreground">現有支出仍可查看和編輯</span>
+              </div>
+              <div class="flex items-center gap-2 px-3 py-2 bg-muted rounded-lg">
+                <Icon name="lucide:rotate-ccw" :size="14" class="text-muted-foreground shrink-0" />
+                <span class="text-foreground">隨時可以取消封存</span>
+              </div>
+            </div>
+
+            <div class="flex gap-3">
+              <ui-button type="button" variant="outline" class="flex-1" :disabled="isArchiving" @click="showArchiveWarning = false">
+                取消
+              </ui-button>
+              <ui-button type="button" variant="destructive" class="flex-1" :disabled="isArchiving" @click="handleArchiveToggle">
+                {{ isArchiving ? '處理中...' : '確定封存' }}
+              </ui-button>
+            </div>
+          </div>
+        </div>
+      </ui-drawer-content>
+    </ui-drawer>
+
+    <!-- Unarchive Warning — Dialog on desktop, Drawer on mobile -->
+    <ui-dialog v-if="isDesktop" :open="showUnarchiveWarning" @update:open="showUnarchiveWarning = $event">
+      <ui-dialog-content v-if="showUnarchiveWarning" class="max-w-md" :show-close-button="false">
+        <ui-dialog-header>
+          <ui-dialog-title>確定要取消封存「{{ trip?.name }}」？</ui-dialog-title>
+          <ui-dialog-description>取消封存後將恢復以下功能</ui-dialog-description>
+        </ui-dialog-header>
+
+        <div class="space-y-2 text-sm">
+          <div class="flex items-center gap-2 px-3 py-2 bg-muted rounded-lg">
+            <Icon name="lucide:check" :size="14" class="text-green-600 dark:text-green-400 shrink-0" />
+            <span class="text-foreground">可以新增支出和修改行程設定</span>
+          </div>
+          <div class="flex items-center gap-2 px-3 py-2 bg-muted rounded-lg">
+            <Icon name="lucide:check" :size="14" class="text-green-600 dark:text-green-400 shrink-0" />
+            <span class="text-foreground">協作者可以繼續編輯支出</span>
+          </div>
+        </div>
+
+        <ui-dialog-footer>
+          <ui-button type="button" variant="outline" :disabled="isArchiving" @click="showUnarchiveWarning = false">
+            取消
+          </ui-button>
+          <ui-button type="button" :disabled="isArchiving" @click="handleArchiveToggle">
+            {{ isArchiving ? '處理中...' : '確定取消封存' }}
+          </ui-button>
+        </ui-dialog-footer>
+      </ui-dialog-content>
+    </ui-dialog>
+
+    <ui-drawer v-else v-model:open="showUnarchiveWarning">
+      <ui-drawer-content>
+        <div class="mx-auto w-full max-w-md p-6">
+          <div class="space-y-6">
+            <div class="text-center space-y-2">
+              <h2 class="text-xl font-bold text-foreground m-0">
+                確定要取消封存「{{ trip?.name }}」？
+              </h2>
+              <p class="text-sm text-muted-foreground m-0">
+                取消封存後將恢復以下功能
+              </p>
+            </div>
+
+            <div class="space-y-2 text-sm">
+              <div class="flex items-center gap-2 px-3 py-2 bg-muted rounded-lg">
+                <Icon name="lucide:check" :size="14" class="text-green-600 dark:text-green-400 shrink-0" />
+                <span class="text-foreground">可以新增支出和修改行程設定</span>
+              </div>
+              <div class="flex items-center gap-2 px-3 py-2 bg-muted rounded-lg">
+                <Icon name="lucide:check" :size="14" class="text-green-600 dark:text-green-400 shrink-0" />
+                <span class="text-foreground">協作者可以繼續編輯支出</span>
+              </div>
+            </div>
+
+            <div class="flex gap-3">
+              <ui-button type="button" variant="outline" class="flex-1" :disabled="isArchiving" @click="showUnarchiveWarning = false">
+                取消
+              </ui-button>
+              <ui-button type="button" class="flex-1" :disabled="isArchiving" @click="handleArchiveToggle">
+                {{ isArchiving ? '處理中...' : '確定取消封存' }}
+              </ui-button>
+            </div>
+          </div>
+        </div>
+      </ui-drawer-content>
+    </ui-drawer>
+  </ClientOnly>
 </template>

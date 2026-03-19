@@ -1,13 +1,18 @@
 <script setup lang="ts">
-import 'vue-sonner/style.css'
 import { Toaster } from '@/components/ui/sonner'
+import 'vue-sonner/style.css'
 
 const { $pwa } = useNuxtApp()
 const showUpdateDialog = ref(false)
 
-watch(() => $pwa?.needRefresh?.value, (val) => {
-  if (val) showUpdateDialog.value = true
-}, { immediate: true })
+watch(
+  () => $pwa?.needRefresh && unref($pwa.needRefresh),
+  (val) => {
+    if (val)
+      showUpdateDialog.value = true
+  },
+  { immediate: true },
+)
 </script>
 
 <template>
@@ -16,7 +21,7 @@ watch(() => $pwa?.needRefresh?.value, (val) => {
     <NuxtPwaManifest />
   </NuxtLayout>
 
-  <Toaster position="top-center" style="top: env(safe-area-inset-top, 0px)" />
+  <toaster position="top-center" style="top: calc(8px + env(safe-area-inset-top, 0px))" />
 
   <ui-alert-dialog v-model:open="showUpdateDialog">
     <ui-alert-dialog-content>

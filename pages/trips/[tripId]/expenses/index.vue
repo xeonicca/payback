@@ -97,7 +97,7 @@ const displayedExpenses = computed(() => {
   <!-- Sticky Header -->
   <div class="sticky z-10 bg-slate-200 dark:bg-background -mx-6 px-6 pb-3 space-y-2" style="top: var(--navbar-height, 0px)">
     <!-- Search -->
-    <div class="flex items-center gap-2">
+    <div class="flex items-center gap-2 max-w-3xl mx-auto">
       <div class="relative flex-1">
         <Icon name="lucide:search" class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
         <ui-input
@@ -119,7 +119,7 @@ const displayedExpenses = computed(() => {
     </div>
 
     <!-- Row 2: Sort pills -->
-    <div class="flex items-center gap-1.5">
+    <div class="flex items-center gap-1.5 max-w-3xl mx-auto">
       <button
         v-for="option in sortOptions"
         :key="option.key"
@@ -141,7 +141,7 @@ const displayedExpenses = computed(() => {
     </div>
   </div>
 
-  <div v-if="tripExpenses.length" class="space-y-3 bg-card rounded-xl border p-4">
+  <div v-if="tripExpenses.length" class="space-y-3 bg-card rounded-xl border p-4 max-w-3xl mx-auto">
     <div class="flex justify-between items-center">
       <div class="text-sm text-muted-foreground">
         {{ tripExpenses.length }} 筆支出
