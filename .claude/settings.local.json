@@ -14,7 +14,9 @@
       "WebFetch(domain:vuefire.vuejs.org)",
       "WebFetch(domain:raw.githubusercontent.com)",
       "Bash(npx eslint:*)",
-      "Bash(npm install:*)"
+      "Bash(npm install:*)",
+      "Bash(git push:*)",
+      "Bash(pnpm build:*)"
     ]
   }
 }
