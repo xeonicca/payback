@@ -73,7 +73,33 @@ const isArchiving = ref(false)
 const showArchiveWarning = ref(false)
 const showUnarchiveWarning = ref(false)
 const showInviteDrawer = ref(false)
+const isTogglingPublicInvite = ref(false)
 const isDesktop = useMediaQuery('(min-width: 1024px)')
+const { copyToClipboard } = useCopyToClipboard()
+
+const baseUrl = useRequestURL().origin
+const publicJoinUrl = computed(() => {
+  if (!trip.value?.publicJoinCode) return null
+  return `${baseUrl}/join/${trip.value.publicJoinCode}`
+})
+
+async function handleTogglePublicInvite(enabled: boolean) {
+  try {
+    isTogglingPublicInvite.value = true
+    await $fetch('/api/trips/toggle-public-invite', {
+      method: 'POST',
+      body: { tripId, enabled },
+    })
+    toast.success(enabled ? '已開放加入' : '已關閉加入')
+  }
+  catch (error: any) {
+    console.error('Error toggling public invite:', error)
+    toast.error('操作失敗')
+  }
+  finally {
+    isTogglingPublicInvite.value = false
+  }
+}
 
 // Track members locally for add/remove operations
 const localMembers = ref<TripMember[]>([])
@@ -587,6 +613,33 @@ async function handleArchiveToggle() {
           <!-- Tab: Settings -->
           <ui-tabs-content value="settings" class="p-5">
             <div class="space-y-4">
+              <!-- Public Join Toggle -->
+              <div v-if="isOwner" class="space-y-3">
+                <div class="flex items-center justify-between">
+                  <div>
+                    <p class="text-sm font-semibold text-foreground m-0">
+                      開放加入
+                    </p>
+                    <p class="text-xs text-muted-foreground m-0 mt-1">
+                      開啟後任何人都可以透過連結加入行程
+                    </p>
+                  </div>
+                  <ui-switch
+                    :model-value="trip?.isPublicInviteEnabled ?? false"
+                    :disabled="!!trip?.archived || isTogglingPublicInvite"
+                    @update:model-value="handleTogglePublicInvite"
+                  />
+                </div>
+                <div v-if="trip?.isPublicInviteEnabled && publicJoinUrl" class="flex items-center gap-2">
+                  <ui-input :value="publicJoinUrl" readonly class="flex-1 font-mono text-sm" />
+                  <ui-button size="sm" variant="outline" @click="copyToClipboard(publicJoinUrl)">
+                    <Icon name="lucide:copy" :size="16" />
+                  </ui-button>
+                </div>
+              </div>
+
+              <ui-separator v-if="isOwner" />
+
               <div>
                 <p class="text-sm font-semibold text-foreground m-0">
                   {{ trip?.archived ? '取消封存行程' : '封存行程' }}
