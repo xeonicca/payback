@@ -125,6 +125,9 @@ export interface NewInvitation {
   status: 'pending' | 'accepted' | 'expired' | 'revoked'
   expiresAt: Timestamp | FieldValue
   createdAt: Timestamp | FieldValue
+  maxUses: number | null
+  usedCount: number
+  usedByUserIds: string[]
   usedByUserId?: string
   usedAt?: Timestamp | FieldValue
 }

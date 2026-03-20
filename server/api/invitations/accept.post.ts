@@ -54,11 +54,37 @@ export default defineEventHandler(async (event) => {
     const invitationDoc = invitationsSnapshot.docs[0]
     const invitation = invitationDoc.data()
 
-    // Check if invitation is already used
-    if (invitation.status !== 'pending') {
+    // Check invitation status
+    if (invitation.status === 'revoked') {
       throw createError({
         statusCode: 400,
-        statusMessage: `Invitation is ${invitation.status}`,
+        statusMessage: 'Invitation has been revoked',
+      })
+    }
+
+    if (invitation.status === 'expired') {
+      throw createError({
+        statusCode: 400,
+        statusMessage: 'Invitation has expired',
+      })
+    }
+
+    // Check if invitation has remaining uses
+    const maxUses = invitation.maxUses ?? 1
+    const usedCount = invitation.usedCount ?? 0
+    if (invitation.status === 'accepted' && maxUses !== null && usedCount >= maxUses) {
+      throw createError({
+        statusCode: 400,
+        statusMessage: 'Invitation has reached its usage limit',
+      })
+    }
+
+    // Check if this user already used this invitation
+    const usedByUserIds = invitation.usedByUserIds ?? []
+    if (usedByUserIds.includes(user.uid)) {
+      throw createError({
+        statusCode: 400,
+        statusMessage: 'You have already used this invitation',
       })
     }
 
@@ -150,9 +176,13 @@ export default defineEventHandler(async (event) => {
         })
     }
 
-    // Update invitation status
+    // Update invitation usage
+    const newUsedCount = usedCount + 1
+    const isFullyUsed = maxUses !== null && newUsedCount >= maxUses
     await invitationDoc.ref.update({
-      status: 'accepted',
+      status: isFullyUsed ? 'accepted' : 'pending',
+      usedCount: FieldValue.increment(1),
+      usedByUserIds: FieldValue.arrayUnion(user.uid),
       usedByUserId: user.uid,
       usedAt: FieldValue.serverTimestamp(),
     })

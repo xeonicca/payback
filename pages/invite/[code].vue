@@ -30,7 +30,12 @@ const isExpired = computed(() => {
 })
 
 const isAlreadyUsed = computed(() => {
-  return invitation.value?.status === 'accepted'
+  if (!invitation.value)
+    return false
+  if (invitation.value.status !== 'accepted')
+    return false
+  const maxUses = invitation.value.maxUses ?? 1
+  return maxUses !== null && invitation.value.usedCount >= maxUses
 })
 
 const isRevoked = computed(() => {
@@ -68,8 +73,17 @@ const canAccept = computed(() => {
 })
 
 // Load members when user logs in and invitation is valid
+const isUsable = computed(() => {
+  if (!invitation.value)
+    return false
+  if (isExpired.value || isRevoked.value || isAlreadyUsed.value)
+    return false
+  return invitation.value.status === 'pending'
+    || (invitation.value.status === 'accepted' && invitation.value.maxUses === null)
+})
+
 watch([isUserLoggedIn, invitation], async ([loggedIn, inv]) => {
-  if (loggedIn && inv && inv.status === 'pending' && !isExpired.value) {
+  if (loggedIn && inv && isUsable.value) {
     await loadMembers()
   }
 }, { immediate: true })
