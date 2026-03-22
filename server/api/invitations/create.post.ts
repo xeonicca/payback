@@ -11,7 +11,7 @@ export default defineEventHandler(async (event) => {
     })
   }
 
-  const { tripId, expiresInDays = 7 } = await readBody(event)
+  const { tripId, expiresInDays = 7, maxUses = 1 } = await readBody(event)
 
   if (!tripId) {
     throw createError({
@@ -52,6 +52,9 @@ export default defineEventHandler(async (event) => {
       Date.now() + expiresInDays * 24 * 60 * 60 * 1000,
     )
 
+    // Validate maxUses: null means unlimited, otherwise must be positive integer
+    const validatedMaxUses = maxUses === null ? null : Math.max(1, Math.floor(Number(maxUses) || 1))
+
     // Create invitation document
     const invitationData = {
       tripId,
@@ -62,6 +65,9 @@ export default defineEventHandler(async (event) => {
       status: 'pending',
       expiresAt,
       createdAt: FieldValue.serverTimestamp(),
+      maxUses: validatedMaxUses,
+      usedCount: 0,
+      usedByUserIds: [],
     }
 
     const invitationRef = await db.collection('invitations').add(invitationData)

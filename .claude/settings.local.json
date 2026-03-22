@@ -2,9 +2,8 @@
   "permissions": {
     "allow": [
       "Bash(git add:*)",
-      "Bash(git commit -m \"$\\(cat <<''EOF''\nfix: resolve floating point precision issues in monetary displays\n\nApplied .toFixed\\(2\\) formatting to all monetary values throughout the application to prevent JavaScript floating point precision errors \\(e.g., displaying 5461.9800000000005 instead of 5461.98\\).\n\nAlso added CLAUDE.md documentation file for future Claude Code instances.\n\n🤖 Generated with [Claude Code]\\(https://claude.com/claude-code\\)\n\nCo-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>\nEOF\n\\)\")",
-      "Bash(cat:*)",
       "Bash(git commit:*)",
+      "Bash(cat:*)",
       "Bash(git diff:*)",
       "Bash(pnpm install:*)",
       "Bash(pnpm test:*)",
@@ -15,18 +14,12 @@
       "WebFetch(domain:raw.githubusercontent.com)",
       "Bash(npx eslint:*)",
       "Bash(npm install:*)",
-      "Bash(sleep 3 && curl -s -X POST http://localhost:3000/api/admin/migrate-collaborator-ids 2>&1)",
-      "Bash(curl -s -X POST http://localhost:3000/api/admin/migrate-collaborator-ids 2>&1)",
-      "Bash(cd C:/Users/Steven/Workspace/payback && npx firebase-tools deploy --only firestore:rules 2>&1)",
+      "Bash(git push:*)",
+      "Bash(pnpm build:*)",
       "Bash(find:*)",
       "Bash(grep:*)",
       "Bash(git status:*)",
-      "Bash(npx:*)",
-      "Bash(pkill:*)",
-      "Bash(netstat:*)",
-      "Bash(taskkill:*)",
-      "Bash(cd:*)",
-      "Bash(git push:*)"
+      "Bash(npx:*)"
     ]
   }
 }

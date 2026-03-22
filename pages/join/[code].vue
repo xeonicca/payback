@@ -8,115 +8,94 @@ definePageMeta({
 
 const route = useRoute()
 const router = useRouter()
-const invitationCode = route.params.code as string
+const joinCode = route.params.code as string
 
-const { invitation, isLoading } = useInvitation().getInvitationByCode(invitationCode)
 const { isUserLoggedIn, loginWithGoogle, checkRedirectResult } = useLogin()
 const sessionUser = useSessionUser()
 
 const isCheckingRedirect = ref(false)
-const isAccepting = ref(false)
+const isLoading = ref(true)
+const isJoining = ref(false)
+const errorState = ref<'not-found' | 'disabled' | null>(null)
 
-// Complete Google redirect login flow when returning to this page
-onMounted(async () => {
-  isCheckingRedirect.value = true
-  await checkRedirectResult()
-  isCheckingRedirect.value = false
-})
-const isExpired = computed(() => {
-  if (!invitation.value)
-    return false
-  return new Date(invitation.value.expiresAtString) < new Date()
-})
-
-const isAlreadyUsed = computed(() => {
-  if (!invitation.value)
-    return false
-  if (invitation.value.status !== 'accepted')
-    return false
-  const maxUses = invitation.value.maxUses ?? 1
-  return maxUses !== null && invitation.value.usedCount >= maxUses
-})
-
-const isRevoked = computed(() => {
-  return invitation.value?.status === 'revoked'
-})
+const tripInfo = ref<{
+  tripId: string
+  tripName: string
+  ownerDisplayName: string
+  members: Array<{ id: string, name: string, avatarEmoji: string, isHost: boolean, linkedUserId: string | null }>
+} | null>(null)
 
 // Member selection state
-const members = ref<Array<{ id: string, name: string, avatarEmoji: string, isHost: boolean, linkedUserId: string | null }>>([])
-const isLoadingMembers = ref(false)
-const membersLoaded = ref(false)
 const selectedMemberId = ref<string | null>(null)
 const joinAsNew = ref(false)
 const newMemberName = ref('')
 const newMemberEmoji = ref(animalEmojis[0])
 
 const availableMembers = computed(() => {
-  return members.value.filter(m => !m.linkedUserId)
+  return tripInfo.value?.members.filter(m => !m.linkedUserId) ?? []
 })
 
 const usedEmojis = computed(() => {
-  return members.value.map(m => m.avatarEmoji)
+  return tripInfo.value?.members.map(m => m.avatarEmoji) ?? []
 })
 
 const availableEmojis = computed(() => {
   return animalEmojis.filter(e => !usedEmojis.value.includes(e))
 })
 
-const canAccept = computed(() => {
-  if (!isUserLoggedIn.value || !membersLoaded.value)
+const canJoin = computed(() => {
+  if (!isUserLoggedIn.value || !tripInfo.value)
     return false
-  if (joinAsNew.value) {
+  if (joinAsNew.value)
     return newMemberName.value.trim().length > 0 && newMemberEmoji.value
-  }
   return selectedMemberId.value !== null
 })
 
-// Load members when user logs in and invitation is valid
-const isUsable = computed(() => {
-  if (!invitation.value)
-    return false
-  if (isExpired.value || isRevoked.value || isAlreadyUsed.value)
-    return false
-  return invitation.value.status === 'pending'
-    || (invitation.value.status === 'accepted' && invitation.value.maxUses === null)
+onMounted(async () => {
+  isCheckingRedirect.value = true
+  await checkRedirectResult()
+  isCheckingRedirect.value = false
 })
 
-watch([isUserLoggedIn, invitation], async ([loggedIn, inv]) => {
-  if (loggedIn && inv && isUsable.value) {
-    await loadMembers()
-  }
+// Load trip info when user logs in
+watch(isUserLoggedIn, async (loggedIn) => {
+  if (loggedIn)
+    await loadTripInfo()
 }, { immediate: true })
 
-async function loadMembers() {
+async function loadTripInfo() {
   try {
-    isLoadingMembers.value = true
-    const { getInvitationMembers } = useInvitation()
-    const result = await getInvitationMembers(invitationCode)
-    members.value = result.members
-    membersLoaded.value = true
+    isLoading.value = true
+    const result = await $fetch<typeof tripInfo.value>('/api/trips/join-info', {
+      query: { joinCode },
+    })
+    tripInfo.value = result
 
-    // If current user is already a member, redirect to trip page
+    // Check if user is already a member
     const currentUid = sessionUser.value?.uid
-    if (currentUid && invitation.value) {
+    if (currentUid && result) {
       const alreadyLinked = result.members.some(m => m.linkedUserId === currentUid)
       if (alreadyLinked) {
         toast.info('你已經是此行程的成員')
-        router.replace(`/trips/${invitation.value.tripId}`)
+        router.replace(`/trips/${result.tripId}`)
         return
       }
     }
 
-    if (availableEmojis.value.length > 0) {
+    if (availableEmojis.value.length > 0)
       newMemberEmoji.value = availableEmojis.value[0]
-    }
   }
   catch (error: any) {
-    console.error('Error loading members:', error)
-    toast.error(error.message || '無法載入成員資訊')
+    const status = error.statusCode || error.data?.statusCode
+    if (status === 404)
+      errorState.value = 'not-found'
+    else if (status === 400)
+      errorState.value = 'disabled'
+    else
+      errorState.value = 'not-found'
   }
   finally {
-    isLoadingMembers.value = false
+    isLoading.value = false
   }
 }
 
@@ -130,29 +109,31 @@ function selectJoinAsNew() {
   joinAsNew.value = true
 }
 
-async function handleAccept() {
-  if (!canAccept.value)
+async function handleJoin() {
+  if (!canJoin.value)
     return
 
   try {
-    isAccepting.value = true
-    const { acceptInvitation } = useInvitation()
+    isJoining.value = true
 
     const memberChoice = joinAsNew.value
       ? { newMember: { name: newMemberName.value.trim(), avatarEmoji: newMemberEmoji.value } }
       : { memberId: selectedMemberId.value! }
 
-    const result = await acceptInvitation(invitationCode, memberChoice)
+    const result = await $fetch<{ success: boolean, tripId: string }>('/api/trips/join', {
+      method: 'POST',
+      body: { joinCode, ...memberChoice },
+    })
 
     toast.success('已成功加入行程！')
     router.push(`/trips/${result.tripId}`)
   }
   catch (error: any) {
-    console.error('Error accepting invitation:', error)
-    toast.error(error.message || '加入行程失敗')
+    console.error('Error joining trip:', error)
+    toast.error(error.data?.message || error.message || '加入行程失敗')
   }
   finally {
-    isAccepting.value = false
+    isJoining.value = false
   }
 }
 
@@ -169,13 +150,13 @@ async function handleLogin() {
         <div class="flex flex-col items-center justify-center space-y-4">
           <loading-spinner size="lg" />
           <p class="text-sm text-muted-foreground m-0">
-            載入邀請資訊...
+            載入行程資訊...
           </p>
         </div>
       </div>
 
-      <!-- Invitation Not Found -->
-      <div v-else-if="!invitation" class="bg-white rounded-2xl shadow-lg border border-gray-100 p-10">
+      <!-- Not Found -->
+      <div v-else-if="errorState === 'not-found'" class="bg-white rounded-2xl shadow-lg border border-gray-100 p-10">
         <div class="flex flex-col items-center justify-center space-y-5 text-center">
           <div class="w-20 h-20 bg-red-50 rounded-full flex items-center justify-center">
             <Icon name="lucide:link-2-off" class="w-9 h-9 text-red-500" />
@@ -185,7 +166,7 @@ async function handleLogin() {
               連結無效
             </h1>
             <p class="text-sm text-muted-foreground m-0 leading-relaxed">
-              此邀請連結不存在或已被刪除，請向邀請人索取新連結
+              此加入連結不存在，請向行程建立者索取新連結
             </p>
           </div>
           <ui-button variant="link" size="sm" @click="router.push('/')">
@@ -194,41 +175,18 @@ async function handleLogin() {
         </div>
       </div>
 
-      <!-- Expired Invitation -->
-      <div v-else-if="isExpired" class="bg-white rounded-2xl shadow-lg border border-gray-100 p-10">
+      <!-- Joining Disabled -->
+      <div v-else-if="errorState === 'disabled'" class="bg-white rounded-2xl shadow-lg border border-gray-100 p-10">
         <div class="flex flex-col items-center justify-center space-y-5 text-center">
           <div class="w-20 h-20 bg-amber-50 rounded-full flex items-center justify-center">
-            <Icon name="lucide:timer-off" class="w-9 h-9 text-amber-500" />
+            <Icon name="lucide:lock" class="w-9 h-9 text-amber-500" />
           </div>
           <div class="space-y-2">
             <h1 class="text-xl font-bold text-foreground m-0 tracking-tight">
-              邀請已過期
+              加入已關閉
             </h1>
             <p class="text-sm text-muted-foreground m-0 leading-relaxed">
-              此連結已於 {{ new Date(invitation.expiresAtString).toLocaleDateString('zh-TW') }} 過期
-            </p>
-          </div>
-          <p class="text-xs text-muted-foreground/70 m-0 leading-relaxed">
-            請聯絡 <span class="font-medium text-foreground/70">{{ invitation.invitedByName }}</span> 重新發送邀請
-          </p>
-          <ui-button variant="link" size="sm" @click="router.push('/')">
-            返回首頁
-          </ui-button>
-        </div>
-      </div>
-
-      <!-- Revoked Invitation -->
-      <div v-else-if="isRevoked" class="bg-white rounded-2xl shadow-lg border border-gray-100 p-10">
-        <div class="flex flex-col items-center justify-center space-y-5 text-center">
-          <div class="w-20 h-20 bg-red-50 rounded-full flex items-center justify-center">
-            <Icon name="lucide:ban" class="w-9 h-9 text-red-500" />
-          </div>
-          <div class="space-y-2">
-            <h1 class="text-xl font-bold text-foreground m-0 tracking-tight">
-              邀請已取消
-            </h1>
-            <p class="text-sm text-muted-foreground m-0 leading-relaxed">
-              此邀請已被建立者撤銷，請聯絡建立者了解詳情
+              此行程目前不開放加入，請聯絡行程建立者
             </p>
           </div>
           <ui-button variant="link" size="sm" @click="router.push('/')">
@@ -237,36 +195,15 @@ async function handleLogin() {
         </div>
       </div>
 
-      <!-- Already Used -->
-      <div v-else-if="isAlreadyUsed" class="bg-white rounded-2xl shadow-lg border border-gray-100 p-10">
-        <div class="flex flex-col items-center justify-center space-y-5 text-center">
-          <div class="w-20 h-20 bg-green-50 rounded-full flex items-center justify-center">
-            <Icon name="lucide:check-circle-2" size="44" class="text-green-500" />
-          </div>
-          <div class="space-y-2">
-            <h1 class="text-xl font-bold text-foreground m-0 tracking-tight">
-              已加入行程
-            </h1>
-            <p class="text-sm text-muted-foreground m-0 leading-relaxed">
-              此邀請已被使用，你可以直接進入行程
-            </p>
-          </div>
-          <ui-button @click="router.push(`/trips/${invitation.tripId}`)">
-            前往行程
-            <Icon name="lucide:arrow-right" class="w-4 h-4 ml-1.5" />
-          </ui-button>
-        </div>
-      </div>
-
-      <!-- Valid Invitation -->
-      <div v-else class="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden">
+      <!-- Valid Join Page -->
+      <div v-else-if="tripInfo" class="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden">
         <!-- Trip Info Header -->
         <div class="bg-slate-50 px-6 pt-10 pb-6 text-center border-b border-gray-100">
           <p class="text-sm text-muted-foreground m-0 mb-3">
-            {{ invitation.invitedByName }} 邀請你加入
+            加入行程
           </p>
           <h1 class="text-3xl font-bold text-foreground m-0 tracking-tight">
-            {{ invitation.tripName }}
+            {{ tripInfo.tripName }}
           </h1>
         </div>
 
@@ -278,7 +215,6 @@ async function handleLogin() {
               <p class="text-sm text-muted-foreground m-0 leading-relaxed">
                 登入後即可加入行程，和大家一起分帳
               </p>
-
               <ui-button
                 class="w-full mt-6"
                 size="lg"
@@ -287,25 +223,14 @@ async function handleLogin() {
                 <Icon name="lucide:log-in" class="w-5 h-5 mr-2" />
                 使用 Google 帳號登入
               </ui-button>
-
               <p class="text-xs text-muted-foreground/60 m-0 mt-3">
                 首次使用會自動建立帳號
               </p>
             </div>
           </template>
 
-          <!-- Loading Members -->
-          <template v-else-if="isLoadingMembers">
-            <div class="flex flex-col items-center justify-center py-8 space-y-3">
-              <loading-spinner />
-              <p class="text-sm text-muted-foreground m-0">
-                正在載入行程成員...
-              </p>
-            </div>
-          </template>
-
           <!-- Step 2: Member Selection -->
-          <template v-else-if="membersLoaded">
+          <template v-else>
             <div class="space-y-4">
               <p class="text-sm text-muted-foreground m-0 leading-relaxed">
                 選擇你在行程中的身份，或以新成員加入：
@@ -401,15 +326,15 @@ async function handleLogin() {
               </div>
             </div>
 
-            <!-- Accept Button -->
+            <!-- Join Button -->
             <ui-button
               class="w-full mt-2"
               size="lg"
-              :disabled="!canAccept || isAccepting"
-              @click="handleAccept"
+              :disabled="!canJoin || isJoining"
+              @click="handleJoin"
             >
-              <Icon v-if="isAccepting" name="lucide:loader-circle" class="w-5 h-5 mr-2 animate-spin" />
-              {{ isAccepting ? '加入中...' : '加入行程' }}
+              <Icon v-if="isJoining" name="lucide:loader-circle" class="w-5 h-5 mr-2 animate-spin" />
+              {{ isJoining ? '加入中...' : '加入行程' }}
             </ui-button>
           </template>
 

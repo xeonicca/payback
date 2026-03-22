@@ -1,4 +1,4 @@
-import { FieldValue, Timestamp } from 'firebase-admin/firestore'
+import { FieldValue } from 'firebase-admin/firestore'
 import { getFirebaseAdminFirestore, getUserFromSession } from '~/server/utils/session'
 
 export default defineEventHandler(async (event) => {
@@ -11,12 +11,12 @@ export default defineEventHandler(async (event) => {
     })
   }
 
-  const { invitationCode, memberId, newMember } = await readBody(event)
+  const { joinCode, memberId, newMember } = await readBody(event)
 
-  if (!invitationCode) {
+  if (!joinCode) {
     throw createError({
       statusCode: 400,
-      statusMessage: 'invitationCode is required',
+      statusMessage: 'joinCode is required',
     })
   }
 
@@ -37,72 +37,30 @@ export default defineEventHandler(async (event) => {
   try {
     const db = getFirebaseAdminFirestore()
 
-    // Find invitation by code
-    const invitationsSnapshot = await db
-      .collection('invitations')
-      .where('invitationCode', '==', invitationCode)
+    // Find trip by join code
+    const tripsSnapshot = await db
+      .collection('trips')
+      .where('publicJoinCode', '==', joinCode)
       .limit(1)
       .get()
 
-    if (invitationsSnapshot.empty) {
+    if (tripsSnapshot.empty) {
       throw createError({
         statusCode: 404,
-        statusMessage: 'Invitation not found',
+        statusMessage: 'Trip not found',
       })
     }
 
-    const invitationDoc = invitationsSnapshot.docs[0]
-    const invitation = invitationDoc.data()
+    const tripDoc = tripsSnapshot.docs[0]
+    const tripData = tripDoc.data()
+    const tripId = tripDoc.id
 
-    // Check invitation status
-    if (invitation.status === 'revoked') {
+    if (!tripData.isPublicInviteEnabled) {
       throw createError({
         statusCode: 400,
-        statusMessage: 'Invitation has been revoked',
+        statusMessage: 'Public joining is disabled for this trip',
       })
     }
-
-    if (invitation.status === 'expired') {
-      throw createError({
-        statusCode: 400,
-        statusMessage: 'Invitation has expired',
-      })
-    }
-
-    // Check if invitation has remaining uses
-    const maxUses = invitation.maxUses ?? 1
-    const usedCount = invitation.usedCount ?? 0
-    if (invitation.status === 'accepted' && maxUses !== null && usedCount >= maxUses) {
-      throw createError({
-        statusCode: 400,
-        statusMessage: 'Invitation has reached its usage limit',
-      })
-    }
-
-    // Check if this user already used this invitation
-    const usedByUserIds = invitation.usedByUserIds ?? []
-    if (usedByUserIds.includes(user.uid)) {
-      throw createError({
-        statusCode: 400,
-        statusMessage: 'You have already used this invitation',
-      })
-    }
-
-    // Check if invitation is expired
-    const now = Timestamp.now()
-    if (invitation.expiresAt.toMillis() < now.toMillis()) {
-      // Mark as expired
-      await invitationDoc.ref.update({
-        status: 'expired',
-      })
-
-      throw createError({
-        statusCode: 400,
-        statusMessage: 'Invitation has expired',
-      })
-    }
-
-    const tripId = invitation.tripId
 
     // Check if user is already a collaborator
     const collaboratorRef = db
@@ -119,6 +77,14 @@ export default defineEventHandler(async (event) => {
       })
     }
 
+    // Also check if user is the trip owner
+    if (tripData.userId === user.uid) {
+      throw createError({
+        statusCode: 400,
+        statusMessage: 'You are the owner of this trip',
+      })
+    }
+
     // Add user as collaborator
     await collaboratorRef.set({
       userId: user.uid,
@@ -127,12 +93,11 @@ export default defineEventHandler(async (event) => {
       photoURL: user.photoURL || null,
       role: 'editor',
       joinedAt: FieldValue.serverTimestamp(),
-      invitedBy: invitation.invitedByUserId,
+      joinedVia: 'public-link',
     })
 
     // Link to existing member or create new member
     if (memberId) {
-      // Verify the member exists and isn't already linked
       const memberRef = db
         .collection('trips')
         .doc(tripId)
@@ -155,13 +120,11 @@ export default defineEventHandler(async (event) => {
         })
       }
 
-      // Link the member to this user
       await memberRef.update({
         linkedUserId: user.uid,
       })
     }
     else if (newMember) {
-      // Create a new member and link it
       await db
         .collection('trips')
         .doc(tripId)
@@ -176,20 +139,8 @@ export default defineEventHandler(async (event) => {
         })
     }
 
-    // Update invitation usage
-    const newUsedCount = usedCount + 1
-    const isFullyUsed = maxUses !== null && newUsedCount >= maxUses
-    await invitationDoc.ref.update({
-      status: isFullyUsed ? 'accepted' : 'pending',
-      usedCount: FieldValue.increment(1),
-      usedByUserIds: FieldValue.arrayUnion(user.uid),
-      usedByUserId: user.uid,
-      usedAt: FieldValue.serverTimestamp(),
-    })
-
-    // Increment collaborator count and add user to collaboratorUserIds
-    const tripRef = db.collection('trips').doc(tripId)
-    await tripRef.update({
+    // Update trip collaborator count
+    await tripDoc.ref.update({
       collaboratorCount: FieldValue.increment(1),
       collaboratorUserIds: FieldValue.arrayUnion(user.uid),
     })
@@ -200,14 +151,13 @@ export default defineEventHandler(async (event) => {
     }
   }
   catch (error: any) {
-    if (error.statusCode) {
+    if (error.statusCode)
       throw error
-    }
 
-    console.error('Error accepting invitation:', error)
+    console.error('Error joining trip:', error)
     throw createError({
       statusCode: 500,
-      statusMessage: 'Failed to accept invitation',
+      statusMessage: 'Failed to join trip',
     })
   }
 })

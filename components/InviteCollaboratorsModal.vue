@@ -22,6 +22,7 @@ const invitations = ref<Invitation[]>([])
 const isLoading = ref(false)
 const isCreating = ref(false)
 const expiresInDays = ref(7)
+const maxUses = ref<number | null>(1)
 const generatedInvitation = ref<{
   code: string
   url: string
@@ -55,6 +56,7 @@ async function handleCreateInvitation() {
     const result = await createInvitation({
       tripId: props.tripId,
       expiresInDays: expiresInDays.value,
+      maxUses: maxUses.value,
     })
 
     generatedInvitation.value = {
@@ -97,22 +99,38 @@ function getStatusBadgeVariant(status: string) {
   }
 }
 
-function getStatusText(status: string) {
-  switch (status) {
+function getStatusText(invitation: Invitation) {
+  if (invitation.status === 'pending' && invitation.usedCount > 0) {
+    return `已使用 ${invitation.usedCount}${invitation.maxUses ? `/${invitation.maxUses}` : ''} 次`
+  }
+  switch (invitation.status) {
     case 'pending': return '待接受'
-    case 'accepted': return '已接受'
+    case 'accepted': return '已使用完畢'
     case 'expired': return '已過期'
     case 'revoked': return '已撤銷'
-    default: return status
+    default: return invitation.status
   }
 }
 
+function getUsageText(invitation: Invitation) {
+  if (invitation.maxUses === null)
+    return '無限制'
+  return `${invitation.usedCount}/${invitation.maxUses}`
+}
+
 const pendingInvitations = computed(() =>
-  invitations.value.filter(i => i.status === 'pending'),
+  invitations.value.filter((i) => {
+    if (i.status === 'pending')
+      return true
+    // Multi-use unlimited invitations that haven't been revoked/expired
+    if (i.maxUses === null && i.status !== 'revoked' && i.status !== 'expired')
+      return true
+    return false
+  }),
 )
 
 const usedInvitations = computed(() =>
-  invitations.value.filter(i => i.status !== 'pending'),
+  invitations.value.filter(i => !pendingInvitations.value.includes(i)),
 )
 </script>
 
@@ -136,29 +154,55 @@ const usedInvitations = computed(() =>
               </h3>
             </div>
 
-            <div class="space-y-2">
-              <label class="text-sm font-medium text-foreground">有效期限</label>
-              <ui-select v-model="expiresInDays">
-                <ui-select-trigger class="w-full">
-                  <ui-select-value placeholder="選擇有效期限" />
-                </ui-select-trigger>
-                <ui-select-content>
-                  <ui-select-group>
-                    <ui-select-item :value="1">
-                      1 天
-                    </ui-select-item>
-                    <ui-select-item :value="7">
-                      7 天
-                    </ui-select-item>
-                    <ui-select-item :value="30">
-                      30 天
-                    </ui-select-item>
-                    <ui-select-item :value="90">
-                      90 天
-                    </ui-select-item>
-                  </ui-select-group>
-                </ui-select-content>
-              </ui-select>
+            <div class="grid grid-cols-2 gap-3">
+              <div class="space-y-2">
+                <label class="text-sm font-medium text-foreground">有效期限</label>
+                <ui-select v-model="expiresInDays">
+                  <ui-select-trigger class="w-full">
+                    <ui-select-value placeholder="選擇有效期限" />
+                  </ui-select-trigger>
+                  <ui-select-content>
+                    <ui-select-group>
+                      <ui-select-item :value="1">
+                        1 天
+                      </ui-select-item>
+                      <ui-select-item :value="7">
+                        7 天
+                      </ui-select-item>
+                      <ui-select-item :value="30">
+                        30 天
+                      </ui-select-item>
+                      <ui-select-item :value="90">
+                        90 天
+                      </ui-select-item>
+                    </ui-select-group>
+                  </ui-select-content>
+                </ui-select>
+              </div>
+              <div class="space-y-2">
+                <label class="text-sm font-medium text-foreground">使用次數</label>
+                <ui-select v-model="maxUses">
+                  <ui-select-trigger class="w-full">
+                    <ui-select-value placeholder="選擇使用次數" />
+                  </ui-select-trigger>
+                  <ui-select-content>
+                    <ui-select-group>
+                      <ui-select-item :value="1">
+                        1 次
+                      </ui-select-item>
+                      <ui-select-item :value="5">
+                        5 次
+                      </ui-select-item>
+                      <ui-select-item :value="10">
+                        10 次
+                      </ui-select-item>
+                      <ui-select-item :value="null">
+                        無限制
+                      </ui-select-item>
+                    </ui-select-group>
+                  </ui-select-content>
+                </ui-select>
+              </div>
             </div>
 
             <ui-button class="w-full" :disabled="isCreating" @click="handleCreateInvitation">
@@ -204,7 +248,7 @@ const usedInvitations = computed(() =>
                     <div class="flex items-center gap-2">
                       <code class="text-sm font-mono bg-muted px-2 py-1 rounded">{{ invitation.invitationCode }}</code>
                       <ui-badge :variant="getStatusBadgeVariant(invitation.status)">
-                        {{ getStatusText(invitation.status) }}
+                        {{ getStatusText(invitation) }}
                       </ui-badge>
                     </div>
                     <div class="text-sm text-muted-foreground space-y-1">
@@ -215,6 +259,10 @@ const usedInvitations = computed(() =>
                       <p class="m-0">
                         <Icon name="lucide:clock" class="w-4 h-4 inline mr-1" />
                         到期日：{{ invitation.expiresAtString }}
+                      </p>
+                      <p class="m-0">
+                        <Icon name="lucide:users" class="w-4 h-4 inline mr-1" />
+                        使用次數：{{ getUsageText(invitation) }}
                       </p>
                     </div>
                     <div class="flex gap-2 mt-2">
@@ -248,7 +296,7 @@ const usedInvitations = computed(() =>
                     <div class="flex items-center gap-2">
                       <code class="text-sm font-mono bg-card px-2 py-1 rounded">{{ invitation.invitationCode }}</code>
                       <ui-badge :variant="getStatusBadgeVariant(invitation.status)">
-                        {{ getStatusText(invitation.status) }}
+                        {{ getStatusText(invitation) }}
                       </ui-badge>
                     </div>
                     <div class="text-sm text-muted-foreground">
@@ -369,7 +417,7 @@ const usedInvitations = computed(() =>
                       <div class="flex items-center gap-2">
                         <code class="text-sm font-mono bg-muted px-2 py-1 rounded">{{ invitation.invitationCode }}</code>
                         <ui-badge :variant="getStatusBadgeVariant(invitation.status)">
-                          {{ getStatusText(invitation.status) }}
+                          {{ getStatusText(invitation) }}
                         </ui-badge>
                       </div>
                       <div class="text-sm text-muted-foreground space-y-1">
@@ -380,6 +428,10 @@ const usedInvitations = computed(() =>
                         <p class="m-0">
                           <Icon name="lucide:clock" class="w-4 h-4 inline mr-1" />
                           到期日：{{ invitation.expiresAtString }}
+                        </p>
+                        <p class="m-0">
+                          <Icon name="lucide:users" class="w-4 h-4 inline mr-1" />
+                          使用次數：{{ getUsageText(invitation) }}
                         </p>
                       </div>
                       <div class="flex gap-2 mt-2">
@@ -412,7 +464,7 @@ const usedInvitations = computed(() =>
                     <div class="flex items-center gap-2">
                       <code class="text-sm font-mono bg-card px-2 py-1 rounded">{{ invitation.invitationCode }}</code>
                       <ui-badge :variant="getStatusBadgeVariant(invitation.status)">
-                        {{ getStatusText(invitation.status) }}
+                        {{ getStatusText(invitation) }}
                       </ui-badge>
                     </div>
                     <div class="text-sm text-muted-foreground">

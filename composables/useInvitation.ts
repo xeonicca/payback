@@ -6,6 +6,7 @@ import { invitationConverter } from '@/utils/converter'
 interface CreateInvitationParams {
   tripId: string
   expiresInDays?: number
+  maxUses?: number | null
 }
 
 interface CreateInvitationResponse {

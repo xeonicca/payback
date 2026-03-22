@@ -38,6 +38,7 @@ export interface NewTrip {
   collaboratorCount?: number
   memberCount?: number
   isPublicInviteEnabled?: boolean
+  publicJoinCode?: string
   collaboratorUserIds?: string[]
   ownerDisplayName?: string
   memberEmojis?: string[]
@@ -55,6 +56,7 @@ export interface Trip extends NewTrip {
   collaboratorCount: number
   memberCount: number
   isPublicInviteEnabled: boolean
+  publicJoinCode: string | null
   collaboratorUserIds: string[]
   ownerDisplayName: string
   memberEmojis: string[]
@@ -125,6 +127,9 @@ export interface NewInvitation {
   status: 'pending' | 'accepted' | 'expired' | 'revoked'
   expiresAt: Timestamp | FieldValue
   createdAt: Timestamp | FieldValue
+  maxUses: number | null
+  usedCount: number
+  usedByUserIds: string[]
   usedByUserId?: string
   usedAt?: Timestamp | FieldValue
 }
