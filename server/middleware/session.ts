@@ -20,8 +20,14 @@ export default defineEventHandler(async (event) => {
     } as AppUser
   }
   else {
-    // Session cookie is invalid or expired — clear it so VueFire
-    // doesn't attempt to verify it and throw an unhandled error
+    // Session cookie is invalid or expired — clear it from both the
+    // response (so the browser drops it) and the incoming request headers
+    // (so VueFire's SSR plugin doesn't see it and throw an unhandled error)
     deleteCookie(event, config.authCookieName)
+    const cookieName = config.authCookieName
+    event.node.req.headers.cookie = (event.node.req.headers.cookie || '')
+      .split(';')
+      .filter(c => !c.trim().startsWith(`${cookieName}=`))
+      .join(';') || undefined
   }
 })
