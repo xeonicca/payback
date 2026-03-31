@@ -2,6 +2,8 @@
 import { toast } from 'vue-sonner'
 import { animalEmojis } from '@/constants'
 
+const { logEvent } = useAnalytics()
+
 definePageMeta({
   layout: false,
 })
@@ -125,6 +127,7 @@ async function handleJoin() {
       body: { joinCode, ...memberChoice },
     })
 
+    logEvent('join_trip', { method: 'public_link', trip_id: result.tripId })
     toast.success('已成功加入行程！')
     router.push(`/trips/${result.tripId}`)
   }

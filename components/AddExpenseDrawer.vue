@@ -13,6 +13,8 @@ import { useFirestore } from 'vuefire'
 import { z } from 'zod'
 import { cn } from '@/lib/utils'
 
+const { logEvent } = useAnalytics()
+
 const props = defineProps<{
   trip: Trip
   tripMembers: TripMember[]
@@ -156,6 +158,7 @@ async function submitReceipt(formValues: { paidByMemberId: string, sharedWithMem
     uploadBytes(fileRef, selectedFile.value)
 
     open.value = false
+    logEvent('add_expense', { method: 'receipt', trip_id: props.trip.id })
     toast.success('收據上傳成功，正在解析收據中...')
   }
   catch (error) {
@@ -194,6 +197,7 @@ async function submitManual(formValues: { description?: string, grandTotal?: num
     })
 
     open.value = false
+    logEvent('add_expense', { method: 'manual', trip_id: props.trip.id })
     toast.success('已新增支出')
   }
   catch (error) {
