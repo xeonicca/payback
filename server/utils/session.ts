@@ -12,7 +12,6 @@ function getFirebaseAdminApp() {
   }
   else {
     const config = useRuntimeConfig()
-    console.log('config', config)
     const serviceAccount = JSON.parse(config.serviceAccount as string)
 
     app = initializeApp({
