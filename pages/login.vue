@@ -36,7 +36,15 @@ onMounted(async () => {
   <div class="pt-[20vh] flex min-h-svh flex-col gap-6 bg-gradient-to-b from-slate-700 to-slate-300 p-6 md:p-10">
     <div class="flex w-full flex-col gap-6 items-center">
       <NuxtImg src="/logo-transparent.png" alt="logo" class="w-40 h-40" />
-      <LoginForm />
+      <template v-if="isLoading">
+        <div class="flex flex-col items-center gap-3">
+          <Icon name="lucide:loader-circle" class="w-8 h-8 text-white animate-spin" />
+          <p class="text-sm text-slate-200 m-0">
+            正在驗證登入...
+          </p>
+        </div>
+      </template>
+      <LoginForm v-else />
     </div>
   </div>
 </template>
