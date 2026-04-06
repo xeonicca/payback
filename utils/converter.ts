@@ -91,6 +91,7 @@ export const expenseConverter: FirestoreDataConverter<Expense> = {
       items: data.items || [],
       enabled: data.enabled ?? true,
       inputCurrency: data.inputCurrency,
+      createdByUserId: data.createdByUserId,
     } as Expense
   },
 }
@@ -147,6 +148,7 @@ export const invitationConverter: FirestoreDataConverter<Invitation> = {
       usedByUserId: data.usedByUserId,
       usedAt: data.usedAt,
       usedAtString: data.usedAt ? formatFirebaseTimestamp(data.usedAt) : undefined,
+      type: data.type,
     } as Invitation
   },
 }

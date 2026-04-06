@@ -23,7 +23,10 @@ const { tripId, expenseId } = useRoute().params
 const trip = useDocument<Trip>(doc(db, 'trips', tripId as string).withConverter(tripConverter))
 const expense = useDocument<Expense>(doc(db, 'trips', tripId as string, 'expenses', expenseId as string).withConverter(expenseConverter))
 const { tripMembers } = useTripMembers(tripId as string)
-const { canManageExpenses } = useTripCollaborators(tripId as string)
+const { canEditExpense, canDeleteExpense, collaborators } = useTripCollaborators(tripId as string)
+
+const canEditThisExpense = computed(() => expense.value ? canEditExpense(expense.value) : false)
+const canDeleteThisExpense = computed(() => expense.value ? canDeleteExpense(expense.value) : false)
 
 const sharedWithMembers = computed(() => tripMembers.value?.filter(member => expense.value?.sharedWithMemberIds.includes(member.id)))
 
@@ -41,6 +44,18 @@ const isDeleting = ref(false)
 const isReanalyzing = ref(false)
 
 const paidByMember = computed(() => tripMembers.value?.find(member => member.id === expense.value?.paidByMemberId))
+
+const createdByName = computed(() => {
+  const uid = expense.value?.createdByUserId
+  if (!uid)
+    return null
+  // Try collaborator display name first, fall back to linked member name
+  const collaborator = collaborators.value.find(c => c.userId === uid)
+  if (collaborator?.displayName)
+    return collaborator.displayName
+  const member = tripMembers.value?.find(m => m.linkedUserId === uid)
+  return member?.name || null
+})
 
 const receiptImageUrl = computedAsync(async () => {
   const storage = useFirebaseStorage()
@@ -263,7 +278,7 @@ async function reanalyzeReceipt() {
       >
         <Icon name="lucide:arrow-left" :size="16" /> 上一頁
       </ui-button>
-      <div v-if="canManageExpenses && !trip?.archived" class="flex items-center gap-2">
+      <div v-if="canEditThisExpense && !trip?.archived" class="flex items-center gap-2">
         <ui-label for="enabled" class="text-xs text-muted-foreground">
           {{ expense?.enabled ? '顯示中' : '已隱藏' }}
         </ui-label>
@@ -307,6 +322,7 @@ async function reanalyzeReceipt() {
       </p>
       <p class="text-xs text-muted-foreground mt-0.5">
         {{ expense?.paidAtString }}
+        <span v-if="createdByName"> · {{ createdByName }} 新增</span>
       </p>
     </div>
 
@@ -415,7 +431,7 @@ async function reanalyzeReceipt() {
               收據圖片
             </div>
             <ui-button
-              v-if="canManageExpenses && !expense?.isProcessing"
+              v-if="canEditThisExpense && !expense?.isProcessing"
               variant="outline"
               size="sm"
               :disabled="isReanalyzing"
@@ -442,7 +458,7 @@ async function reanalyzeReceipt() {
     <!-- Edit Expense Dialog -->
     <ClientOnly>
       <edit-expense-form
-        v-if="canManageExpenses && expense && trip"
+        v-if="canEditThisExpense && expense && trip"
         v-model:open="showEditDialog"
         :expense="expense"
         :trip="trip"
@@ -451,7 +467,7 @@ async function reanalyzeReceipt() {
     </ClientOnly>
 
     <!-- Delete Expense Confirmation Dialog -->
-    <ui-alert-dialog v-if="canManageExpenses" v-model:open="showDeleteDialog">
+    <ui-alert-dialog v-if="canDeleteThisExpense" v-model:open="showDeleteDialog">
       <ui-alert-dialog-content>
         <ui-alert-dialog-header>
           <ui-alert-dialog-title>刪除支出</ui-alert-dialog-title>

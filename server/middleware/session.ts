@@ -11,6 +11,7 @@ export default defineEventHandler(async (event) => {
       displayName: user.displayName,
       photoURL: user.photoURL,
       uid: user.uid,
+      isAnonymous: user.providerData.length === 0,
     } as AppUser
   }
 })

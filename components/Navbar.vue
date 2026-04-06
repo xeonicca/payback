@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import type { Trip } from '@/types'
 import { doc } from 'firebase/firestore'
+import { toast } from 'vue-sonner'
 import { useDocument, useFirestore } from 'vuefire'
 import { tripConverter } from '@/utils/converter'
-import { toast } from 'vue-sonner'
 
 const sessionUser = useSessionUser()
 const router = useRouter()
@@ -13,6 +13,11 @@ const { logout } = useLogin()
 // Check if we're on a trip detail page
 const tripId = computed(() => route.params.tripId as string | undefined)
 const isOnTripPage = computed(() => !!tripId.value)
+
+// Only show guest upgrade banner on trip detail and settings pages
+const showGuestBanner = computed(() => {
+  return route.path === `/trips/${tripId.value}` || route.path === `/trips/${tripId.value}/edit`
+})
 
 // Fetch trip name if on trip page
 const db = useFirestore()
@@ -99,7 +104,7 @@ async function handleLogout() {
                   <button class="rounded-full focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-2 focus:ring-offset-slate-700">
                     <ui-avatar class="cursor-pointer hover:ring-2 hover:ring-blue-400 transition-all">
                       <ui-avatar-image :src="sessionUser.photoURL || ''" :alt="sessionUser.displayName || 'User'" />
-                      <ui-avatar-fallback>{{ sessionUser.displayName?.charAt(0) || sessionUser.email?.charAt(0) || 'U' }}</ui-avatar-fallback>
+                      <ui-avatar-fallback>{{ sessionUser.isAnonymous ? '?' : (sessionUser.displayName?.charAt(0) || sessionUser.email?.charAt(0) || 'U') }}</ui-avatar-fallback>
                     </ui-avatar>
                   </button>
                 </ui-dropdown-menu-trigger>
@@ -108,14 +113,14 @@ async function handleLogout() {
                     <div class="flex items-center gap-3">
                       <ui-avatar>
                         <ui-avatar-image :src="sessionUser.photoURL || ''" :alt="sessionUser.displayName || 'User'" />
-                        <ui-avatar-fallback>{{ sessionUser.displayName?.charAt(0) || sessionUser.email?.charAt(0) || 'U' }}</ui-avatar-fallback>
+                        <ui-avatar-fallback>{{ sessionUser.isAnonymous ? '?' : (sessionUser.displayName?.charAt(0) || sessionUser.email?.charAt(0) || 'U') }}</ui-avatar-fallback>
                       </ui-avatar>
                       <div class="flex flex-col">
                         <p class="text-sm font-medium text-gray-900 m-0">
-                          {{ sessionUser.displayName || '未知使用者' }}
+                          {{ sessionUser.isAnonymous ? '訪客' : (sessionUser.displayName || '未知使用者') }}
                         </p>
                         <p class="text-xs text-gray-500 m-0 truncate">
-                          {{ sessionUser.email }}
+                          {{ sessionUser.isAnonymous ? '未登入帳號' : sessionUser.email }}
                         </p>
                       </div>
                     </div>
@@ -138,4 +143,7 @@ async function handleLogout() {
       </ul>
     </div>
   </nav>
+  <div v-if="sessionUser?.isAnonymous && showGuestBanner" class="container mx-auto px-4 mt-4 mb-4">
+    <guest-upgrade-banner :trip-id="tripId" />
+  </div>
 </template>

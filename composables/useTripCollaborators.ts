@@ -1,4 +1,4 @@
-import type { Trip, TripCollaborator } from '@/types'
+import type { Expense, Trip, TripCollaborator } from '@/types'
 import { collection, doc } from 'firebase/firestore'
 import { useCollection, useFirestore } from 'vuefire'
 import { tripCollaboratorConverter } from '@/utils/converter'
@@ -28,6 +28,10 @@ export function useTripCollaborators(tripId: string) {
     return !!currentUserCollaborator.value
   })
 
+  const isGuest = computed(() => {
+    return currentUserCollaborator.value?.role === 'guest'
+  })
+
   const canEditTrip = computed(() => {
     // Only owner can edit trip settings
     return isOwner.value
@@ -39,13 +43,42 @@ export function useTripCollaborators(tripId: string) {
   })
 
   const canManageExpenses = computed(() => {
-    // Both owner and editors can manage expenses
+    // Owner and editors can manage all expenses (bulk operations)
+    // Guests are excluded — they use fine-grained canEditExpense/canDeleteExpense
+    if (isGuest.value)
+      return false
     return isCollaborator.value || isOwner.value
   })
+
+  const canAddExpenses = computed(() => {
+    // All collaborators including guests can add expenses
+    return isCollaborator.value
+  })
+
+  const canEditExpense = (expense: Expense) => {
+    if (isOwner.value || currentUserCollaborator.value?.role === 'editor')
+      return true
+    if (isGuest.value && expense.createdByUserId === sessionUser.value?.uid)
+      return true
+    return false
+  }
+
+  const canDeleteExpense = (expense: Expense) => {
+    if (isOwner.value || currentUserCollaborator.value?.role === 'editor')
+      return true
+    if (isGuest.value && expense.createdByUserId === sessionUser.value?.uid)
+      return true
+    return false
+  }
 
   const canInvite = computed(() => {
     // Only owner can invite
     return isOwner.value
+  })
+
+  const canCreateTrip = computed(() => {
+    // Guests cannot create new trips
+    return !sessionUser.value?.isAnonymous
   })
 
   return {
@@ -53,9 +86,14 @@ export function useTripCollaborators(tripId: string) {
     currentUserCollaborator,
     isOwner,
     isCollaborator,
+    isGuest,
     canEditTrip,
     canManageMembers,
     canManageExpenses,
+    canAddExpenses,
+    canEditExpense,
+    canDeleteExpense,
     canInvite,
+    canCreateTrip,
   }
 }

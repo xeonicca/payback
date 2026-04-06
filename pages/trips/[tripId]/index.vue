@@ -11,7 +11,7 @@ const { tripId } = useRoute().params
 const { trip } = useTrip(tripId as string)
 const { tripMembers, hostMember, currentUserMember } = useTripMembers(tripId as string)
 const { enabledExpenses: recentExpenses } = useTripExpenses(tripId as string, 5)
-const { canManageExpenses } = useTripCollaborators(tripId as string)
+const { canAddExpenses } = useTripCollaborators(tripId as string)
 
 const { getMemberPaidAmount, getMemberOwedAmount } = useTripBalances(tripId as string)
 
@@ -348,7 +348,7 @@ function formatConverted(amount: number) {
             近期支出紀錄
           </h2>
           <ui-button
-            v-if="!trip.archived && canManageExpenses"
+            v-if="!trip.archived && canAddExpenses"
             size="sm"
             @click="openAddExpenseDrawer = true"
           >

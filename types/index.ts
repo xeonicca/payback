@@ -9,6 +9,7 @@ export interface AppUser {
   displayName: string | null
   photoURL: string | null
   uid: string
+  isAnonymous: boolean
 }
 
 export interface NewTripMember {
@@ -83,6 +84,7 @@ export interface NewExpense {
   enabled: boolean // New field with default value true
   items?: Array<ExpenseDetailItem>
   inputCurrency?: string // The currency used when entering this expense
+  createdByUserId?: string // Tracks who created the expense (for guest edit permissions)
 }
 
 export interface Expense extends NewExpense {
@@ -109,7 +111,7 @@ export interface NewTripCollaborator {
   email: string | null
   displayName: string | null
   photoURL: string | null
-  role: 'owner' | 'editor'
+  role: 'owner' | 'editor' | 'guest'
   joinedAt: Timestamp | FieldValue
   invitedBy?: string
 }
@@ -132,6 +134,7 @@ export interface NewInvitation {
   usedByUserIds: string[]
   usedByUserId?: string
   usedAt?: Timestamp | FieldValue
+  type?: 'personal' | 'guest'
 }
 
 export interface Invitation extends NewInvitation {

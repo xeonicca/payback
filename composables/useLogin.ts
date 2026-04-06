@@ -4,11 +4,15 @@ import type {
 } from 'firebase/auth'
 import type { AppUser } from '~/types'
 import {
+  browserLocalPersistence,
   getIdToken,
   getRedirectResult,
   GoogleAuthProvider,
   inMemoryPersistence,
+  linkWithPopup,
+  linkWithRedirect,
   setPersistence,
+  signInAnonymously,
   signInWithPopup,
   signInWithRedirect,
   signOut,
@@ -45,7 +49,8 @@ export default function useLogin() {
   }
 
   const redirectToGoogleLogin = async () => {
-    if (!auth || !provider) return
+    if (!auth || !provider)
+      return
     await setPersistence(auth, inMemoryPersistence)
     try {
       await signInWithRedirect(auth, provider)
@@ -57,7 +62,8 @@ export default function useLogin() {
   }
 
   const loginWithGoogle = async () => {
-    if (!auth || !provider) return null
+    if (!auth || !provider)
+      return null
 
     if (import.meta.env.MODE === 'development') {
       try {
@@ -77,12 +83,20 @@ export default function useLogin() {
   }
 
   const checkRedirectResult = async () => {
-    if (!auth) return null
+    if (!auth)
+      return null
 
     if (import.meta.env.MODE === 'development') {
-      const user = await getCurrentUser()
-      if (user)
-        await setSession(user)
+      try {
+        const user = await getCurrentUser()
+        if (user)
+          await setSession(user)
+      }
+      catch (e: unknown) {
+        // Stale cached Firebase user — clear it so it doesn't block fresh logins
+        console.warn('Failed to restore session from cached user, signing out', e)
+        await signOut(auth!)
+      }
       return sessionUser.value
     }
     try {
@@ -101,7 +115,8 @@ export default function useLogin() {
   }
 
   const logout = async () => {
-    if (!auth) return
+    if (!auth)
+      return
 
     try {
       // Call server logout endpoint to clear session cookie
@@ -129,13 +144,59 @@ export default function useLogin() {
         return null
       return data.user
     }
-    catch (error) {
+    catch {
       // setCookie(null)
+    }
+  }
+
+  const loginAsGuest = async () => {
+    if (!auth)
+      return null
+
+    try {
+      // Use browserLocalPersistence so the anonymous identity survives
+      // when in-app browsers (LINE/WhatsApp WebView) are closed and reopened
+      await setPersistence(auth, browserLocalPersistence)
+      const result = await signInAnonymously(auth)
+      await setSession(result.user)
+      return sessionUser.value
+    }
+    catch (e: unknown) {
+      authError.value = e as AuthError
+      console.error(e)
+      return null
+    }
+  }
+
+  const upgradeGuestAccount = async () => {
+    if (!auth?.currentUser || !provider)
+      return null
+
+    try {
+      let result
+      if (import.meta.env.MODE === 'development') {
+        result = await linkWithPopup(auth.currentUser, provider)
+      }
+      else {
+        await linkWithRedirect(auth.currentUser, provider)
+        return null // Will be handled by checkRedirectResult
+      }
+
+      // Refresh session with updated user info
+      await setSession(result.user)
+      return sessionUser.value
+    }
+    catch (e: unknown) {
+      authError.value = e as AuthError
+      console.error(e)
+      return null
     }
   }
 
   return {
     loginWithGoogle,
+    loginAsGuest,
+    upgradeGuestAccount,
     redirectToGoogleLogin,
     checkRedirectResult,
     setSession,

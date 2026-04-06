@@ -90,6 +90,7 @@ definePageMeta({
           我的行程
         </h1>
         <ui-button
+          v-if="!sessionUser?.isAnonymous"
           size="sm"
           @click="navigateTo('/trips/new')"
         >
@@ -122,7 +123,7 @@ definePageMeta({
       :title="searchTerm ? '找不到行程' : '還沒有行程'"
       :description="searchTerm ? '試試其他搜尋條件' : '建立你的第一個行程，開始記帳分帳'"
     >
-      <ui-button v-if="!searchTerm" @click="navigateTo('/trips/new')">
+      <ui-button v-if="!searchTerm && !sessionUser?.isAnonymous" @click="navigateTo('/trips/new')">
         <Icon name="lucide:plus" size="16" />
         新增行程
       </ui-button>

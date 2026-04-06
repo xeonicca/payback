@@ -119,13 +119,14 @@ export default defineEventHandler(async (event) => {
       })
     }
 
-    // Add user as collaborator
+    // Add user as collaborator (guest invitations get 'guest' role)
+    const collaboratorRole = invitation.type === 'guest' ? 'guest' : 'editor'
     await collaboratorRef.set({
       userId: user.uid,
-      email: user.email,
-      displayName: user.displayName,
+      email: user.email || null,
+      displayName: user.displayName || null,
       photoURL: user.photoURL || null,
-      role: 'editor',
+      role: collaboratorRole,
       joinedAt: FieldValue.serverTimestamp(),
       invitedBy: invitation.invitedByUserId,
     })

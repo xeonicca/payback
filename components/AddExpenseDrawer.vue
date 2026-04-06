@@ -22,6 +22,7 @@ const props = defineProps<{
 
 const open = defineModel<boolean>('open', { default: false })
 
+const sessionUser = useSessionUser()
 const isDesktop = useMediaQuery('(min-width: 1024px)')
 const activeTab = ref<'receipt' | 'manual'>(props.defaultTab ?? 'receipt')
 const isSubmitting = ref(false)
@@ -148,6 +149,7 @@ async function submitReceipt(formValues: { paidByMemberId: string, sharedWithMem
       paidAt: serverTimestamp(),
       isProcessing: true,
       enabled: true,
+      createdByUserId: sessionUser.value?.uid,
     }
 
     const expenseDoc = await addDoc(collection(db, 'trips', props.trip.id, 'expenses'), expense)
@@ -191,6 +193,7 @@ async function submitManual(formValues: { description?: string, grandTotal?: num
       createdAt: Timestamp.fromDate(new Date()),
       isProcessing: false,
       enabled: true,
+      createdByUserId: sessionUser.value?.uid,
     })
 
     open.value = false

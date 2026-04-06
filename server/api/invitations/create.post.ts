@@ -11,7 +11,7 @@ export default defineEventHandler(async (event) => {
     })
   }
 
-  const { tripId, expiresInDays = 7, maxUses = 1 } = await readBody(event)
+  const { tripId, expiresInDays = 7, maxUses = 1, type = 'personal' } = await readBody(event)
 
   if (!tripId) {
     throw createError({
@@ -55,6 +55,9 @@ export default defineEventHandler(async (event) => {
     // Validate maxUses: null means unlimited, otherwise must be positive integer
     const validatedMaxUses = maxUses === null ? null : Math.max(1, Math.floor(Number(maxUses) || 1))
 
+    // Validate invitation type
+    const validatedType = type === 'guest' ? 'guest' : 'personal'
+
     // Create invitation document
     const invitationData = {
       tripId,
@@ -68,12 +71,15 @@ export default defineEventHandler(async (event) => {
       maxUses: validatedMaxUses,
       usedCount: 0,
       usedByUserIds: [],
+      type: validatedType,
     }
 
     const invitationRef = await db.collection('invitations').add(invitationData)
 
     const baseUrl = getRequestURL(event).origin
-    const invitationUrl = `${baseUrl}/invite/${invitationCode}`
+    const invitationUrl = validatedType === 'guest'
+      ? `${baseUrl}/guest/${invitationCode}`
+      : `${baseUrl}/invite/${invitationCode}`
 
     return {
       invitationId: invitationRef.id,
