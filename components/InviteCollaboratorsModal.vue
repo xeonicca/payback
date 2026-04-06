@@ -191,8 +191,9 @@ const usedGuestInvitations = computed(() =>
 )
 
 function getInvitationUrl(invitation: Invitation) {
-  const prefix = invitation.type === 'guest' ? '/guest/' : '/invite/'
-  return `${baseUrl}${prefix}${invitation.invitationCode}`
+  if (invitation.type === 'guest')
+    return `${baseUrl}/guest/${invitation.invitationCode}`
+  return `${baseUrl}/invite/${invitation.invitationCode}?openExternalBrowser=1`
 }
 </script>
 

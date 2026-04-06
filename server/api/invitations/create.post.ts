@@ -79,7 +79,7 @@ export default defineEventHandler(async (event) => {
     const baseUrl = getRequestURL(event).origin
     const invitationUrl = validatedType === 'guest'
       ? `${baseUrl}/guest/${invitationCode}`
-      : `${baseUrl}/invite/${invitationCode}`
+      : `${baseUrl}/invite/${invitationCode}?openExternalBrowser=1`
 
     return {
       invitationId: invitationRef.id,

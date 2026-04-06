@@ -80,7 +80,7 @@ const { copyToClipboard } = useCopyToClipboard()
 const baseUrl = useRequestURL().origin
 const publicJoinUrl = computed(() => {
   if (!trip.value?.publicJoinCode) return null
-  return `${baseUrl}/join/${trip.value.publicJoinCode}`
+  return `${baseUrl}/join/${trip.value.publicJoinCode}?openExternalBrowser=1`
 })
 
 async function handleTogglePublicInvite(enabled: boolean) {
@@ -267,6 +267,40 @@ function handleReset() {
   toast.success('已還原所有變更')
 }
 
+// Leave trip
+const isLeaving = ref(false)
+const showLeaveWarning = ref(false)
+
+async function handleLeaveTrip() {
+  try {
+    isLeaving.value = true
+    await $fetch('/api/trips/leave', {
+      method: 'POST',
+      body: { tripId },
+    })
+
+    // Anonymous guests should be fully signed out after leaving
+    if (sessionUser.value?.isAnonymous) {
+      const { logout } = useLogin()
+      await logout()
+      toast.success('已離開行程')
+      router.replace('/login')
+    }
+    else {
+      toast.success('已離開行程')
+      router.replace('/')
+    }
+  }
+  catch (error: any) {
+    console.error('Error leaving trip:', error)
+    toast.error(error.data?.message || '離開行程失敗')
+  }
+  finally {
+    isLeaving.value = false
+    showLeaveWarning.value = false
+  }
+}
+
 // Self-edit for non-owner collaborators
 const selfEditName = ref('')
 const selfEditAvatar = ref('')
@@ -450,6 +484,28 @@ async function handleArchiveToggle() {
       <!-- Loading state -->
       <div v-else class="py-8 flex justify-center">
         <ui-skeleton class="w-full h-32" />
+      </div>
+
+      <!-- Leave trip -->
+      <div class="bg-card rounded-xl border p-5 space-y-3">
+        <div>
+          <p class="text-sm font-semibold text-foreground m-0">
+            離開行程
+          </p>
+          <p class="text-xs text-muted-foreground m-0 mt-1">
+            離開後將無法查看或編輯此行程的支出
+          </p>
+        </div>
+        <ui-button
+          type="button"
+          variant="destructive"
+          class="w-full"
+          :disabled="isLeaving"
+          @click="showLeaveWarning = true"
+        >
+          <Icon name="lucide:log-out" :size="16" class="mr-2" />
+          離開行程
+        </ui-button>
       </div>
     </template>
 
@@ -770,6 +826,49 @@ async function handleArchiveToggle() {
               </ui-button>
               <ui-button type="button" variant="destructive" class="flex-1" :disabled="isArchiving" @click="handleArchiveToggle">
                 {{ isArchiving ? '處理中...' : '確定封存' }}
+              </ui-button>
+            </div>
+          </div>
+        </div>
+      </ui-drawer-content>
+    </ui-drawer>
+
+    <!-- Leave Trip Warning — Dialog on desktop, Drawer on mobile -->
+    <ui-dialog v-if="isDesktop" :open="showLeaveWarning" @update:open="showLeaveWarning = $event">
+      <ui-dialog-content v-if="showLeaveWarning" class="max-w-md" :show-close-button="false">
+        <ui-dialog-header>
+          <ui-dialog-title>確定要離開「{{ trip?.name }}」？</ui-dialog-title>
+          <ui-dialog-description>離開後你將無法再查看或編輯此行程</ui-dialog-description>
+        </ui-dialog-header>
+        <ui-dialog-footer>
+          <ui-button type="button" variant="outline" :disabled="isLeaving" @click="showLeaveWarning = false">
+            取消
+          </ui-button>
+          <ui-button type="button" variant="destructive" :disabled="isLeaving" @click="handleLeaveTrip">
+            {{ isLeaving ? '處理中...' : '確定離開' }}
+          </ui-button>
+        </ui-dialog-footer>
+      </ui-dialog-content>
+    </ui-dialog>
+
+    <ui-drawer v-else v-model:open="showLeaveWarning">
+      <ui-drawer-content>
+        <div class="mx-auto w-full max-w-md p-6">
+          <div class="space-y-6">
+            <div class="text-center space-y-2">
+              <h2 class="text-xl font-bold text-foreground m-0">
+                確定要離開「{{ trip?.name }}」？
+              </h2>
+              <p class="text-sm text-muted-foreground m-0">
+                離開後你將無法再查看或編輯此行程
+              </p>
+            </div>
+            <div class="flex gap-3">
+              <ui-button type="button" variant="outline" class="flex-1" :disabled="isLeaving" @click="showLeaveWarning = false">
+                取消
+              </ui-button>
+              <ui-button type="button" variant="destructive" class="flex-1" :disabled="isLeaving" @click="handleLeaveTrip">
+                {{ isLeaving ? '處理中...' : '確定離開' }}
               </ui-button>
             </div>
           </div>
