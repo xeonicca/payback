@@ -118,6 +118,8 @@ const onSubmit = handleSubmit(async (values) => {
       await writeTripMembers(docRef.id, member)
     }
 
+    const { logEvent } = useAnalytics()
+    logEvent('create_trip', { trip_id: docRef.id })
     toast.success('行程建立成功！')
     router.push(`/trips/${docRef.id}`)
   }

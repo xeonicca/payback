@@ -2,6 +2,8 @@
 import { toast } from 'vue-sonner'
 import { animalEmojis } from '@/constants'
 
+const { logEvent } = useAnalytics()
+
 definePageMeta({
   layout: false,
 })
@@ -144,6 +146,7 @@ async function handleAccept() {
 
     const result = await acceptInvitation(invitationCode, memberChoice)
 
+    logEvent('join_trip', { method: 'invitation', trip_id: result.tripId })
     toast.success('已成功加入行程！')
     router.push(`/trips/${result.tripId}`)
   }

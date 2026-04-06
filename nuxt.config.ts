@@ -2,6 +2,7 @@ import tailwindcss from '@tailwindcss/vite'
 
 export default defineNuxtConfig({
   compatibilityDate: '2025-05-15',
+  srcDir: '.',
   devtools: { enabled: false },
   modules: [
     '@nuxt/eslint',
@@ -65,6 +66,7 @@ export default defineNuxtConfig({
       appId: process.env.NUXT_PUBLIC_FIREBASE_APP_ID,
       storageBucket: process.env.NUXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
       messagingSenderId: process.env.NUXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
+      measurementId: process.env.NUXT_PUBLIC_FIREBASE_MEASUREMENT_ID,
     },
   },
 
@@ -89,6 +91,9 @@ export default defineNuxtConfig({
       description: 'Payback Travel Mate',
       theme_color: '#314158',
       background_color: '#314158',
+      display: 'standalone',
+      scope: '/',
+      start_url: '/',
       orientation: 'portrait',
       icons: [
         {
@@ -101,17 +106,17 @@ export default defineNuxtConfig({
           sizes: '512x512',
           type: 'image/png',
         },
-        // {
-        //   src: 'pwa-512x512.png',
-        //   sizes: '512x512',
-        //   type: 'image/png',
-        //   purpose: 'any maskable',
-        // },
+        {
+          src: '/512.png',
+          sizes: '512x512',
+          type: 'image/png',
+          purpose: 'maskable',
+        },
       ],
     },
     workbox: {
       globPatterns: ['**/*.{js,css,html,png,svg,ico}'],
-      navigateFallback: '/login',
+      navigateFallback: '/offline.html',
       navigateFallbackDenylist: [/^\/api/],
       cleanupOutdatedCaches: true,
       runtimeCaching: [
@@ -137,10 +142,29 @@ export default defineNuxtConfig({
             },
           },
         },
+        {
+          urlPattern: /^https:\/\/fonts\.(?:googleapis|gstatic)\.com\/.*/i,
+          handler: 'CacheFirst',
+          options: {
+            cacheName: 'google-fonts',
+            expiration: {
+              maxEntries: 10,
+              maxAgeSeconds: 365 * 24 * 60 * 60, // 1 year
+            },
+          },
+        },
+        {
+          urlPattern: /\.(?:woff2?|ttf|otf|eot)$/,
+          handler: 'CacheFirst',
+          options: {
+            cacheName: 'fonts',
+            expiration: {
+              maxEntries: 10,
+              maxAgeSeconds: 365 * 24 * 60 * 60, // 1 year
+            },
+          },
+        },
       ],
-    },
-    injectManifest: {
-      globPatterns: ['**/*.{js,css,html,png,svg,ico}'],
     },
     client: {
       installPrompt: true,
