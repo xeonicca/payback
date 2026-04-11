@@ -5,6 +5,9 @@ const props = defineProps<{
   expense: Expense
   tripMembers: TripMember[]
   trip: Trip
+  primaryCurrency?: string
+  secondaryCurrency?: string
+  showHomeCurrency?: boolean
 }>()
 
 const sharedMembers = computed(() => props.tripMembers.filter(member => props.expense.sharedWithMemberIds.includes(member.id)))
@@ -14,6 +17,32 @@ const paidByMember = computed(() => props.tripMembers.find(member => member.id =
 const usedHomeCurrency = computed(() =>
   props.expense.inputCurrency && props.expense.inputCurrency === props.trip.defaultCurrency,
 )
+
+const hasDualCurrency = computed(() => !!props.trip.exchangeRate && props.trip.exchangeRate !== 1)
+
+// Amount in trip currency (storage format)
+const tripCurrencyAmount = computed(() => props.expense.grandTotal || 0)
+// Amount in home currency
+const homeCurrencyAmount = computed(() => tripCurrencyAmount.value * props.trip.exchangeRate)
+
+const displayPrimary = computed(() => {
+  if (usedHomeCurrency.value) {
+    return { currency: props.trip.defaultCurrency, amount: homeCurrencyAmount.value }
+  }
+  if (props.showHomeCurrency) {
+    return { currency: props.trip.defaultCurrency, amount: homeCurrencyAmount.value }
+  }
+  return { currency: props.trip.tripCurrency, amount: tripCurrencyAmount.value }
+})
+
+const displaySecondary = computed(() => {
+  if (usedHomeCurrency.value) return null
+  if (!hasDualCurrency.value) return null
+  if (props.showHomeCurrency) {
+    return { currency: props.trip.tripCurrency, amount: tripCurrencyAmount.value }
+  }
+  return { currency: props.trip.defaultCurrency, amount: homeCurrencyAmount.value }
+})
 </script>
 
 <template>
@@ -54,17 +83,12 @@ const usedHomeCurrency = computed(() =>
 
     <!-- Amount (primary info — right-aligned, prominent) -->
     <div class="text-right shrink-0">
-      <div v-if="usedHomeCurrency" class="text-sm font-mono font-bold text-primary">
-        {{ trip.defaultCurrency }} {{ ((expense.grandTotal || 0) * trip.exchangeRate).toFixed(2) }}
+      <div class="text-sm font-mono font-bold" :class="usedHomeCurrency ? 'text-primary' : 'text-foreground'">
+        {{ displayPrimary.currency }} {{ displayPrimary.amount.toFixed(2) }}
       </div>
-      <template v-else>
-        <div class="text-sm font-mono font-bold text-foreground">
-          {{ trip.tripCurrency }} {{ (expense.grandTotal || 0).toFixed(2) }}
-        </div>
-        <div v-if="trip?.exchangeRate && trip.exchangeRate !== 1" class="text-xs text-muted-foreground font-mono">
-          ≈ {{ trip?.defaultCurrency }} {{ ((expense.grandTotal || 0) * trip.exchangeRate).toFixed(2) }}
-        </div>
-      </template>
+      <div v-if="displaySecondary" class="text-xs text-muted-foreground font-mono">
+        ≈ {{ displaySecondary.currency }} {{ displaySecondary.amount.toFixed(2) }}
+      </div>
     </div>
   </nuxt-link>
 </template>
