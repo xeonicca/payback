@@ -24,6 +24,7 @@ const trip = useDocument<Trip>(doc(db, 'trips', tripId as string).withConverter(
 const expense = useDocument<Expense>(doc(db, 'trips', tripId as string, 'expenses', expenseId as string).withConverter(expenseConverter))
 const { tripMembers } = useTripMembers(tripId as string)
 const { canEditExpense, canDeleteExpense, collaborators } = useTripCollaborators(tripId as string)
+const { showHomeCurrency, hasDualCurrency, primaryCurrency, secondaryCurrency, toPrimary, toSecondary } = useCurrencyToggle(tripId as string, trip)
 
 const canEditThisExpense = computed(() => expense.value ? canEditExpense(expense.value) : false)
 const canDeleteThisExpense = computed(() => expense.value ? canDeleteExpense(expense.value) : false)
@@ -311,9 +312,9 @@ async function reanalyzeReceipt() {
           <span class="text-primary">{{ trip?.defaultCurrency }} {{ convertToDefaultCurrency.toFixed(2) }}</span>
         </template>
         <template v-else>
-          <span class="text-primary">{{ trip?.tripCurrency }} {{ expense?.grandTotal.toFixed(2) }}</span>
-          <span class="text-sm text-muted-foreground font-normal inline-flex items-center gap-1 ml-1">
-            ≈ {{ trip?.defaultCurrency }} {{ convertToDefaultCurrency.toFixed(2) }}
+          <span class="text-primary">{{ primaryCurrency }} {{ toPrimary(expense?.grandTotal || 0).toFixed(2) }}</span>
+          <span v-if="hasDualCurrency" class="text-sm text-muted-foreground font-normal inline-flex items-center gap-1 ml-1">
+            ≈ {{ secondaryCurrency }} {{ toSecondary(expense?.grandTotal || 0).toFixed(2) }}
           </span>
         </template>
       </h1>
@@ -363,11 +364,11 @@ async function reanalyzeReceipt() {
                     </div>
                     <template v-else>
                       <div class="text-sm font-mono text-green-600 dark:text-green-400">
-                        {{ trip?.tripCurrency }} {{ sharedTotalByMember[member.id].total.toFixed(2) || '0.00' }}
+                        {{ primaryCurrency }} {{ toPrimary(sharedTotalByMember[member.id].total).toFixed(2) || '0.00' }}
                       </div>
-                      <div v-if="trip?.exchangeRate && trip.exchangeRate !== 1" class="text-xs text-muted-foreground inline-flex items-center gap-1">
+                      <div v-if="hasDualCurrency" class="text-xs text-muted-foreground inline-flex items-center gap-1">
                         <Icon name="lucide:equal-approximately" class="text-muted-foreground" size="12" />
-                        <span>{{ trip?.defaultCurrency }} {{ (sharedTotalByMember[member.id].convertedTotal).toFixed(2) }}</span>
+                        <span>{{ secondaryCurrency }} {{ toSecondary(sharedTotalByMember[member.id].total).toFixed(2) }}</span>
                       </div>
                     </template>
                   </div>
@@ -383,17 +384,17 @@ async function reanalyzeReceipt() {
                     <div class="flex-1">
                       <span class="font-mono text-foreground">{{ item.itemName }}</span>
                       <p class="text-muted-foreground">
-                        ({{ usedHomeCurrency ? trip?.defaultCurrency : trip?.tripCurrency }} {{ (usedHomeCurrency ? item.itemPrice * (trip?.exchangeRate || 1) : item.itemPrice).toFixed(2) }} × {{ item.itemQuantity }} ÷ {{ item.sharingMembers.length }}人)
+                        ({{ usedHomeCurrency ? trip?.defaultCurrency : primaryCurrency }} {{ (usedHomeCurrency ? item.itemPrice * (trip?.exchangeRate || 1) : toPrimary(item.itemPrice)).toFixed(2) }} × {{ item.itemQuantity }} ÷ {{ item.sharingMembers.length }}人)
                       </p>
                     </div>
                     <div class="text-right font-mono" :class="usedHomeCurrency ? 'text-primary' : 'text-green-600 dark:text-green-400'">
-                      {{ usedHomeCurrency ? trip?.defaultCurrency : trip?.tripCurrency }} {{ (usedHomeCurrency ? item.sharePerMember * (trip?.exchangeRate || 1) : item.sharePerMember).toFixed(2) }}
+                      {{ usedHomeCurrency ? trip?.defaultCurrency : primaryCurrency }} {{ (usedHomeCurrency ? item.sharePerMember * (trip?.exchangeRate || 1) : toPrimary(item.sharePerMember)).toFixed(2) }}
                     </div>
                   </div>
                   <div class="border-t border-border pt-1 flex justify-between items-center font-bold text-foreground">
                     <span>小計:</span>
                     <span :class="usedHomeCurrency ? 'text-primary' : 'text-green-600 dark:text-green-400'">
-                      {{ usedHomeCurrency ? trip?.defaultCurrency : trip?.tripCurrency }} {{ ((memberItemBreakdown[member.id] || []).reduce((sum, item) => sum + item.sharePerMember, 0) * (usedHomeCurrency ? (trip?.exchangeRate || 1) : 1)).toFixed(2) }}
+                      {{ usedHomeCurrency ? trip?.defaultCurrency : primaryCurrency }} {{ ((memberItemBreakdown[member.id] || []).reduce((sum, item) => sum + (usedHomeCurrency ? item.sharePerMember * (trip?.exchangeRate || 1) : toPrimary(item.sharePerMember)), 0)).toFixed(2) }}
                     </span>
                   </div>
                 </div>
