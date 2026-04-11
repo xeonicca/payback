@@ -12,6 +12,7 @@ const { trip } = useTrip(tripId as string)
 const { tripExpenses, enabledExpenses } = useTripExpenses(tripId as string)
 const { tripMembers } = useTripMembers(tripId as string)
 const { getMemberPaidAmount, getMemberOwedAmount, getMemberBalance } = useTripBalances(tripId as string)
+const { showHomeCurrency, hasDualCurrency, primaryCurrency, toPrimary } = useCurrencyToggle(tripId as string, trip)
 
 // ── Daily spending data ──
 const dailySpending = computed(() => {
@@ -62,9 +63,10 @@ const avgPerExpense = computed(() => enabledExpenses.value.length > 0 ? totalExp
 const topDay = computed(() => dailySpending.value.reduce((max, d) => d.total > max.total ? d : max, { date: '-', total: 0 }))
 
 function formatAmount(n: number) {
-  if (n >= 10000) return `${(n / 1000).toFixed(0)}k`
-  if (n >= 1000) return `${(n / 1000).toFixed(1)}k`
-  return n.toFixed(0)
+  const converted = toPrimary(n)
+  if (converted >= 10000) return `${(converted / 1000).toFixed(0)}k`
+  if (converted >= 1000) return `${(converted / 1000).toFixed(1)}k`
+  return converted.toFixed(0)
 }
 </script>
 
@@ -83,7 +85,7 @@ function formatAmount(n: number) {
       <div class="bg-card border rounded-xl p-4">
         <p class="text-xs text-muted-foreground m-0">總支出</p>
         <p class="text-lg font-bold font-mono text-foreground m-0 mt-1">
-          {{ trip?.tripCurrency }} {{ formatAmount(totalExpenses) }}
+          {{ primaryCurrency }} {{ formatAmount(totalExpenses) }}
         </p>
         <p class="text-xs text-muted-foreground m-0 mt-0.5">
           {{ enabledExpenses.length }} 筆
@@ -92,7 +94,7 @@ function formatAmount(n: number) {
       <div class="bg-card border rounded-xl p-4">
         <p class="text-xs text-muted-foreground m-0">日均支出</p>
         <p class="text-lg font-bold font-mono text-foreground m-0 mt-1">
-          {{ trip?.tripCurrency }} {{ formatAmount(avgPerDay) }}
+          {{ primaryCurrency }} {{ formatAmount(avgPerDay) }}
         </p>
         <p class="text-xs text-muted-foreground m-0 mt-0.5">
           單筆均 {{ formatAmount(avgPerExpense) }}
@@ -123,7 +125,7 @@ function formatAmount(n: number) {
       </div>
       <div v-if="topDay.total > 0" class="mt-3 pt-3 border-t border-border">
         <p class="text-xs text-muted-foreground m-0">
-          花費最多的一天是 <span class="font-semibold text-foreground">{{ topDay.date }}</span>，共 {{ trip?.tripCurrency }} {{ formatAmount(topDay.total) }}
+          花費最多的一天是 <span class="font-semibold text-foreground">{{ topDay.date }}</span>，共 {{ primaryCurrency }} {{ formatAmount(topDay.total) }}
         </p>
       </div>
     </section>
@@ -183,7 +185,7 @@ function formatAmount(n: number) {
                 : undefined,
             }"
             :class="amount === 0 ? 'bg-muted' : ''"
-            :title="`${hour}:00 — ${trip?.tripCurrency} ${formatAmount(amount)}`"
+            :title="`${hour}:00 — ${primaryCurrency} ${formatAmount(amount)}`"
           />
           <span v-if="hour % 3 === 0" class="text-[10px] text-muted-foreground font-mono leading-none">
             {{ hour }}
