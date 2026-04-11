@@ -15,6 +15,8 @@ const { canAddExpenses } = useTripCollaborators(tripId as string)
 
 const { getMemberPaidAmount, getMemberOwedAmount } = useTripBalances(tripId as string)
 
+const { showHomeCurrency, toggleCurrency, hasDualCurrency, primaryCurrency, secondaryCurrency, toPrimary, toSecondary } = useCurrencyToggle(tripId as string, trip)
+
 const openAddExpenseDrawer = ref(false)
 
 // Pre-compute balances to avoid repeated calculations in template
@@ -85,13 +87,12 @@ watch(trip, (tripValue) => {
 }, { once: true })
 
 function formatAmount(amount: number) {
-  return Math.abs(amount).toFixed(2)
+  return Math.abs(toPrimary(amount)).toFixed(2)
 }
 
-function formatConverted(amount: number) {
-  if (!trip.value?.exchangeRate || trip.value.exchangeRate === 1)
-    return null
-  return (Math.abs(amount) * trip.value.exchangeRate).toFixed(2)
+function formatSecondary(amount: number) {
+  if (!hasDualCurrency.value) return null
+  return Math.abs(toSecondary(amount)).toFixed(2)
 }
 </script>
 
@@ -117,6 +118,14 @@ function formatConverted(amount: number) {
       <p class="text-sm text-muted-foreground">
         {{ trip.expenseCount }} 筆支出 · {{ tripMembers.length }} 位成員
       </p>
+      <currency-toggle
+        v-if="hasDualCurrency"
+        :trip-currency="trip.tripCurrency"
+        :default-currency="trip.defaultCurrency"
+        :show-home-currency="showHomeCurrency"
+        class="mt-2"
+        @toggle="toggleCurrency"
+      />
     </div>
 
     <!-- Desktop: two-column layout / Mobile: single column -->
@@ -160,10 +169,10 @@ function formatConverted(amount: number) {
                 }"
                 class="text-2xl font-bold font-mono"
               >
-                {{ memberBalances[currentUserMember.id].balance > 0.01 ? '+' : memberBalances[currentUserMember.id].balance < -0.01 ? '-' : '' }}{{ trip.tripCurrency }} {{ formatAmount(memberBalances[currentUserMember.id].balance) }}
+                {{ memberBalances[currentUserMember.id].balance > 0.01 ? '+' : memberBalances[currentUserMember.id].balance < -0.01 ? '-' : '' }}{{ primaryCurrency }} {{ formatAmount(memberBalances[currentUserMember.id].balance) }}
               </p>
-              <p v-if="formatConverted(memberBalances[currentUserMember.id].balance)" class="text-xs text-muted-foreground font-mono mt-0.5">
-                ≈ {{ trip.defaultCurrency }} {{ formatConverted(memberBalances[currentUserMember.id].balance) }}
+              <p v-if="formatSecondary(memberBalances[currentUserMember.id].balance)" class="text-xs text-muted-foreground font-mono mt-0.5">
+                ≈ {{ secondaryCurrency }} {{ formatSecondary(memberBalances[currentUserMember.id].balance) }}
               </p>
             </div>
 
@@ -174,7 +183,7 @@ function formatConverted(amount: number) {
                   已支付
                 </p>
                 <p class="font-mono font-semibold text-foreground text-sm">
-                  {{ trip.tripCurrency }} {{ memberBalances[currentUserMember.id].paid.toFixed(2) }}
+                  {{ primaryCurrency }} {{ toPrimary(memberBalances[currentUserMember.id].paid).toFixed(2) }}
                 </p>
               </div>
               <div class="bg-muted/50 rounded-lg p-3">
@@ -182,7 +191,7 @@ function formatConverted(amount: number) {
                   應分攤
                 </p>
                 <p class="font-mono font-semibold text-foreground text-sm">
-                  {{ trip.tripCurrency }} {{ memberBalances[currentUserMember.id].owed.toFixed(2) }}
+                  {{ primaryCurrency }} {{ toPrimary(memberBalances[currentUserMember.id].owed).toFixed(2) }}
                 </p>
               </div>
             </div>
@@ -202,7 +211,7 @@ function formatConverted(amount: number) {
                   <Icon name="lucide:arrow-right" class="size-3.5 text-muted-foreground" />
                   <span class="font-medium text-foreground">{{ settlement.to }}</span>
                   <span class="ml-auto font-mono font-semibold text-red-600 dark:text-red-400">
-                    {{ trip.tripCurrency }} {{ settlement.amount.toFixed(2) }}
+                    {{ primaryCurrency }} {{ toPrimary(settlement.amount).toFixed(2) }}
                   </span>
                 </template>
                 <template v-else>
@@ -210,7 +219,7 @@ function formatConverted(amount: number) {
                   <Icon name="lucide:arrow-right" class="size-3.5 text-muted-foreground" />
                   <span class="text-green-600 dark:text-green-400 font-medium">你</span>
                   <span class="ml-auto font-mono font-semibold text-green-600 dark:text-green-400">
-                    {{ trip.tripCurrency }} {{ settlement.amount.toFixed(2) }}
+                    {{ primaryCurrency }} {{ toPrimary(settlement.amount).toFixed(2) }}
                   </span>
                 </template>
               </div>
@@ -233,10 +242,10 @@ function formatConverted(amount: number) {
                       總支出
                     </p>
                     <p class="text-lg font-bold text-foreground font-mono">
-                      {{ trip.tripCurrency }} {{ (trip.enabledTotalExpenses || 0).toFixed(2) }}
+                      {{ primaryCurrency }} {{ toPrimary(trip.enabledTotalExpenses || 0).toFixed(2) }}
                     </p>
-                    <p v-if="trip.exchangeRate && trip.exchangeRate !== 1" class="text-xs text-muted-foreground font-mono">
-                      ≈ {{ trip.defaultCurrency }} {{ ((trip.enabledTotalExpenses || 0) * trip.exchangeRate).toFixed(2) }}
+                    <p v-if="hasDualCurrency" class="text-xs text-muted-foreground font-mono">
+                      ≈ {{ secondaryCurrency }} {{ toSecondary(trip.enabledTotalExpenses || 0).toFixed(2) }}
                     </p>
                   </div>
                   <div class="bg-card rounded-xl border p-4">
@@ -244,10 +253,10 @@ function formatConverted(amount: number) {
                       平均每人
                     </p>
                     <p class="text-lg font-bold text-primary font-mono">
-                      {{ trip.tripCurrency }} {{ tripMembers.length > 0 ? ((trip.enabledTotalExpenses || 0) / tripMembers.length).toFixed(2) : '0.00' }}
+                      {{ primaryCurrency }} {{ tripMembers.length > 0 ? toPrimary((trip.enabledTotalExpenses || 0) / tripMembers.length).toFixed(2) : '0.00' }}
                     </p>
-                    <p v-if="trip.exchangeRate && trip.exchangeRate !== 1" class="text-xs text-muted-foreground font-mono">
-                      ≈ {{ trip.defaultCurrency }} {{ tripMembers.length > 0 ? (((trip.enabledTotalExpenses || 0) / tripMembers.length) * trip.exchangeRate).toFixed(2) : '0.00' }}
+                    <p v-if="hasDualCurrency" class="text-xs text-muted-foreground font-mono">
+                      ≈ {{ secondaryCurrency }} {{ tripMembers.length > 0 ? toSecondary((trip.enabledTotalExpenses || 0) / tripMembers.length).toFixed(2) : '0.00' }}
                     </p>
                   </div>
                 </div>
@@ -287,10 +296,10 @@ function formatConverted(amount: number) {
                           已支付
                         </p>
                         <p class="font-mono font-semibold text-foreground">
-                          {{ trip.tripCurrency }} {{ (memberBalances[member.id]?.paid ?? 0).toFixed(2) }}
+                          {{ primaryCurrency }} {{ toPrimary(memberBalances[member.id]?.paid ?? 0).toFixed(2) }}
                         </p>
-                        <p v-if="trip.exchangeRate && trip.exchangeRate !== 1" class="text-muted-foreground font-mono mt-0.5">
-                          ≈ {{ trip.defaultCurrency }} {{ ((memberBalances[member.id]?.paid ?? 0) * trip.exchangeRate).toFixed(2) }}
+                        <p v-if="hasDualCurrency" class="text-muted-foreground font-mono mt-0.5">
+                          ≈ {{ secondaryCurrency }} {{ toSecondary(memberBalances[member.id]?.paid ?? 0).toFixed(2) }}
                         </p>
                       </div>
                       <div class="bg-muted/50 rounded-lg p-2">
@@ -305,10 +314,10 @@ function formatConverted(amount: number) {
                           }"
                           class="font-mono font-semibold"
                         >
-                          {{ (memberBalances[member.id]?.balance ?? 0) > 0.01 ? '+' : (memberBalances[member.id]?.balance ?? 0) < -0.01 ? '-' : '' }}{{ trip.tripCurrency }} {{ formatAmount(memberBalances[member.id]?.balance ?? 0) }}
+                          {{ (memberBalances[member.id]?.balance ?? 0) > 0.01 ? '+' : (memberBalances[member.id]?.balance ?? 0) < -0.01 ? '-' : '' }}{{ primaryCurrency }} {{ formatAmount(memberBalances[member.id]?.balance ?? 0) }}
                         </p>
-                        <p v-if="trip.exchangeRate && trip.exchangeRate !== 1" class="text-muted-foreground font-mono mt-0.5">
-                          ≈ {{ trip.defaultCurrency }} {{ formatConverted(memberBalances[member.id]?.balance ?? 0) }}
+                        <p v-if="hasDualCurrency" class="text-muted-foreground font-mono mt-0.5">
+                          ≈ {{ secondaryCurrency }} {{ formatSecondary(memberBalances[member.id]?.balance ?? 0) }}
                         </p>
                       </div>
                     </div>
@@ -330,7 +339,7 @@ function formatConverted(amount: number) {
                       <Icon name="lucide:arrow-right" class="size-3.5 text-muted-foreground shrink-0" />
                       <span class="font-medium text-foreground">{{ settlement.to }}</span>
                       <span class="ml-auto font-mono font-semibold text-foreground">
-                        {{ trip.tripCurrency }} {{ settlement.amount.toFixed(2) }}
+                        {{ primaryCurrency }} {{ toPrimary(settlement.amount).toFixed(2) }}
                       </span>
                     </div>
                   </div>
@@ -360,7 +369,7 @@ function formatConverted(amount: number) {
         </div>
         <div v-if="recentExpenses.length > 0" class="mt-2 pb-4 px-4 pt-2 space-y-1 bg-card rounded-xl border">
           <template v-for="(expense, idx) in recentExpenses" :key="expense.id">
-            <expense-item :expense="expense" :trip-members="tripMembers" :trip="trip!" />
+            <expense-item :expense="expense" :trip-members="tripMembers" :trip="trip!" :show-home-currency="showHomeCurrency" :primary-currency="primaryCurrency" :secondary-currency="secondaryCurrency" />
             <ui-separator v-if="idx < recentExpenses.length - 1" />
           </template>
           <div class="flex items-center justify-end mt-4">
