@@ -417,7 +417,7 @@ async function reanalyzeReceipt() {
               :key="item.name"
               :item="item"
               :currency="trip?.tripCurrency || ''"
-              :exchange-rate="trip?.exchangeRate || 1"
+              :exchange-rate="expense?.exchangeRate ?? trip?.exchangeRate ?? 1"
               :default-currency="trip?.defaultCurrency || 'TWD'"
               :edit-mode="false"
               :trip-members="tripMembers"
