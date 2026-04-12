@@ -45,10 +45,22 @@ const hasDifferentCurrencies = computed(() =>
   props.trip.tripCurrency !== props.trip.defaultCurrency,
 )
 
+// Exchange rate per expense
+const { rate: fetchedRate, isLoading: isRateLoading, fetchRate } = useExchangeRate(
+  () => props.trip.tripCurrency,
+  () => props.trip.defaultCurrency,
+  () => props.trip.exchangeRate,
+)
+const exchangeRateOverride = ref<number | null>(null)
+const expenseExchangeRate = computed({
+  get: () => exchangeRateOverride.value ?? fetchedRate.value,
+  set: (val: number) => { exchangeRateOverride.value = val },
+})
+
 function convertToTripCurrency(amount: number): number {
-  if (!useHomeCurrency.value || !props.trip.exchangeRate)
+  if (!useHomeCurrency.value || !expenseExchangeRate.value)
     return amount
-  return amount / props.trip.exchangeRate
+  return amount / expenseExchangeRate.value
 }
 
 const df = new DateFormatter('en-US', { dateStyle: 'long' })
@@ -111,6 +123,8 @@ watch(open, (val) => {
         paidAt: today(timezone).toString(),
       },
     })
+    exchangeRateOverride.value = null
+    fetchRate()
   }
 })
 
@@ -192,6 +206,7 @@ async function submitManual(formValues: { description?: string, grandTotal?: num
       ...formValues,
       grandTotal: grandTotalInTripCurrency,
       inputCurrency: selectedCurrency.value,
+      exchangeRate: expenseExchangeRate.value,
       paidAt: Timestamp.fromDate(selectedDate),
       createdAt: Timestamp.fromDate(new Date()),
       isProcessing: false,
@@ -277,6 +292,27 @@ async function submitManual(formValues: { description?: string, grandTotal?: num
                 <p v-if="convertedAmountPreview" class="text-xs text-muted-foreground mt-1">
                   ≈ {{ trip.tripCurrency }} {{ convertedAmountPreview }}
                 </p>
+                <div v-if="hasDifferentCurrencies" class="flex items-center gap-2 mt-2">
+                  <span class="text-xs text-muted-foreground whitespace-nowrap">1 {{ trip.tripCurrency }} =</span>
+                  <ui-input
+                    v-model.number="expenseExchangeRate"
+                    type="number"
+                    step="0.0001"
+                    min="0"
+                    class="h-7 text-xs w-24"
+                  />
+                  <span class="text-xs text-muted-foreground">{{ trip.defaultCurrency }}</span>
+                  <ui-button
+                    v-if="isRateLoading"
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    class="h-6 px-1"
+                    disabled
+                  >
+                    <Icon name="lucide:loader-2" class="h-3 w-3 animate-spin" />
+                  </ui-button>
+                </div>
                 <ui-form-message />
               </ui-form-item>
             </ui-form-field>
@@ -486,6 +522,27 @@ async function submitManual(formValues: { description?: string, grandTotal?: num
                   <p v-if="convertedAmountPreview" class="text-xs text-muted-foreground mt-1">
                     ≈ {{ trip.tripCurrency }} {{ convertedAmountPreview }}
                   </p>
+                  <div v-if="hasDifferentCurrencies" class="flex items-center gap-2 mt-2">
+                    <span class="text-xs text-muted-foreground whitespace-nowrap">1 {{ trip.tripCurrency }} =</span>
+                    <ui-input
+                      v-model.number="expenseExchangeRate"
+                      type="number"
+                      step="0.0001"
+                      min="0"
+                      class="h-7 text-xs w-24"
+                    />
+                    <span class="text-xs text-muted-foreground">{{ trip.defaultCurrency }}</span>
+                    <ui-button
+                      v-if="isRateLoading"
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      class="h-6 px-1"
+                      disabled
+                    >
+                      <Icon name="lucide:loader-2" class="h-3 w-3 animate-spin" />
+                    </ui-button>
+                  </div>
                   <ui-form-message />
                 </ui-form-item>
               </ui-form-field>
