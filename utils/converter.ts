@@ -91,6 +91,7 @@ export const expenseConverter: FirestoreDataConverter<Expense> = {
       items: data.items || [],
       enabled: data.enabled ?? true,
       inputCurrency: data.inputCurrency,
+      exchangeRate: data.exchangeRate,
       createdByUserId: data.createdByUserId,
     } as Expense
   },

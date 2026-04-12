@@ -84,6 +84,7 @@ export interface NewExpense {
   enabled: boolean // New field with default value true
   items?: Array<ExpenseDetailItem>
   inputCurrency?: string // The currency used when entering this expense
+  exchangeRate?: number // Exchange rate from trip currency to home currency at time of expense
   createdByUserId?: string // Tracks who created the expense (for guest edit permissions)
 }
 
