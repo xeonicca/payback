@@ -37,6 +37,12 @@ const hasDifferentCurrencies = computed(() =>
   props.trip.tripCurrency !== props.trip.defaultCurrency,
 )
 
+const exchangeRateOverride = ref<number | null>(null)
+const expenseExchangeRate = computed({
+  get: () => exchangeRateOverride.value ?? props.expense.exchangeRate ?? props.trip.exchangeRate,
+  set: (val: number) => { exchangeRateOverride.value = val },
+})
+
 const formSchema = toTypedSchema(z.object({
   description: z.string().min(2).max(200),
   grandTotal: z.coerce.number().min(0),
@@ -59,7 +65,8 @@ const paidAtPlaceholder = ref()
 const wasEnteredInHomeCurrency = props.expense.inputCurrency === props.trip.defaultCurrency
 
 function convertToHomeCurrency(amount: number): number {
-  return Math.round(amount * props.trip.exchangeRate * 100) / 100
+  const rate = props.expense.exchangeRate ?? props.trip.exchangeRate
+  return Math.round(amount * rate * 100) / 100
 }
 
 function getInitialItems() {
@@ -96,9 +103,9 @@ const paidAtDate = computed({
 const df = new DateFormatter('en-US', { dateStyle: 'long' })
 
 function convertToTripCurrency(amount: number): number {
-  if (!useHomeCurrency.value || !props.trip.exchangeRate)
+  if (!useHomeCurrency.value || !expenseExchangeRate.value)
     return amount
-  return amount / props.trip.exchangeRate
+  return amount / expenseExchangeRate.value
 }
 
 const convertedAmountPreview = computed(() => {
@@ -123,6 +130,7 @@ watch(calculatedTotal, (newTotal) => {
 watch(open, (val) => {
   if (val) {
     currencyOverride.value = props.expense.inputCurrency ?? null
+    exchangeRateOverride.value = null
     resetForm({ values: getInitialValues() })
   }
 })
@@ -139,7 +147,7 @@ const onSubmit = handleSubmit(async (values) => {
     const itemsInTripCurrency = useHomeCurrency.value
       ? (values.items || []).map(item => ({
           ...item,
-          price: Math.round((item.price / props.trip.exchangeRate) * 100) / 100,
+          price: Math.round((item.price / expenseExchangeRate.value) * 100) / 100,
         }))
       : values.items
 
@@ -147,6 +155,7 @@ const onSubmit = handleSubmit(async (values) => {
       description: values.description,
       grandTotal: grandTotalInTripCurrency,
       inputCurrency: selectedCurrency.value,
+      exchangeRate: expenseExchangeRate.value,
       paidAt: Timestamp.fromDate(selectedDate),
       paidByMemberId: values.paidByMemberId,
       sharedWithMemberIds: values.sharedWithMemberIds,
@@ -245,6 +254,17 @@ function updateItemSharing(index: number, memberIds: string[]) {
             <p v-if="convertedAmountPreview" class="text-xs text-muted-foreground mt-1">
               ≈ {{ trip.tripCurrency }} {{ convertedAmountPreview }}
             </p>
+            <div v-if="hasDifferentCurrencies" class="flex items-center gap-2 mt-2">
+              <span class="text-xs text-muted-foreground whitespace-nowrap">1 {{ trip.tripCurrency }} =</span>
+              <ui-input
+                v-model.number="expenseExchangeRate"
+                type="number"
+                step="0.0001"
+                min="0"
+                class="h-7 text-xs w-24"
+              />
+              <span class="text-xs text-muted-foreground">{{ trip.defaultCurrency }}</span>
+            </div>
             <ui-form-message />
           </ui-form-item>
         </ui-form-field>
@@ -531,6 +551,17 @@ function updateItemSharing(index: number, memberIds: string[]) {
               <p v-if="convertedAmountPreview" class="text-xs text-muted-foreground mt-1">
                 ≈ {{ trip.tripCurrency }} {{ convertedAmountPreview }}
               </p>
+              <div v-if="hasDifferentCurrencies" class="flex items-center gap-2 mt-2">
+                <span class="text-xs text-muted-foreground whitespace-nowrap">1 {{ trip.tripCurrency }} =</span>
+                <ui-input
+                  v-model.number="expenseExchangeRate"
+                  type="number"
+                  step="0.0001"
+                  min="0"
+                  class="h-7 text-xs w-24"
+                />
+                <span class="text-xs text-muted-foreground">{{ trip.defaultCurrency }}</span>
+              </div>
               <ui-form-message />
             </ui-form-item>
           </ui-form-field>
