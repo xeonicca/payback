@@ -65,10 +65,10 @@ const receiptImageUrl = computedAsync(async () => {
 }, null)
 
 const convertToDefaultCurrency = computed(() => {
-  if (!expense.value?.grandTotal || !trip.value?.exchangeRate)
+  if (!expense.value?.grandTotal)
     return 0
-
-  return Math.round(expense.value.grandTotal * trip.value.exchangeRate * 100) / 100
+  const rate = expense.value.exchangeRate ?? trip.value?.exchangeRate ?? 1
+  return Math.round(expense.value.grandTotal * rate * 100) / 100
 })
 
 // Check if expense was entered in home currency
@@ -78,11 +78,12 @@ const usedHomeCurrency = computed(() =>
 
 const sharedTotalByMember = computed(() => {
   const sharedWithMemberIds = expense.value?.sharedWithMemberIds ?? []
+  const rate = expense.value?.exchangeRate ?? trip.value?.exchangeRate ?? 1
   if (!expense.value?.items?.length) {
     return sharedWithMemberIds.reduce((acc, memberId) => {
       acc[memberId] = {
         total: expense.value!.grandTotal / sharedWithMemberIds.length,
-        convertedTotal: expense.value!.grandTotal / sharedWithMemberIds.length * trip.value!.exchangeRate,
+        convertedTotal: expense.value!.grandTotal / sharedWithMemberIds.length * rate,
       }
       return acc
     }, {} as Record<string, { total: number, convertedTotal: number }>)
@@ -123,7 +124,7 @@ const sharedTotalByMember = computed(() => {
     // Add the price to each sharing member's total
     sharingMembers.forEach((memberId) => {
       memberTotals[memberId].total += pricePerMember
-      memberTotals[memberId].convertedTotal += pricePerMember * trip.value!.exchangeRate
+      memberTotals[memberId].convertedTotal += pricePerMember * rate
     })
   })
 
@@ -312,9 +313,9 @@ async function reanalyzeReceipt() {
           <span class="text-primary">{{ trip?.defaultCurrency }} {{ convertToDefaultCurrency.toFixed(2) }}</span>
         </template>
         <template v-else>
-          <span class="text-primary">{{ primaryCurrency }} {{ toPrimary(expense?.grandTotal || 0).toFixed(2) }}</span>
+          <span class="text-primary">{{ primaryCurrency }} {{ toPrimary(expense?.grandTotal || 0, expense?.exchangeRate).toFixed(2) }}</span>
           <span v-if="hasDualCurrency" class="text-sm text-muted-foreground font-normal inline-flex items-center gap-1 ml-1">
-            ≈ {{ secondaryCurrency }} {{ toSecondary(expense?.grandTotal || 0).toFixed(2) }}
+            ≈ {{ secondaryCurrency }} {{ toSecondary(expense?.grandTotal || 0, expense?.exchangeRate).toFixed(2) }}
           </span>
         </template>
       </h1>
@@ -364,11 +365,11 @@ async function reanalyzeReceipt() {
                     </div>
                     <template v-else>
                       <div class="text-sm font-mono text-green-600 dark:text-green-400">
-                        {{ primaryCurrency }} {{ toPrimary(sharedTotalByMember[member.id].total).toFixed(2) || '0.00' }}
+                        {{ primaryCurrency }} {{ toPrimary(sharedTotalByMember[member.id].total, expense?.exchangeRate).toFixed(2) || '0.00' }}
                       </div>
                       <div v-if="hasDualCurrency" class="text-xs text-muted-foreground inline-flex items-center gap-1">
                         <Icon name="lucide:equal-approximately" class="text-muted-foreground" size="12" />
-                        <span>{{ secondaryCurrency }} {{ toSecondary(sharedTotalByMember[member.id].total).toFixed(2) }}</span>
+                        <span>{{ secondaryCurrency }} {{ toSecondary(sharedTotalByMember[member.id].total, expense?.exchangeRate).toFixed(2) }}</span>
                       </div>
                     </template>
                   </div>
@@ -384,17 +385,17 @@ async function reanalyzeReceipt() {
                     <div class="flex-1">
                       <span class="font-mono text-foreground">{{ item.itemName }}</span>
                       <p class="text-muted-foreground">
-                        ({{ usedHomeCurrency ? trip?.defaultCurrency : primaryCurrency }} {{ (usedHomeCurrency ? item.itemPrice * (trip?.exchangeRate || 1) : toPrimary(item.itemPrice)).toFixed(2) }} × {{ item.itemQuantity }} ÷ {{ item.sharingMembers.length }}人)
+                        ({{ usedHomeCurrency ? trip?.defaultCurrency : primaryCurrency }} {{ (usedHomeCurrency ? item.itemPrice * (expense?.exchangeRate || trip?.exchangeRate || 1) : toPrimary(item.itemPrice, expense?.exchangeRate)).toFixed(2) }} × {{ item.itemQuantity }} ÷ {{ item.sharingMembers.length }}人)
                       </p>
                     </div>
                     <div class="text-right font-mono" :class="usedHomeCurrency ? 'text-primary' : 'text-green-600 dark:text-green-400'">
-                      {{ usedHomeCurrency ? trip?.defaultCurrency : primaryCurrency }} {{ (usedHomeCurrency ? item.sharePerMember * (trip?.exchangeRate || 1) : toPrimary(item.sharePerMember)).toFixed(2) }}
+                      {{ usedHomeCurrency ? trip?.defaultCurrency : primaryCurrency }} {{ (usedHomeCurrency ? item.sharePerMember * (expense?.exchangeRate || trip?.exchangeRate || 1) : toPrimary(item.sharePerMember, expense?.exchangeRate)).toFixed(2) }}
                     </div>
                   </div>
                   <div class="border-t border-border pt-1 flex justify-between items-center font-bold text-foreground">
                     <span>小計:</span>
                     <span :class="usedHomeCurrency ? 'text-primary' : 'text-green-600 dark:text-green-400'">
-                      {{ usedHomeCurrency ? trip?.defaultCurrency : primaryCurrency }} {{ ((memberItemBreakdown[member.id] || []).reduce((sum, item) => sum + (usedHomeCurrency ? item.sharePerMember * (trip?.exchangeRate || 1) : toPrimary(item.sharePerMember)), 0)).toFixed(2) }}
+                      {{ usedHomeCurrency ? trip?.defaultCurrency : primaryCurrency }} {{ ((memberItemBreakdown[member.id] || []).reduce((sum, item) => sum + (usedHomeCurrency ? item.sharePerMember * (expense?.exchangeRate || trip?.exchangeRate || 1) : toPrimary(item.sharePerMember, expense?.exchangeRate)), 0)).toFixed(2) }}
                     </span>
                   </div>
                 </div>
