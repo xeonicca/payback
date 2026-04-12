@@ -251,19 +251,17 @@ function updateItemSharing(index: number, memberIds: string[]) {
                 </ui-badge>
               </div>
             </ui-form-control>
-            <p v-if="convertedAmountPreview" class="text-xs text-muted-foreground mt-1">
-              ≈ {{ trip.tripCurrency }} {{ convertedAmountPreview }}
-            </p>
-            <div v-if="hasDifferentCurrencies" class="flex items-center gap-2 mt-2">
-              <span class="text-xs text-muted-foreground whitespace-nowrap">1 {{ trip.tripCurrency }} =</span>
+            <div v-if="convertedAmountPreview" class="flex items-center gap-1 mt-1 flex-wrap">
+              <span class="text-xs text-muted-foreground">≈ {{ trip.tripCurrency }} {{ convertedAmountPreview }}</span>
+              <span class="text-xs text-muted-foreground">(1 {{ trip.tripCurrency }} =</span>
               <ui-input
                 v-model.number="expenseExchangeRate"
                 type="number"
                 step="0.0001"
                 min="0"
-                class="h-7 text-xs w-24"
+                class="h-5 text-xs w-16 px-1 inline-flex"
               />
-              <span class="text-xs text-muted-foreground">{{ trip.defaultCurrency }}</span>
+              <span class="text-xs text-muted-foreground">{{ trip.defaultCurrency }})</span>
             </div>
             <ui-form-message />
           </ui-form-item>
@@ -548,19 +546,17 @@ function updateItemSharing(index: number, memberIds: string[]) {
                   </ui-badge>
                 </div>
               </ui-form-control>
-              <p v-if="convertedAmountPreview" class="text-xs text-muted-foreground mt-1">
-                ≈ {{ trip.tripCurrency }} {{ convertedAmountPreview }}
-              </p>
-              <div v-if="hasDifferentCurrencies" class="flex items-center gap-2 mt-2">
-                <span class="text-xs text-muted-foreground whitespace-nowrap">1 {{ trip.tripCurrency }} =</span>
+              <div v-if="convertedAmountPreview" class="flex items-center gap-1 mt-1 flex-wrap">
+                <span class="text-xs text-muted-foreground">≈ {{ trip.tripCurrency }} {{ convertedAmountPreview }}</span>
+                <span class="text-xs text-muted-foreground">(1 {{ trip.tripCurrency }} =</span>
                 <ui-input
                   v-model.number="expenseExchangeRate"
                   type="number"
                   step="0.0001"
                   min="0"
-                  class="h-7 text-xs w-24"
+                  class="h-5 text-xs w-16 px-1 inline-flex"
                 />
-                <span class="text-xs text-muted-foreground">{{ trip.defaultCurrency }}</span>
+                <span class="text-xs text-muted-foreground">{{ trip.defaultCurrency }})</span>
               </div>
               <ui-form-message />
             </ui-form-item>
