@@ -12,7 +12,7 @@ const { trip } = useTrip(tripId as string)
 const { tripExpenses, enabledExpenses } = useTripExpenses(tripId as string)
 const { tripMembers } = useTripMembers(tripId as string)
 const { getMemberPaidAmount, getMemberOwedAmount, getMemberBalance } = useTripBalances(tripId as string)
-const { showHomeCurrency, hasDualCurrency, primaryCurrency, toPrimary } = useCurrencyToggle(tripId as string, trip)
+const { primaryCurrency, toPrimary } = useCurrencyToggle(tripId as string, trip)
 
 // ── Daily spending data ──
 const dailySpending = computed(() => {

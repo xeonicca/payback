@@ -118,14 +118,6 @@ function formatSecondary(amount: number) {
       <p class="text-sm text-muted-foreground">
         {{ trip.expenseCount }} 筆支出 · {{ tripMembers.length }} 位成員
       </p>
-      <currency-toggle
-        v-if="hasDualCurrency"
-        :trip-currency="trip.tripCurrency"
-        :default-currency="trip.defaultCurrency"
-        :show-home-currency="showHomeCurrency"
-        class="mt-2"
-        @toggle="toggleCurrency"
-      />
     </div>
 
     <!-- Desktop: two-column layout / Mobile: single column -->

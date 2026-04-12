@@ -26,6 +26,8 @@ const tripDocRef = computed(() => {
 })
 const trip = useDocument<Trip>(tripDocRef)
 
+const { showHomeCurrency, toggleCurrency, hasDualCurrency } = useCurrencyToggle(computed(() => tripId.value || ''), trip)
+
 const navRef = useTemplateRef('navRef')
 
 function updateNavHeight() {
@@ -95,6 +97,14 @@ async function handleLogout() {
         </div>
       </div>
 
+      <div class="flex items-center gap-3">
+        <currency-toggle
+          v-if="isOnTripPage && trip && hasDualCurrency"
+          :trip-currency="trip.tripCurrency"
+          :default-currency="trip.defaultCurrency"
+          :show-home-currency="showHomeCurrency"
+          @toggle="toggleCurrency"
+        />
       <ul class="flex place-items-center space-x-4">
         <li class="flex items-center">
           <ClientOnly>
@@ -141,6 +151,7 @@ async function handleLogout() {
           </ClientOnly>
         </li>
       </ul>
+      </div>
     </div>
   </nav>
   <div v-if="sessionUser?.isAnonymous && showGuestBanner" class="container mx-auto px-4 mt-4 mb-4">
