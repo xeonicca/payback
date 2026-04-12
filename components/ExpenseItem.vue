@@ -23,7 +23,10 @@ const hasDualCurrency = computed(() => !!props.trip.exchangeRate && props.trip.e
 // Amount in trip currency (storage format)
 const tripCurrencyAmount = computed(() => props.expense.grandTotal || 0)
 // Amount in home currency
-const homeCurrencyAmount = computed(() => tripCurrencyAmount.value * props.trip.exchangeRate)
+const homeCurrencyAmount = computed(() => {
+  const rate = props.expense.exchangeRate ?? props.trip.exchangeRate
+  return tripCurrencyAmount.value * rate
+})
 
 const displayPrimary = computed(() => {
   if (usedHomeCurrency.value) {
