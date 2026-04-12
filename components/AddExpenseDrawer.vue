@@ -32,7 +32,7 @@ const selectedFile = ref<File | null>(null)
 
 const timezone = getLocalTimeZone()
 
-// Currency logic (manual mode only)
+// Currency logic
 const currencyOverride = ref<string | null>(null)
 const selectedCurrency = computed({
   get: () => currencyOverride.value ?? props.trip.tripCurrency,
@@ -166,6 +166,8 @@ async function submitReceipt(formValues: { paidByMemberId: string, sharedWithMem
       isProcessing: true,
       enabled: true,
       createdByUserId: sessionUser.value?.uid,
+      inputCurrency: selectedCurrency.value,
+      exchangeRate: expenseExchangeRate.value,
     }
 
     const expenseDoc = await addDoc(collection(db, 'trips', props.trip.id, 'expenses'), expense)
@@ -250,7 +252,7 @@ async function submitManual(formValues: { description?: string, grandTotal?: num
             </ui-tabs-trigger>
           </ui-tabs-list>
 
-          <ui-tabs-content value="receipt" class="mt-4">
+          <ui-tabs-content value="receipt" class="mt-4 space-y-4">
             <div class="grid w-full items-center gap-1.5">
               <ui-label for="picture-desktop">
                 上傳收據（僅支援圖片格式）
@@ -261,6 +263,43 @@ async function submitManual(formValues: { description?: string, grandTotal?: num
                 accept="image/*"
                 @change="(e: Event) => selectedFile = (e.target as HTMLInputElement).files?.[0] ?? null"
               />
+            </div>
+            <div v-if="hasDifferentCurrencies" class="space-y-2">
+              <div class="flex items-center justify-between">
+                <ui-label class="text-sm">收據幣別</ui-label>
+                <ui-button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  class="h-6 text-xs"
+                  @click="selectedCurrency = useHomeCurrency ? trip.tripCurrency : trip.defaultCurrency"
+                >
+                  <Icon name="lucide:arrow-left-right" class="mr-1 h-3 w-3" />
+                  {{ useHomeCurrency ? `改用 ${trip.tripCurrency}` : `改用 ${trip.defaultCurrency}` }}
+                </ui-button>
+              </div>
+              <ui-badge>{{ selectedCurrency }}</ui-badge>
+              <div class="flex items-center gap-2">
+                <span class="text-xs text-muted-foreground whitespace-nowrap">1 {{ trip.tripCurrency }} =</span>
+                <ui-input
+                  v-model.number="expenseExchangeRate"
+                  type="number"
+                  step="0.0001"
+                  min="0"
+                  class="h-7 text-xs w-24"
+                />
+                <span class="text-xs text-muted-foreground">{{ trip.defaultCurrency }}</span>
+                <ui-button
+                  v-if="isRateLoading"
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  class="h-6 px-1"
+                  disabled
+                >
+                  <Icon name="lucide:loader-2" class="h-3 w-3 animate-spin" />
+                </ui-button>
+              </div>
             </div>
           </ui-tabs-content>
 
@@ -480,7 +519,7 @@ async function submitManual(formValues: { description?: string, grandTotal?: num
               </ui-tabs-trigger>
             </ui-tabs-list>
 
-            <ui-tabs-content value="receipt" class="mt-4">
+            <ui-tabs-content value="receipt" class="mt-4 space-y-4">
               <div class="grid w-full items-center gap-1.5">
                 <ui-label for="picture-mobile">
                   上傳收據（僅支援圖片格式）
@@ -491,6 +530,43 @@ async function submitManual(formValues: { description?: string, grandTotal?: num
                   accept="image/*"
                   @change="(e: Event) => selectedFile = (e.target as HTMLInputElement).files?.[0] ?? null"
                 />
+              </div>
+              <div v-if="hasDifferentCurrencies" class="space-y-2">
+                <div class="flex items-center justify-between">
+                  <ui-label class="text-sm">收據幣別</ui-label>
+                  <ui-button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    class="h-6 text-xs"
+                    @click="selectedCurrency = useHomeCurrency ? trip.tripCurrency : trip.defaultCurrency"
+                  >
+                    <Icon name="lucide:arrow-left-right" class="mr-1 h-3 w-3" />
+                    {{ useHomeCurrency ? `改用 ${trip.tripCurrency}` : `改用 ${trip.defaultCurrency}` }}
+                  </ui-button>
+                </div>
+                <ui-badge>{{ selectedCurrency }}</ui-badge>
+                <div class="flex items-center gap-2">
+                  <span class="text-xs text-muted-foreground whitespace-nowrap">1 {{ trip.tripCurrency }} =</span>
+                  <ui-input
+                    v-model.number="expenseExchangeRate"
+                    type="number"
+                    step="0.0001"
+                    min="0"
+                    class="h-7 text-xs w-24"
+                  />
+                  <span class="text-xs text-muted-foreground">{{ trip.defaultCurrency }}</span>
+                  <ui-button
+                    v-if="isRateLoading"
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    class="h-6 px-1"
+                    disabled
+                  >
+                    <Icon name="lucide:loader-2" class="h-3 w-3 animate-spin" />
+                  </ui-button>
+                </div>
               </div>
             </ui-tabs-content>
 
