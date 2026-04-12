@@ -29,14 +29,16 @@ export function useCurrencyToggle(tripId: MaybeRef<string>, trip: Ref<Trip | nul
     return showHomeCurrency.value ? trip.value.tripCurrency : trip.value.defaultCurrency
   })
 
-  const toPrimary = (amount: number): number => {
+  const toPrimary = (amount: number, exchangeRate?: number): number => {
     if (!trip.value) return amount
-    return showHomeCurrency.value ? amount * trip.value.exchangeRate : amount
+    const rate = exchangeRate ?? trip.value.exchangeRate
+    return showHomeCurrency.value ? amount * rate : amount
   }
 
-  const toSecondary = (amount: number): number => {
+  const toSecondary = (amount: number, exchangeRate?: number): number => {
     if (!trip.value) return amount
-    return showHomeCurrency.value ? amount : amount * trip.value.exchangeRate
+    const rate = exchangeRate ?? trip.value.exchangeRate
+    return showHomeCurrency.value ? amount : amount * rate
   }
 
   return {
