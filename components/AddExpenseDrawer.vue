@@ -311,18 +311,9 @@ async function submitManual(formValues: { description?: string, grandTotal?: num
                     </ui-badge>
                   </div>
                 </ui-form-control>
-                <div v-if="convertedAmountPreview" class="flex items-center gap-1 mt-1 flex-wrap">
-                  <span class="text-xs text-muted-foreground">≈ {{ trip.tripCurrency }} {{ convertedAmountPreview }}</span>
-                  <span class="text-xs text-muted-foreground">(1 {{ trip.tripCurrency }} =</span>
-                  <ui-input
-                    v-model.number="expenseExchangeRate"
-                    type="number"
-                    step="0.0001"
-                    min="0"
-                    class="h-5 text-xs w-16 px-1 inline-flex"
-                  />
-                  <span class="text-xs text-muted-foreground">{{ trip.defaultCurrency }})</span>
-                </div>
+                <p v-if="convertedAmountPreview" class="text-xs text-muted-foreground mt-1">
+                  ≈ {{ trip.tripCurrency }} {{ convertedAmountPreview }}
+                </p>
                 <ui-form-message />
               </ui-form-item>
             </ui-form-field>
@@ -550,18 +541,9 @@ async function submitManual(formValues: { description?: string, grandTotal?: num
                       </ui-badge>
                     </div>
                   </ui-form-control>
-                  <div v-if="convertedAmountPreview" class="flex items-center gap-1 mt-1 flex-wrap">
-                    <span class="text-xs text-muted-foreground">≈ {{ trip.tripCurrency }} {{ convertedAmountPreview }}</span>
-                    <span class="text-xs text-muted-foreground">(1 {{ trip.tripCurrency }} =</span>
-                    <ui-input
-                      v-model.number="expenseExchangeRate"
-                      type="number"
-                      step="0.0001"
-                      min="0"
-                      class="h-5 text-xs w-16 px-1 inline-flex"
-                    />
-                    <span class="text-xs text-muted-foreground">{{ trip.defaultCurrency }})</span>
-                  </div>
+                  <p v-if="convertedAmountPreview" class="text-xs text-muted-foreground mt-1">
+                    ≈ {{ trip.tripCurrency }} {{ convertedAmountPreview }}
+                  </p>
                   <ui-form-message />
                 </ui-form-item>
               </ui-form-field>
