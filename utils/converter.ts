@@ -93,6 +93,9 @@ export const expenseConverter: FirestoreDataConverter<Expense> = {
       inputCurrency: data.inputCurrency,
       exchangeRate: data.exchangeRate,
       createdByUserId: data.createdByUserId,
+      lastEditedByUserId: data.lastEditedByUserId,
+      lastEditedAt: data.lastEditedAt,
+      lastEditedAtString: data.lastEditedAt ? formatFirebaseTimestamp(data.lastEditedAt) : undefined,
     } as Expense
   },
 }

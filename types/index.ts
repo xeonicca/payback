@@ -86,6 +86,8 @@ export interface NewExpense {
   inputCurrency?: string // The currency used when entering this expense
   exchangeRate?: number // Exchange rate from trip currency to home currency at time of expense
   createdByUserId?: string // Tracks who created the expense (for guest edit permissions)
+  lastEditedByUserId?: string // Tracks who last edited the expense
+  lastEditedAt?: Timestamp | FieldValue
 }
 
 export interface Expense extends NewExpense {
@@ -99,6 +101,7 @@ export interface Expense extends NewExpense {
     minute: string
   }
   createdAtString: string
+  lastEditedAtString?: string
   receiptImageUrl?: string
 }
 

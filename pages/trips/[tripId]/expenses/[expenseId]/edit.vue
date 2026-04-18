@@ -2,7 +2,7 @@
 import type { Expense, ExpenseDetailItem, Trip, TripMember } from '@/types'
 import { DateFormatter, getLocalTimeZone, parseDate } from '@internationalized/date'
 import { toTypedSchema } from '@vee-validate/zod'
-import { doc, Timestamp, updateDoc } from 'firebase/firestore'
+import { doc, serverTimestamp, Timestamp, updateDoc } from 'firebase/firestore'
 import { toDate } from 'reka-ui/date'
 import { useForm } from 'vee-validate'
 import { toast } from 'vue-sonner'
@@ -19,6 +19,7 @@ definePageMeta({
 
 const db = useFirestore()
 const router = useRouter()
+const sessionUser = useSessionUser()
 const { tripId, expenseId } = useRoute().params
 
 const trip = useDocument<Trip>(doc(db, 'trips', tripId as string).withConverter(tripConverter))
@@ -176,6 +177,30 @@ watch(calculatedTotal, (newTotal) => {
 const isSubmitting = ref(false)
 const itemsExpanded = ref(false)
 
+function displayNameForUserId(uid: string | undefined): string | null {
+  if (!uid)
+    return null
+  const collaborator = collaborators.value.find(c => c.userId === uid)
+  if (collaborator?.displayName)
+    return collaborator.displayName
+  const member = tripMembers.value?.find(m => m.linkedUserId === uid)
+  return member?.name || null
+}
+
+const lastEditedLabel = computed(() => {
+  if (!expense.value)
+    return null
+  if (expense.value.lastEditedByUserId && expense.value.lastEditedAtString) {
+    const name = displayNameForUserId(expense.value.lastEditedByUserId)
+    return name ? `${name} 編輯於 ${expense.value.lastEditedAtString}` : `編輯於 ${expense.value.lastEditedAtString}`
+  }
+  if (expense.value.createdByUserId) {
+    const name = displayNameForUserId(expense.value.createdByUserId)
+    return name ? `${name} 新增於 ${expense.value.createdAtString}` : `新增於 ${expense.value.createdAtString}`
+  }
+  return null
+})
+
 const isDirty = computed(() => {
   if (!formInitialized.value)
     return false
@@ -234,6 +259,8 @@ const onSubmit = handleSubmit(async (values) => {
       paidByMemberId: values.paidByMemberId,
       sharedWithMemberIds: values.sharedWithMemberIds,
       items: itemsInTripCurrency,
+      lastEditedByUserId: sessionUser.value?.uid,
+      lastEditedAt: serverTimestamp(),
     })
     toast.success('支出已更新')
     // Leave isSubmitting true so the leave-guard doesn't prompt during navigation
@@ -314,6 +341,9 @@ function updateItemSharing(index: number, memberIds: string[]) {
       </h1>
       <p class="text-sm text-foreground mt-1 line-clamp-1">
         {{ values.description || expense!.description }}
+      </p>
+      <p v-if="lastEditedLabel" class="text-xs text-muted-foreground mt-1">
+        {{ lastEditedLabel }}
       </p>
     </div>
 
