@@ -6,7 +6,6 @@ import { getFunctions, httpsCallable } from 'firebase/functions'
 import { getDownloadURL, ref as storageRef } from 'firebase/storage'
 import { toast } from 'vue-sonner'
 import { useDocument, useFirebaseStorage, useFirestore } from 'vuefire'
-import EditExpenseForm from '@/components/EditExpenseForm.vue'
 import ExpenseDetailItem from '@/components/ExpenseDetailItem.vue'
 import { useTripMembers } from '@/composables/useTripMember'
 import { expenseConverter, tripConverter } from '@/utils/converter'
@@ -39,7 +38,6 @@ watch([trip, expense], ([tripValue, expenseValue]) => {
   }
 }, { once: true })
 
-const showEditDialog = ref(false)
 const showDeleteDialog = ref(false)
 const isDeleting = ref(false)
 const isReanalyzing = ref(false)
@@ -292,7 +290,7 @@ async function reanalyzeReceipt() {
             </ui-button>
           </ui-dropdown-menu-trigger>
           <ui-dropdown-menu-content align="end">
-            <ui-dropdown-menu-item @click="showEditDialog = true">
+            <ui-dropdown-menu-item @click="navigateTo(`/trips/${tripId}/expenses/${expenseId}/edit`)">
               <Icon name="lucide:edit-3" :size="14" class="mr-2" />
               編輯
             </ui-dropdown-menu-item>
@@ -456,17 +454,6 @@ async function reanalyzeReceipt() {
         </div>
       </div>
     </div>
-
-    <!-- Edit Expense Dialog -->
-    <ClientOnly>
-      <edit-expense-form
-        v-if="canEditThisExpense && expense && trip"
-        v-model:open="showEditDialog"
-        :expense="expense"
-        :trip="trip"
-        :trip-members="tripMembers"
-      />
-    </ClientOnly>
 
     <!-- Delete Expense Confirmation Dialog -->
     <ui-alert-dialog v-if="canDeleteThisExpense" v-model:open="showDeleteDialog">
