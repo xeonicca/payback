@@ -24,11 +24,11 @@ const { tripId, expenseId } = useRoute().params
 const trip = useDocument<Trip>(doc(db, 'trips', tripId as string).withConverter(tripConverter))
 const expense = useDocument<Expense>(doc(db, 'trips', tripId as string, 'expenses', expenseId as string).withConverter(expenseConverter))
 const { tripMembers } = useTripMembers(tripId as string)
-const { canEditExpense } = useTripCollaborators(tripId as string)
+const { canEditExpense, collaborators } = useTripCollaborators(tripId as string)
 
 const canEditThisExpense = computed(() => expense.value ? canEditExpense(expense.value) : false)
 
-// Redirect if no permission after data loads
+// Redirect if trip/expense doesn't exist after data loads
 watch([trip, expense], ([tripValue, expenseValue]) => {
   if (tripValue === null || expenseValue === null) {
     toast.error('支出不存在')
@@ -36,8 +36,11 @@ watch([trip, expense], ([tripValue, expenseValue]) => {
   }
 }, { once: true })
 
-watch(canEditThisExpense, (canEdit) => {
-  if (expense.value && !canEdit) {
+// Redirect if no permission — wait for collaborators to load to avoid false negatives
+watch([expense, collaborators], ([exp, collabs]) => {
+  if (!exp || !collabs || collabs.length === 0)
+    return
+  if (!canEditThisExpense.value) {
     toast.error('沒有編輯權限')
     navigateTo(`/trips/${tripId}/expenses/${expenseId}`)
   }

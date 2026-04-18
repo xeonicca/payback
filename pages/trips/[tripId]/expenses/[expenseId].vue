@@ -23,7 +23,7 @@ const trip = useDocument<Trip>(doc(db, 'trips', tripId as string).withConverter(
 const expense = useDocument<Expense>(doc(db, 'trips', tripId as string, 'expenses', expenseId as string).withConverter(expenseConverter))
 const { tripMembers } = useTripMembers(tripId as string)
 const { canEditExpense, canDeleteExpense, collaborators } = useTripCollaborators(tripId as string)
-const { showHomeCurrency, hasDualCurrency, primaryCurrency, secondaryCurrency, toPrimary, toSecondary } = useCurrencyToggle(tripId as string, trip)
+const { hasDualCurrency, primaryCurrency, secondaryCurrency, toPrimary, toSecondary } = useCurrencyToggle(tripId as string, trip)
 
 const canEditThisExpense = computed(() => expense.value ? canEditExpense(expense.value) : false)
 const canDeleteThisExpense = computed(() => expense.value ? canDeleteExpense(expense.value) : false)
