@@ -8,8 +8,8 @@ import { useForm } from 'vee-validate'
 import { toast } from 'vue-sonner'
 import { useDocument, useFirestore } from 'vuefire'
 import { z } from 'zod'
-import { cn } from '@/lib/utils'
 import { useTripMembers } from '@/composables/useTripMember'
+import { cn } from '@/lib/utils'
 import { expenseConverter, tripConverter } from '@/utils/converter'
 
 definePageMeta({
@@ -105,7 +105,8 @@ function getInitialItems() {
 }
 
 function getInitialValues() {
-  if (!expense.value) return {}
+  if (!expense.value)
+    return {}
   return {
     description: expense.value.description,
     grandTotal: wasEnteredInHomeCurrency.value ? convertToHomeCurrency(expense.value.grandTotal) : expense.value.grandTotal,
@@ -166,7 +167,8 @@ watch(calculatedTotal, (newTotal) => {
 const isSubmitting = ref(false)
 
 const onSubmit = handleSubmit(async (values) => {
-  if (!expense.value || !trip.value) return
+  if (!expense.value || !trip.value)
+    return
   isSubmitting.value = true
   try {
     const selectedDate = parseDate(values.paidAt).toDate(timezone)
