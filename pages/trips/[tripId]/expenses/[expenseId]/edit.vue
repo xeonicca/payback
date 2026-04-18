@@ -124,6 +124,8 @@ function getInitialValues() {
 const formInitialized = ref(false)
 const initialCurrency = ref<string>('')
 const initialExchangeRate = ref<number>(0)
+const isSubmitting = ref(false)
+const itemsExpanded = ref(false)
 
 const { values, meta, isFieldDirty, setFieldValue, handleSubmit, resetForm } = useForm({
   validationSchema: formSchema,
@@ -139,6 +141,7 @@ watch(expense, (exp) => {
     initialCurrency.value = startingCurrency
     initialExchangeRate.value = startingRate
     resetForm({ values: getInitialValues() })
+    itemsExpanded.value = (exp.items?.length || 0) > 0
     formInitialized.value = true
   }
 }, { immediate: true })
@@ -166,6 +169,8 @@ const calculatedTotal = computed(() => {
   return (values.items || []).reduce((sum, item) => sum + (item.price || 0) * (item.quantity || 1), 0)
 })
 
+const hasItems = computed(() => (values.items?.length || 0) > 0)
+
 const selectedSharedMembers = computed(() => {
   return tripMembers.value.filter((m: TripMember) => (values.sharedWithMemberIds || []).includes(m.id))
 })
@@ -173,9 +178,6 @@ const selectedSharedMembers = computed(() => {
 watch(calculatedTotal, (newTotal) => {
   setFieldValue('grandTotal', Math.round(newTotal * 100) / 100)
 })
-
-const isSubmitting = ref(false)
-const itemsExpanded = ref(false)
 
 function displayNameForUserId(uid: string | undefined): string | null {
   if (!uid)
@@ -361,7 +363,12 @@ function updateItemSharing(index: number, memberIds: string[]) {
             <ui-form-field v-slot="{ componentField }" name="grandTotal" :validate-on-blur="!isFieldDirty">
               <ui-form-item>
                 <div class="flex items-center justify-between">
-                  <ui-form-label>金額</ui-form-label>
+                  <ui-form-label>
+                    金額
+                    <span v-if="hasItems" class="ml-1 text-xs font-normal text-muted-foreground">
+                      (由購買明細自動加總)
+                    </span>
+                  </ui-form-label>
                   <ui-button
                     v-if="hasDifferentCurrencies"
                     type="button"
@@ -376,12 +383,25 @@ function updateItemSharing(index: number, memberIds: string[]) {
                 </div>
                 <ui-form-control>
                   <div class="relative">
-                    <ui-input class="pl-14" type="tel" v-bind="componentField" step="0.01" />
+                    <ui-input
+                      class="pl-14"
+                      :class="{ 'bg-muted/50 cursor-not-allowed': hasItems }"
+                      type="tel"
+                      v-bind="componentField"
+                      step="0.01"
+                      :readonly="hasItems"
+                      :aria-readonly="hasItems"
+                      :tabindex="hasItems ? -1 : undefined"
+                    />
                     <ui-badge class="absolute start-0 inset-y-0 flex items-center justify-center ml-1 my-1 px-2">
                       {{ selectedCurrency }}
                     </ui-badge>
                   </div>
                 </ui-form-control>
+                <p v-if="hasItems" class="text-xs text-muted-foreground mt-1">
+                  <Icon name="lucide:info" :size="12" class="inline-block mr-0.5 -mt-0.5" />
+                  刪除所有項目後可直接輸入金額
+                </p>
                 <div v-if="convertedAmountPreview" class="flex items-center gap-2 mt-2 flex-wrap">
                   <span class="text-xs text-muted-foreground">≈ {{ trip!.tripCurrency }} {{ convertedAmountPreview }}</span>
                   <div class="flex items-center gap-1">
