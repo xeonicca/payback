@@ -122,7 +122,7 @@ function getInitialValues() {
 
 const formInitialized = ref(false)
 
-const { values, isFieldDirty, setFieldValue, handleSubmit, resetForm } = useForm({
+const { values, meta, isFieldDirty, setFieldValue, handleSubmit, resetForm } = useForm({
   validationSchema: formSchema,
 })
 
@@ -168,6 +168,33 @@ watch(calculatedTotal, (newTotal) => {
 })
 
 const isSubmitting = ref(false)
+
+const isDirty = computed(() =>
+  meta.value.dirty || currencyOverride.value !== null || exchangeRateOverride.value !== null,
+)
+
+function confirmLeave(): boolean {
+  if (!isDirty.value || isSubmitting.value)
+    return true
+  // eslint-disable-next-line no-alert
+  return window.confirm('您有未儲存的變更，確定要離開嗎？')
+}
+
+function handleCancel() {
+  if (confirmLeave())
+    router.back()
+}
+
+function handleBeforeUnload(e: BeforeUnloadEvent) {
+  if (isDirty.value && !isSubmitting.value) {
+    e.preventDefault()
+  }
+}
+
+onMounted(() => window.addEventListener('beforeunload', handleBeforeUnload))
+onBeforeUnmount(() => window.removeEventListener('beforeunload', handleBeforeUnload))
+
+onBeforeRouteLeave(() => confirmLeave())
 
 const onSubmit = handleSubmit(async (values) => {
   if (!expense.value || !trip.value)
@@ -261,7 +288,7 @@ function updateItemSharing(index: number, memberIds: string[]) {
         class="text-muted-foreground flex items-center gap-1 px-0"
         variant="link"
         size="sm"
-        @click="router.back()"
+        @click="handleCancel"
       >
         <Icon name="lucide:arrow-left" :size="16" /> 上一頁
       </ui-button>
@@ -272,7 +299,7 @@ function updateItemSharing(index: number, memberIds: string[]) {
     </h1>
 
     <!-- Form body — single column, max-width container -->
-    <div class="max-w-lg space-y-6 pb-28">
+    <form id="expense-edit-form" class="max-w-lg space-y-6 pb-28" @submit.prevent="onSubmit">
       <!-- Description -->
       <ui-form-field v-slot="{ componentField }" name="description" :validate-on-blur="!isFieldDirty">
         <ui-form-item>
@@ -309,17 +336,23 @@ function updateItemSharing(index: number, memberIds: string[]) {
               </ui-badge>
             </div>
           </ui-form-control>
-          <div v-if="convertedAmountPreview" class="flex items-center gap-1 mt-1 flex-wrap">
+          <div v-if="convertedAmountPreview" class="flex items-center gap-2 mt-2 flex-wrap">
             <span class="text-xs text-muted-foreground">≈ {{ trip!.tripCurrency }} {{ convertedAmountPreview }}</span>
-            <span class="text-xs text-muted-foreground">(1 {{ trip!.tripCurrency }} =</span>
-            <ui-input
-              v-model.number="expenseExchangeRate"
-              type="number"
-              step="0.0001"
-              min="0"
-              class="h-5 text-xs w-16 px-1 inline-flex"
-            />
-            <span class="text-xs text-muted-foreground">{{ trip!.defaultCurrency }})</span>
+            <div class="flex items-center gap-1">
+              <span class="text-xs text-muted-foreground whitespace-nowrap">(1 {{ trip!.tripCurrency }} =</span>
+              <ui-label for="exchange-rate-input" class="sr-only">
+                匯率
+              </ui-label>
+              <ui-input
+                id="exchange-rate-input"
+                v-model.number="expenseExchangeRate"
+                type="number"
+                step="0.0001"
+                min="0"
+                class="h-9 text-xs w-24 px-2"
+              />
+              <span class="text-xs text-muted-foreground">{{ trip!.defaultCurrency }})</span>
+            </div>
           </div>
           <ui-form-message />
         </ui-form-item>
@@ -370,8 +403,8 @@ function updateItemSharing(index: number, memberIds: string[]) {
       <ui-separator />
 
       <!-- Payer + shared members -->
-      <div class="flex items-start justify-between gap-2">
-        <div class="flex-1 px-2">
+      <div class="flex flex-col md:flex-row md:items-start md:justify-between gap-6 md:gap-2">
+        <div class="flex-1 md:px-2">
           <ui-form-field v-slot="{ componentField }" type="radio" name="paidByMemberId">
             <ui-form-item>
               <ui-form-label class="text-sm">
@@ -397,7 +430,7 @@ function updateItemSharing(index: number, memberIds: string[]) {
             </ui-form-item>
           </ui-form-field>
         </div>
-        <div class="flex-1 px-2">
+        <div class="flex-1 md:px-2">
           <ui-form-item>
             <ui-form-field name="sharedWithMemberIds">
               <ui-form-label class="text-sm">
@@ -463,26 +496,33 @@ function updateItemSharing(index: number, memberIds: string[]) {
                 type="button"
                 size="icon"
                 variant="ghost"
-                class="size-8 text-destructive hover:text-destructive"
+                class="size-11 text-destructive hover:text-destructive"
+                :aria-label="`刪除項目 ${index + 1}`"
                 @click="removeItem(index)"
               >
-                <Icon name="lucide:trash-2" :size="14" />
+                <Icon name="lucide:trash-2" :size="16" />
               </ui-button>
             </div>
 
             <div class="grid grid-cols-2 gap-3">
               <div>
-                <span class="text-xs text-muted-foreground">名稱</span>
+                <ui-label :for="`item-${index}-name`" class="text-xs text-muted-foreground">
+                  名稱
+                </ui-label>
                 <ui-input
+                  :id="`item-${index}-name`"
                   :model-value="item.name"
                   placeholder="項目名稱"
                   @update:model-value="(value: string | number) => updateItem(index, 'name', String(value))"
                 />
               </div>
               <div>
-                <span class="text-xs text-muted-foreground">價格</span>
+                <ui-label :for="`item-${index}-price`" class="text-xs text-muted-foreground">
+                  價格
+                </ui-label>
                 <div class="relative">
                   <ui-input
+                    :id="`item-${index}-price`"
                     :model-value="item.price"
                     type="number"
                     step="0.01"
@@ -499,8 +539,11 @@ function updateItemSharing(index: number, memberIds: string[]) {
 
             <div class="grid grid-cols-2 gap-3">
               <div>
-                <span class="text-xs text-muted-foreground">數量</span>
+                <ui-label :for="`item-${index}-quantity`" class="text-xs text-muted-foreground">
+                  數量
+                </ui-label>
                 <ui-input
+                  :id="`item-${index}-quantity`"
                   :model-value="item.quantity || 1"
                   type="number"
                   min="1"
@@ -509,8 +552,11 @@ function updateItemSharing(index: number, memberIds: string[]) {
                 />
               </div>
               <div>
-                <span class="text-xs text-muted-foreground">翻譯名稱 (選填)</span>
+                <ui-label :for="`item-${index}-translated`" class="text-xs text-muted-foreground">
+                  翻譯名稱 (選填)
+                </ui-label>
                 <ui-input
+                  :id="`item-${index}-translated`"
                   :model-value="item.translatedName || ''"
                   placeholder="翻譯名稱"
                   @update:model-value="(value: string | number) => updateItem(index, 'translatedName', String(value))"
@@ -526,8 +572,9 @@ function updateItemSharing(index: number, memberIds: string[]) {
                   v-for="member in selectedSharedMembers"
                   :key="member.id"
                   type="button"
-                  size="sm"
                   :variant="(item.sharedByMemberIds || []).includes(member.id) ? 'default' : 'outline'"
+                  :aria-pressed="(item.sharedByMemberIds || []).includes(member.id)"
+                  class="min-h-11"
                   @click="() => {
                     const currentIds = item.sharedByMemberIds || []
                     const newIds = currentIds.includes(member.id)
@@ -547,12 +594,12 @@ function updateItemSharing(index: number, memberIds: string[]) {
           </div>
         </div>
       </div>
-    </div>
+    </form>
 
     <!-- Sticky bottom action bar -->
     <div class="fixed bottom-0 inset-x-0 bg-background border-t p-4 pb-safe z-10">
       <div class="max-w-lg mx-auto space-y-2">
-        <ui-button class="w-full" :disabled="isSubmitting" @click="onSubmit">
+        <ui-button class="w-full" type="submit" form="expense-edit-form" :disabled="isSubmitting" @click="onSubmit">
           <template v-if="isSubmitting">
             <Icon name="lucide:loader-circle" class="w-4 h-4 mr-2 animate-spin" />
             儲存中...
@@ -561,7 +608,7 @@ function updateItemSharing(index: number, memberIds: string[]) {
             儲存變更
           </template>
         </ui-button>
-        <ui-button class="w-full" variant="outline" @click="router.back()">
+        <ui-button class="w-full" variant="outline" :disabled="isSubmitting" @click="handleCancel">
           取消
         </ui-button>
       </div>
