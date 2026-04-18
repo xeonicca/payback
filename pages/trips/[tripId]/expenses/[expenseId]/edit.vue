@@ -121,6 +121,8 @@ function getInitialValues() {
 }
 
 const formInitialized = ref(false)
+const initialCurrency = ref<string>('')
+const initialExchangeRate = ref<number>(0)
 
 const { values, meta, isFieldDirty, setFieldValue, handleSubmit, resetForm } = useForm({
   validationSchema: formSchema,
@@ -129,8 +131,12 @@ const { values, meta, isFieldDirty, setFieldValue, handleSubmit, resetForm } = u
 // Initialize form once expense data loads
 watch(expense, (exp) => {
   if (exp && !formInitialized.value) {
-    currencyOverride.value = exp.inputCurrency ?? null
-    exchangeRateOverride.value = null
+    const startingCurrency = exp.inputCurrency ?? trip.value?.tripCurrency ?? ''
+    const startingRate = exp.exchangeRate ?? trip.value?.exchangeRate ?? 1
+    currencyOverride.value = startingCurrency
+    exchangeRateOverride.value = startingRate
+    initialCurrency.value = startingCurrency
+    initialExchangeRate.value = startingRate
     resetForm({ values: getInitialValues() })
     formInitialized.value = true
   }
@@ -170,9 +176,13 @@ watch(calculatedTotal, (newTotal) => {
 const isSubmitting = ref(false)
 const itemsExpanded = ref(false)
 
-const isDirty = computed(() =>
-  meta.value.dirty || currencyOverride.value !== null || exchangeRateOverride.value !== null,
-)
+const isDirty = computed(() => {
+  if (!formInitialized.value)
+    return false
+  return meta.value.dirty
+    || selectedCurrency.value !== initialCurrency.value
+    || expenseExchangeRate.value !== initialExchangeRate.value
+})
 
 function confirmLeave(): boolean {
   if (!isDirty.value || isSubmitting.value)
