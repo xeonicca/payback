@@ -124,8 +124,15 @@ function getInitialValues() {
 const formInitialized = ref(false)
 const initialCurrency = ref<string>('')
 const initialExchangeRate = ref<number>(0)
+const paidAtTime = ref<string>('')
+const initialPaidAtTime = ref<string>('')
 const isSubmitting = ref(false)
 const itemsExpanded = ref(false)
+// Plain (non-reactive) array of raw display strings for item prices.
+// Decouples what the user sees from the parsed form value so mid-edit states like "00"
+// are not normalized back to "0". Non-reactive intentionally — re-renders are driven by
+// updateItem → setFieldValue; making this reactive would cause a double-update error.
+const itemPriceRaw: string[] = []
 
 const { values, meta, isFieldDirty, setFieldValue, handleSubmit, resetForm } = useForm({
   validationSchema: formSchema,
@@ -140,7 +147,16 @@ watch(expense, (exp) => {
     exchangeRateOverride.value = startingRate
     initialCurrency.value = startingCurrency
     initialExchangeRate.value = startingRate
-    resetForm({ values: getInitialValues() })
+    const initialValues = getInitialValues()
+    resetForm({ values: initialValues })
+    const { hour, minute } = exp.paidAtObject
+    const timeStr = hour && minute
+      ? `${hour.padStart(2, '0')}:${minute.padStart(2, '0')}`
+      : new Date().toTimeString().slice(0, 5)
+    paidAtTime.value = timeStr
+    initialPaidAtTime.value = timeStr
+    const initialPrices = (initialValues.items || []).map(item => String(item.price ?? 0))
+    itemPriceRaw.splice(0, itemPriceRaw.length, ...initialPrices)
     itemsExpanded.value = (exp.items?.length || 0) > 0
     formInitialized.value = true
   }
@@ -151,7 +167,7 @@ const paidAtDate = computed({
   set: val => val,
 })
 
-const df = new DateFormatter('en-US', { dateStyle: 'long' })
+const df = new DateFormatter('zh-TW', { dateStyle: 'long' })
 
 function convertToTripCurrency(amount: number): number {
   if (!useHomeCurrency.value || !expenseExchangeRate.value)
@@ -209,6 +225,7 @@ const isDirty = computed(() => {
   return meta.value.dirty
     || selectedCurrency.value !== initialCurrency.value
     || expenseExchangeRate.value !== initialExchangeRate.value
+    || paidAtTime.value !== initialPaidAtTime.value
 })
 
 function confirmLeave(): boolean {
@@ -240,8 +257,14 @@ const onSubmit = handleSubmit(async (values) => {
   isSubmitting.value = true
   try {
     const selectedDate = parseDate(values.paidAt).toDate(timezone)
-    const now = new Date()
-    selectedDate.setHours(now.getHours(), now.getMinutes(), now.getSeconds())
+    if (paidAtTime.value) {
+      const [h, m] = paidAtTime.value.split(':').map(Number)
+      selectedDate.setHours(h, m, 0, 0)
+    }
+    else {
+      const now = new Date()
+      selectedDate.setHours(now.getHours(), now.getMinutes(), 0, 0)
+    }
 
     const grandTotalInTripCurrency = convertToTripCurrency(values.grandTotal)
 
@@ -283,6 +306,7 @@ function addItem() {
     sharedByMemberIds: [],
   }
   setFieldValue('items', [...(values.items || []), newItem])
+  itemPriceRaw.push('')
 }
 
 function removeItem(index: number) {
@@ -290,6 +314,7 @@ function removeItem(index: number) {
     const updatedItems = [...values.items]
     updatedItems.splice(index, 1)
     setFieldValue('items', updatedItems)
+    itemPriceRaw.splice(index, 1)
   }
 }
 
@@ -340,6 +365,7 @@ function updateItemSharing(index: number, memberIds: string[]) {
       </p>
       <h1 class="text-2xl font-bold font-mono text-primary mt-1">
         {{ selectedCurrency }} {{ (values.grandTotal || 0).toFixed(2) }}
+        <span v-if="hasItems" class="ml-1 text-sm font-normal text-muted-foreground">(明細加總)</span>
       </h1>
       <p class="text-sm text-foreground mt-1 line-clamp-1">
         {{ values.description || expense!.description }}
@@ -350,7 +376,7 @@ function updateItemSharing(index: number, memberIds: string[]) {
     </div>
 
     <form id="expense-edit-form" class="pb-safe-offset-32" @submit.prevent="onSubmit">
-      <div class="lg:grid lg:grid-cols-2 lg:gap-6 space-y-4 lg:space-y-0">
+      <div class="flex flex-col gap-4 lg:grid lg:grid-cols-2 lg:gap-6">
         <!-- Left column: Basics + Split -->
         <div class="space-y-4">
           <!-- Card 1: Basics (amount, description, date) -->
@@ -359,16 +385,11 @@ function updateItemSharing(index: number, memberIds: string[]) {
               基本資訊
             </h2>
 
-            <!-- Amount + currency -->
-            <ui-form-field v-slot="{ componentField }" name="grandTotal" :validate-on-blur="!isFieldDirty">
+            <!-- Amount + currency (hidden when items exist — total is auto-calculated and shown in hero) -->
+            <ui-form-field v-if="!hasItems" v-slot="{ componentField }" name="grandTotal" :validate-on-blur="!isFieldDirty">
               <ui-form-item>
                 <div class="flex items-center justify-between">
-                  <ui-form-label>
-                    金額
-                    <span v-if="hasItems" class="ml-1 text-xs font-normal text-muted-foreground">
-                      (由購買明細自動加總)
-                    </span>
-                  </ui-form-label>
+                  <ui-form-label>金額</ui-form-label>
                   <ui-button
                     v-if="hasDifferentCurrencies"
                     type="button"
@@ -385,23 +406,15 @@ function updateItemSharing(index: number, memberIds: string[]) {
                   <div class="relative">
                     <ui-input
                       class="pl-14"
-                      :class="{ 'bg-muted/50 cursor-not-allowed': hasItems }"
                       type="tel"
                       v-bind="componentField"
                       step="0.01"
-                      :readonly="hasItems"
-                      :aria-readonly="hasItems"
-                      :tabindex="hasItems ? -1 : undefined"
                     />
                     <ui-badge class="absolute start-0 inset-y-0 flex items-center justify-center ml-1 my-1 px-2">
                       {{ selectedCurrency }}
                     </ui-badge>
                   </div>
                 </ui-form-control>
-                <p v-if="hasItems" class="text-xs text-muted-foreground mt-1">
-                  <Icon name="lucide:info" :size="12" class="inline-block mr-0.5 -mt-0.5" />
-                  刪除所有項目後可直接輸入金額
-                </p>
                 <div v-if="convertedAmountPreview" class="flex items-center gap-2 mt-2 flex-wrap">
                   <span class="text-xs text-muted-foreground">≈ {{ trip!.tripCurrency }} {{ convertedAmountPreview }}</span>
                   <div class="flex items-center gap-1">
@@ -435,44 +448,52 @@ function updateItemSharing(index: number, memberIds: string[]) {
               </ui-form-item>
             </ui-form-field>
 
-            <!-- Date -->
+            <!-- Date + Time -->
             <ui-form-field name="paidAt">
               <ui-form-item class="flex flex-col">
-                <ui-form-label>日期</ui-form-label>
-                <ui-popover>
-                  <ui-popover-trigger as-child>
-                    <ui-form-control>
-                      <ui-button
-                        type="button"
-                        variant="outline"
-                        :class="cn(
-                          'w-full ps-3 text-start font-normal',
-                          !paidAtDate && 'text-muted-foreground',
-                        )"
-                      >
-                        <span>{{ paidAtDate ? df.format(toDate(paidAtDate)) : '選擇日期' }}</span>
-                        <Icon name="lucide:calendar" class="ms-auto h-4 w-4 opacity-50" />
-                      </ui-button>
-                      <input hidden>
-                    </ui-form-control>
-                  </ui-popover-trigger>
-                  <ui-popover-content class="w-auto p-0">
-                    <ui-calendar
-                      v-model:placeholder="paidAtPlaceholder"
-                      v-model="paidAtDate"
-                      calendar-label="支出日期"
-                      initial-focus
-                      @update:model-value="(v) => {
-                        if (v) {
-                          setFieldValue('paidAt', v.toString())
-                        }
-                        else {
-                          setFieldValue('paidAt', undefined)
-                        }
-                      }"
-                    />
-                  </ui-popover-content>
-                </ui-popover>
+                <ui-form-label>日期與時間</ui-form-label>
+                <div class="flex gap-2">
+                  <ui-popover>
+                    <ui-popover-trigger as-child>
+                      <ui-form-control>
+                        <ui-button
+                          type="button"
+                          variant="outline"
+                          :class="cn(
+                            'flex-1 ps-3 text-start font-normal',
+                            !paidAtDate && 'text-muted-foreground',
+                          )"
+                        >
+                          <span>{{ paidAtDate ? df.format(toDate(paidAtDate)) : '選擇日期' }}</span>
+                          <Icon name="lucide:calendar" class="ms-auto h-4 w-4 opacity-50" />
+                        </ui-button>
+                        <input hidden>
+                      </ui-form-control>
+                    </ui-popover-trigger>
+                    <ui-popover-content class="w-auto p-0">
+                      <ui-calendar
+                        v-model:placeholder="paidAtPlaceholder"
+                        v-model="paidAtDate"
+                        calendar-label="支出日期"
+                        initial-focus
+                        @update:model-value="(v) => {
+                          if (v) {
+                            setFieldValue('paidAt', v.toString())
+                          }
+                          else {
+                            setFieldValue('paidAt', undefined)
+                          }
+                        }"
+                      />
+                    </ui-popover-content>
+                  </ui-popover>
+                  <ui-input
+                    v-model="paidAtTime"
+                    type="time"
+                    class="w-32 shrink-0"
+                    aria-label="時間"
+                  />
+                </div>
                 <ui-form-message />
               </ui-form-item>
             </ui-form-field>
@@ -547,13 +568,14 @@ function updateItemSharing(index: number, memberIds: string[]) {
           </div>
         </div>
 
-        <!-- Right column: Items (collapsible on mobile) -->
-        <div class="bg-card rounded-xl border p-4 space-y-4 h-fit">
+        <!-- Right column: Items (collapsible on mobile; moves to top when items exist) -->
+        <div class="bg-card rounded-xl border p-4 space-y-4 h-fit" :class="{ 'order-first': hasItems }">
           <button
             type="button"
-            class="w-full flex items-center justify-between lg:pointer-events-none"
+            class="w-full flex items-center justify-between"
+            :class="{ 'lg:pointer-events-none': !hasItems, 'pointer-events-none': hasItems }"
             :aria-expanded="itemsExpanded"
-            @click="itemsExpanded = !itemsExpanded"
+            @click="hasItems ? undefined : (itemsExpanded = !itemsExpanded)"
           >
             <div class="flex items-center gap-2">
               <h2 class="text-sm font-semibold text-foreground m-0">
@@ -572,6 +594,7 @@ function updateItemSharing(index: number, memberIds: string[]) {
                 新增
               </span>
               <Icon
+                v-if="!hasItems"
                 name="lucide:chevron-down"
                 :size="16"
                 class="text-muted-foreground transition-transform lg:hidden"
@@ -628,12 +651,16 @@ function updateItemSharing(index: number, memberIds: string[]) {
                     <div class="relative">
                       <ui-input
                         :id="`item-${index}-price`"
-                        :model-value="item.price"
-                        type="number"
-                        step="0.01"
-                        min="0"
+                        :model-value="itemPriceRaw[index] ?? String(item.price)"
+                        type="text"
+                        inputmode="decimal"
                         placeholder="0.00"
-                        @update:model-value="(value: string | number) => updateItem(index, 'price', typeof value === 'string' ? parseFloat(value) || 0 : value)"
+                        @update:model-value="(val: string | number) => {
+                          const str = String(val)
+                          itemPriceRaw[index] = str
+                          const num = parseFloat(str)
+                          updateItem(index, 'price', isNaN(num) ? 0 : num)
+                        }"
                       />
                       <ui-badge class="absolute right-2 top-1/2 transform -translate-y-1/2 px-2 py-1 text-xs">
                         {{ selectedCurrency }}
