@@ -308,7 +308,7 @@ function updateItemSharing(index: number, memberIds: string[]) {
       </p>
     </div>
 
-    <form id="expense-edit-form" class="pb-32" @submit.prevent="onSubmit">
+    <form id="expense-edit-form" class="pb-safe-offset-32" @submit.prevent="onSubmit">
       <div class="lg:grid lg:grid-cols-2 lg:gap-6 space-y-4 lg:space-y-0">
         <!-- Left column: Basics + Split -->
         <div class="space-y-4">
@@ -645,7 +645,7 @@ function updateItemSharing(index: number, memberIds: string[]) {
     </form>
 
     <!-- Sticky bottom action bar -->
-    <div class="fixed bottom-0 inset-x-0 bg-background/95 backdrop-blur border-t p-4 pb-safe z-20 shadow-[0_-4px_12px_rgba(0,0,0,0.05)]">
+    <div class="fixed bottom-0 inset-x-0 bg-background/95 backdrop-blur border-t px-4 pt-4 pb-safe-offset-4 z-20 shadow-[0_-4px_12px_rgba(0,0,0,0.05)]">
       <div class="container mx-auto flex gap-2">
         <ui-button class="flex-1" variant="outline" :disabled="isSubmitting" @click="handleCancel">
           取消
