@@ -236,13 +236,12 @@ const onSubmit = handleSubmit(async (values) => {
       items: itemsInTripCurrency,
     })
     toast.success('支出已更新')
+    // Leave isSubmitting true so the leave-guard doesn't prompt during navigation
     router.back()
   }
   catch (error) {
     console.error(error)
     toast.error('更新支出失敗')
-  }
-  finally {
     isSubmitting.value = false
   }
 })
