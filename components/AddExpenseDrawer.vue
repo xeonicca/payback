@@ -318,6 +318,28 @@ async function submitManual(formValues: { description?: string, grandTotal?: num
               </ui-form-item>
             </ui-form-field>
 
+            <div v-if="hasDifferentCurrencies && useHomeCurrency" class="flex items-center gap-2">
+              <span class="text-xs text-muted-foreground whitespace-nowrap">1 {{ trip.tripCurrency }} =</span>
+              <ui-input
+                v-model.number="expenseExchangeRate"
+                type="number"
+                step="0.0001"
+                min="0"
+                class="h-7 text-xs w-24"
+              />
+              <span class="text-xs text-muted-foreground">{{ trip.defaultCurrency }}</span>
+              <ui-button
+                v-if="isRateLoading"
+                type="button"
+                variant="ghost"
+                size="sm"
+                class="h-6 px-1"
+                disabled
+              >
+                <Icon name="lucide:loader-2" class="h-3 w-3 animate-spin" />
+              </ui-button>
+            </div>
+
             <ui-form-field v-slot="{ componentField }" name="description" :validate-on-blur="!isFieldDirty">
               <ui-form-item>
                 <ui-form-label>支出描述</ui-form-label>
@@ -404,7 +426,7 @@ async function submitManual(formValues: { description?: string, grandTotal?: num
               <ui-form-field name="sharedWithMemberIds">
                 <div class="flex items-center justify-between">
                   <ui-form-label class="text-sm">
-                    選擇平分的成員
+                    選擇分攤的成員
                   </ui-form-label>
                   <ui-button type="button" variant="link" size="sm" class="h-auto p-0 text-xs" @click="toggleSelectAllMembers">
                     {{ allMembersSelected ? '取消全選' : '全選' }}
@@ -547,6 +569,28 @@ async function submitManual(formValues: { description?: string, grandTotal?: num
                   <ui-form-message />
                 </ui-form-item>
               </ui-form-field>
+
+              <div v-if="hasDifferentCurrencies && useHomeCurrency" class="flex items-center gap-2">
+                <span class="text-xs text-muted-foreground whitespace-nowrap">1 {{ trip.tripCurrency }} =</span>
+                <ui-input
+                  v-model.number="expenseExchangeRate"
+                  type="number"
+                  step="0.0001"
+                  min="0"
+                  class="h-7 text-xs w-24"
+                />
+                <span class="text-xs text-muted-foreground">{{ trip.defaultCurrency }}</span>
+                <ui-button
+                  v-if="isRateLoading"
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  class="h-6 px-1"
+                  disabled
+                >
+                  <Icon name="lucide:loader-2" class="h-3 w-3 animate-spin" />
+                </ui-button>
+              </div>
 
               <ui-form-field v-slot="{ componentField }" name="description" :validate-on-blur="!isFieldDirty">
                 <ui-form-item>
