@@ -40,4 +40,9 @@ describe('mapDecodedTokenToAppUser', () => {
     }
     expect(mapDecodedTokenToAppUser(decoded).isAnonymous).toBe(false)
   })
+
+  it('treats absent firebase field as not anonymous', () => {
+    const decoded = { uid: 'u2' }
+    expect(mapDecodedTokenToAppUser(decoded).isAnonymous).toBe(false)
+  })
 })

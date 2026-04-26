@@ -1,22 +1,15 @@
-import type { App } from 'firebase-admin/app'
 import type { H3Event } from 'h3'
 import type { AppUser } from '@/types'
 import { cert, getApps, initializeApp } from 'firebase-admin/app'
 import { getAuth as getAdminAuth } from 'firebase-admin/auth'
 import { getFirestore } from 'firebase-admin/firestore'
 
-let app: App
-
 export function getFirebaseAdminApp() {
-  if (getApps().length) {
-    app = getApps()[0]
-  }
-  else {
-    const config = useRuntimeConfig()
-    const serviceAccount = JSON.parse(config.serviceAccount as string)
-    app = initializeApp({ credential: cert(serviceAccount) })
-  }
-  return app
+  if (getApps().length)
+    return getApps()[0]
+  const config = useRuntimeConfig()
+  const serviceAccount = JSON.parse(config.serviceAccount as string)
+  return initializeApp({ credential: cert(serviceAccount) })
 }
 
 export function getFirebaseAdminAuth() {
