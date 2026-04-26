@@ -42,12 +42,13 @@ export default function useLogin() {
   const { logEvent } = useAnalytics()
 
   const setSession = async (user: User) => {
-    const firebaseIdToken = await getIdToken(user)
-    const data = await $fetch<AppUser>('/api/auth/login', {
+    const token = await getIdToken(user, true)
+    await $fetch('/api/__session', {
       method: 'POST',
-      body: JSON.stringify({ firebaseIdToken }),
+      body: { token },
     })
-    sessionUser.value = data
+    const { user: appUser } = await $fetch<{ user: AppUser }>('/api/auth/me')
+    sessionUser.value = appUser
     logEvent('login', { method: 'google' })
   }
 
