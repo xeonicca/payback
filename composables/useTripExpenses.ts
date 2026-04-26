@@ -15,7 +15,7 @@ export function useTripExpenses(tripId: string, hasLimit = 0) {
   }
   const tripExpenses
    = useCollection<Expense>(query(collection(db, 'trips', tripId, 'expenses').withConverter(expenseConverter), ...queryConditions), {
-     ssrKey: `trip-expenses-${tripId}`,
+     ssrKey: `trip-expenses-${tripId}-${hasLimit}`,
    })
 
   const enabledExpenses = computed(() => {

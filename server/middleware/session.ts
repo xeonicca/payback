@@ -21,14 +21,20 @@ export default defineEventHandler(async (event) => {
     } as AppUser
   }
   else {
-    // Session cookie is invalid or expired — clear it from both the
-    // response (so the browser drops it) and the incoming request headers
-    // (so VueFire's SSR plugin doesn't see it and throw an unhandled error)
-    deleteCookie(event, config.authCookieName)
+    // Session cookie is invalid or expired — clear it from:
+    // 1. The response (so the browser drops it)
+    // 2. The raw request header string
+    // 3. H3's internal parsed cookie cache (event._cookies) — without this,
+    //    VueFire's SSR plugin still reads the expired cookie from the cache
+    //    even after we clear the raw header, causing an unhandled 500 error.
     const cookieName = config.authCookieName
+    deleteCookie(event, cookieName)
     event.node.req.headers.cookie = (event.node.req.headers.cookie || '')
       .split(';')
       .filter(c => !c.trim().startsWith(`${cookieName}=`))
       .join(';') || undefined
+    const cachedCookies = (event as any)._cookies
+    if (cachedCookies)
+      delete cachedCookies[cookieName]
   }
 })

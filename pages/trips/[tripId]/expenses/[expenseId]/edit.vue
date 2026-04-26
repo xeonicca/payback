@@ -236,8 +236,7 @@ function confirmLeave(): boolean {
 }
 
 function handleCancel() {
-  if (confirmLeave())
-    router.back()
+  router.back()
 }
 
 function handleBeforeUnload(e: BeforeUnloadEvent) {
@@ -568,8 +567,8 @@ function updateItemSharing(index: number, memberIds: string[]) {
           </div>
         </div>
 
-        <!-- Right column: Items (collapsible on mobile; moves to top when items exist) -->
-        <div class="bg-card rounded-xl border p-4 space-y-4 h-fit" :class="{ 'order-first': hasItems }">
+        <!-- Right column: Items (collapsible on mobile; moves to top on mobile when items exist) -->
+        <div class="bg-card rounded-xl border p-4 space-y-4 h-fit" :class="{ 'order-first lg:order-none': hasItems }">
           <button
             type="button"
             class="w-full flex items-center justify-between"
@@ -587,7 +586,7 @@ function updateItemSharing(index: number, memberIds: string[]) {
             </div>
             <div class="flex items-center gap-2">
               <span
-                class="text-xs text-primary font-medium cursor-pointer"
+                class="text-xs text-primary font-medium cursor-pointer pointer-events-auto"
                 @click.stop="addItem(); itemsExpanded = true"
               >
                 <Icon name="lucide:plus" :size="14" class="inline" />
