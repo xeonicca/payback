@@ -49,8 +49,6 @@ export default defineNuxtConfig({
         messagingSenderId: process.env.NUXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
       },
     },
-    authCookieName: process.env.NUXT_PUBLIC_FIREBASE_AUTH_COOKIE_NAME,
-    authCookieExpires: process.env.NUXT_PUBLIC_FIREBASE_AUTH_COOKIE_EXPIRES,
     serviceAccount: process.env.GOOGLE_APPLICATION_CREDENTIALS,
   },
 
