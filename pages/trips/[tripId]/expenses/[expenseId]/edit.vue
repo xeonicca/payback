@@ -70,6 +70,27 @@ const expenseExchangeRate = computed({
   set: (val: number) => { exchangeRateOverride.value = val },
 })
 
+const { rate: fetchedRate, isLoading: isRateLoading, fetchRate } = useExchangeRate(
+  () => trip.value?.tripCurrency ?? '',
+  () => trip.value?.defaultCurrency ?? '',
+  () => trip.value?.exchangeRate ?? 1,
+)
+
+const previousExchangeRate = ref<number | null>(null)
+
+async function applyLatestRate() {
+  previousExchangeRate.value = expenseExchangeRate.value
+  await fetchRate()
+  exchangeRateOverride.value = fetchedRate.value
+}
+
+function revertRate() {
+  if (previousExchangeRate.value !== null) {
+    exchangeRateOverride.value = previousExchangeRate.value
+    previousExchangeRate.value = null
+  }
+}
+
 const formSchema = toTypedSchema(z.object({
   description: z.string().min(2).max(200),
   grandTotal: z.coerce.number().min(0),
@@ -190,6 +211,19 @@ const hasItems = computed(() => (values.items?.length || 0) > 0)
 const selectedSharedMembers = computed(() => {
   return tripMembers.value.filter((m: TripMember) => (values.sharedWithMemberIds || []).includes(m.id))
 })
+
+const allMembersSelected = computed(() =>
+  values.sharedWithMemberIds?.length === tripMembers.value.length,
+)
+
+function toggleSelectAllMembers() {
+  if (allMembersSelected.value) {
+    setFieldValue('sharedWithMemberIds', [])
+  }
+  else {
+    setFieldValue('sharedWithMemberIds', tripMembers.value.map(m => m.id))
+  }
+}
 
 watch(calculatedTotal, (newTotal) => {
   setFieldValue('grandTotal', Math.round(newTotal * 100) / 100)
@@ -380,7 +414,7 @@ function updateItemSharing(index: number, memberIds: string[]) {
         <div class="space-y-4">
           <!-- Card 1: Basics (amount, description, date) -->
           <div class="bg-card rounded-xl border p-4 space-y-4">
-            <h2 class="text-sm font-semibold text-foreground m-0">
+            <h2 class="text-sm font-semibold text-foreground mb-2">
               基本資訊
             </h2>
 
@@ -430,6 +464,29 @@ function updateItemSharing(index: number, memberIds: string[]) {
                       class="h-9 text-xs w-24 px-2"
                     />
                     <span class="text-xs text-muted-foreground">{{ trip!.defaultCurrency }})</span>
+                  </div>
+                  <div class="flex items-center gap-1">
+                    <ui-button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      class="h-auto py-0.5 px-1.5 text-xs text-muted-foreground"
+                      :disabled="isRateLoading"
+                      @click="applyLatestRate"
+                    >
+                      <Icon v-if="isRateLoading" name="lucide:loader-circle" class="mr-1 h-3 w-3 animate-spin" />
+                      使用最新匯率
+                    </ui-button>
+                    <ui-button
+                      v-if="previousExchangeRate !== null"
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      class="h-auto py-0.5 px-1.5 text-xs text-muted-foreground"
+                      @click="revertRate"
+                    >
+                      還原
+                    </ui-button>
                   </div>
                 </div>
                 <ui-form-message />
@@ -500,7 +557,7 @@ function updateItemSharing(index: number, memberIds: string[]) {
 
           <!-- Card 2: Payer + Sharers -->
           <div class="bg-card rounded-xl border p-4 space-y-4">
-            <h2 class="text-sm font-semibold text-foreground m-0">
+            <h2 class="text-sm font-semibold text-foreground mb-2">
               付款與分攤
             </h2>
 
@@ -534,9 +591,14 @@ function updateItemSharing(index: number, memberIds: string[]) {
               <div class="flex-1">
                 <ui-form-item>
                   <ui-form-field name="sharedWithMemberIds">
-                    <ui-form-label class="text-sm">
-                      平分的成員
-                    </ui-form-label>
+                    <div class="flex items-center justify-between">
+                      <ui-form-label class="text-sm">
+                        分攤的成員
+                      </ui-form-label>
+                      <ui-button type="button" variant="link" size="sm" class="h-auto p-0 text-xs" @click="toggleSelectAllMembers">
+                        {{ allMembersSelected ? '取消全選' : '全選' }}
+                      </ui-button>
+                    </div>
                     <ui-form-field
                       v-for="member in tripMembers"
                       v-slot="{ value, handleChange }"
@@ -577,28 +639,21 @@ function updateItemSharing(index: number, memberIds: string[]) {
             @click="hasItems ? undefined : (itemsExpanded = !itemsExpanded)"
           >
             <div class="flex items-center gap-2">
-              <h2 class="text-sm font-semibold text-foreground m-0">
+              <h2 class="text-sm font-semibold text-foreground">
                 購買明細
               </h2>
               <span v-if="values.items && values.items.length > 0" class="text-xs text-muted-foreground">
                 {{ values.items.length }} 個項目
               </span>
             </div>
-            <div class="flex items-center gap-2">
+            <div class="flex items-center gap-1">
+              <Icon name="lucide:plus" :size="14" class="inline" />
               <span
                 class="text-xs text-primary font-medium cursor-pointer pointer-events-auto"
                 @click.stop="addItem(); itemsExpanded = true"
               >
-                <Icon name="lucide:plus" :size="14" class="inline" />
                 新增
               </span>
-              <Icon
-                v-if="!hasItems"
-                name="lucide:chevron-down"
-                :size="16"
-                class="text-muted-foreground transition-transform lg:hidden"
-                :class="{ 'rotate-180': itemsExpanded }"
-              />
             </div>
           </button>
 
