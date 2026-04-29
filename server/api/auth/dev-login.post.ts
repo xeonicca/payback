@@ -36,7 +36,6 @@ export default defineEventHandler(async (event) => {
     secure: false,
   })
 
-  // Return AppUser so the caller can inspect who they are logged in as
   const user = await auth.getUser(uid)
   return {
     uid: user.uid,
@@ -44,5 +43,6 @@ export default defineEventHandler(async (event) => {
     displayName: user.displayName ?? null,
     photoURL: user.photoURL ?? null,
     isAnonymous: user.providerData.length === 0,
+    customToken,
   }
 })
