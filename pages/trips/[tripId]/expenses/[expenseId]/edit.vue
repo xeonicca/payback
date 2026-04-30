@@ -149,6 +149,8 @@ const paidAtTime = ref<string>('')
 const initialPaidAtTime = ref<string>('')
 const isSubmitting = ref(false)
 const itemsExpanded = ref(false)
+const itemsListRef = ref<HTMLElement | null>(null)
+const sharerModalIndex = ref<number | null>(null)
 // Plain (non-reactive) array of raw display strings for item prices.
 // Decouples what the user sees from the parsed form value so mid-edit states like "00"
 // are not normalized back to "0". Non-reactive intentionally — re-renders are driven by
@@ -340,6 +342,10 @@ function addItem() {
   }
   setFieldValue('items', [...(values.items || []), newItem])
   itemPriceRaw.push('')
+  nextTick(() => {
+    const last = itemsListRef.value?.lastElementChild
+    last?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+  })
 }
 
 function removeItem(index: number) {
@@ -668,7 +674,7 @@ function updateItemSharing(index: number, memberIds: string[]) {
               </p>
             </div>
 
-            <div v-else class="space-y-3">
+            <div v-else ref="itemsListRef" class="space-y-3">
               <div
                 v-for="(item, index) in values.items"
                 :key="index"
@@ -690,29 +696,35 @@ function updateItemSharing(index: number, memberIds: string[]) {
                   </ui-button>
                 </div>
 
-                <div class="grid grid-cols-2 gap-3">
-                  <div>
-                    <ui-label :for="`item-${index}-name`" class="text-xs text-muted-foreground">
-                      名稱
-                    </ui-label>
-                    <ui-input
-                      :id="`item-${index}-name`"
-                      :model-value="item.name"
-                      placeholder="項目名稱"
-                      @update:model-value="(value: string | number) => updateItem(index, 'name', String(value))"
-                    />
-                  </div>
-                  <div>
-                    <ui-label :for="`item-${index}-price`" class="text-xs text-muted-foreground">
+                <!-- Name: primary, full width -->
+                <div>
+                  <ui-label :for="`item-${index}-name`" class="text-sm font-medium text-foreground">
+                    名稱
+                  </ui-label>
+                  <ui-input
+                    :id="`item-${index}-name`"
+                    :model-value="item.name"
+                    placeholder="項目名稱"
+                    autocomplete="off"
+                    class="mt-1"
+                    @update:model-value="(value: string | number) => updateItem(index, 'name', String(value))"
+                  />
+                </div>
+
+                <!-- Price (primary) + Quantity (secondary modifier) -->
+                <div class="flex gap-3">
+                  <div class="flex-1 min-w-0">
+                    <ui-label :for="`item-${index}-price`" class="text-sm font-medium text-foreground">
                       價格
                     </ui-label>
-                    <div class="relative">
+                    <div class="relative mt-1">
                       <ui-input
                         :id="`item-${index}-price`"
                         :model-value="itemPriceRaw[index] ?? String(item.price)"
                         type="text"
                         inputmode="decimal"
                         placeholder="0.00"
+                        class="pl-14 font-mono"
                         @update:model-value="(val: string | number) => {
                           const str = String(val)
                           itemPriceRaw[index] = str
@@ -720,16 +732,13 @@ function updateItemSharing(index: number, memberIds: string[]) {
                           updateItem(index, 'price', isNaN(num) ? 0 : num)
                         }"
                       />
-                      <ui-badge class="absolute right-2 top-1/2 transform -translate-y-1/2 px-2 py-1 text-xs">
+                      <ui-badge class="absolute start-0 inset-y-0 flex items-center ml-1 my-1 px-2 pointer-events-none">
                         {{ selectedCurrency }}
                       </ui-badge>
                     </div>
                   </div>
-                </div>
-
-                <div class="grid grid-cols-2 gap-3">
-                  <div>
-                    <ui-label :for="`item-${index}-quantity`" class="text-xs text-muted-foreground">
+                  <div class="w-20 shrink-0">
+                    <ui-label :for="`item-${index}-quantity`" class="text-sm font-medium text-foreground">
                       數量
                     </ui-label>
                     <ui-input
@@ -738,48 +747,55 @@ function updateItemSharing(index: number, memberIds: string[]) {
                       type="number"
                       min="1"
                       placeholder="1"
+                      class="mt-1 text-center"
                       @update:model-value="(value: string | number) => updateItem(index, 'quantity', typeof value === 'string' ? parseInt(value) || 1 : value)"
-                    />
-                  </div>
-                  <div>
-                    <ui-label :for="`item-${index}-translated`" class="text-xs text-muted-foreground">
-                      翻譯名稱 (選填)
-                    </ui-label>
-                    <ui-input
-                      :id="`item-${index}-translated`"
-                      :model-value="item.translatedName || ''"
-                      placeholder="翻譯名稱"
-                      @update:model-value="(value: string | number) => updateItem(index, 'translatedName', String(value))"
                     />
                   </div>
                 </div>
 
+                <!-- Translated name: optional -->
+                <div>
+                  <ui-label :for="`item-${index}-translated`" class="text-sm font-medium text-foreground">
+                    翻譯名稱
+                    <span class="text-xs font-normal text-muted-foreground ml-0.5">選填</span>
+                  </ui-label>
+                  <ui-input
+                    :id="`item-${index}-translated`"
+                    :model-value="item.translatedName || ''"
+                    placeholder="本地語言名稱"
+                    class="mt-1"
+                    @update:model-value="(value: string | number) => updateItem(index, 'translatedName', String(value))"
+                  />
+                </div>
+
                 <!-- Item Sharing -->
                 <div>
-                  <span class="text-xs text-muted-foreground">分攤成員</span>
-                  <div class="flex flex-wrap gap-2 mt-1.5">
-                    <ui-button
-                      v-for="member in selectedSharedMembers"
-                      :key="member.id"
+                  <div class="flex items-center justify-between mb-1.5">
+                    <p class="text-xs text-muted-foreground m-0">
+                      分攤成員
+                    </p>
+                    <button
                       type="button"
-                      :variant="(item.sharedByMemberIds || []).includes(member.id) ? 'default' : 'outline'"
-                      :aria-pressed="(item.sharedByMemberIds || []).includes(member.id)"
-                      class="min-h-11"
-                      @click="() => {
-                        const currentIds = item.sharedByMemberIds || []
-                        const newIds = currentIds.includes(member.id)
-                          ? currentIds.filter(id => id !== member.id)
-                          : [...currentIds, member.id]
-                        updateItemSharing(index, newIds)
-                      }"
+                      class="inline-flex items-center gap-1 text-xs font-medium text-indigo-600 bg-indigo-50 hover:bg-indigo-100 px-2 py-0.5 rounded-md transition-colors outline-none focus-visible:ring-2 focus-visible:ring-indigo-400"
+                      @click="sharerModalIndex = index"
                     >
-                      <member-avatar :emoji="member.avatarEmoji" size="sm" />
-                      {{ member.name }}
-                    </ui-button>
+                      <Icon name="lucide:pencil" class="w-3 h-3" />
+                      編輯
+                    </button>
                   </div>
-                  <p class="text-xs text-muted-foreground mt-1 m-0">
-                    未選擇則由所有分攤成員共同分攤
-                  </p>
+                  <div class="flex flex-wrap items-center gap-1.5">
+                    <template v-if="(item.sharedByMemberIds || []).length > 0">
+                      <div
+                        v-for="member in selectedSharedMembers.filter(m => (item.sharedByMemberIds || []).includes(m.id))"
+                        :key="member.id"
+                        class="flex items-center gap-1 bg-slate-100 rounded-full px-2 py-0.5"
+                      >
+                        <member-avatar :emoji="member.avatarEmoji" size="sm" />
+                        <span class="text-xs text-foreground">{{ member.name }}</span>
+                      </div>
+                    </template>
+                    <span v-else class="text-xs text-muted-foreground">所有人均攤</span>
+                  </div>
                 </div>
               </div>
             </div>
@@ -787,6 +803,80 @@ function updateItemSharing(index: number, memberIds: string[]) {
         </div>
       </div>
     </form>
+
+    <!-- Item sharer drawer -->
+    <ui-drawer :open="sharerModalIndex !== null" @update:open="(open) => { if (!open) sharerModalIndex = null }">
+      <ui-drawer-content>
+        <div class="mx-auto w-full max-w-md px-6 pb-8 pt-2">
+          <ui-drawer-header class="px-0 pt-4 pb-5">
+            <ui-drawer-title class="text-base font-semibold">
+              選擇分攤成員
+            </ui-drawer-title>
+            <ui-drawer-description class="text-xs text-muted-foreground">
+              未選擇則由所有分攤成員共同分攤
+            </ui-drawer-description>
+          </ui-drawer-header>
+
+          <div v-if="sharerModalIndex !== null" class="space-y-2">
+            <!-- Select all row -->
+            <label
+              class="flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-colors hover:bg-slate-50"
+              :class="(values.items?.[sharerModalIndex]?.sharedByMemberIds || []).length === selectedSharedMembers.length && selectedSharedMembers.length > 0 ? 'border-indigo-200 bg-indigo-50/50' : 'border-transparent'"
+            >
+              <ui-checkbox
+                :checked="(values.items?.[sharerModalIndex]?.sharedByMemberIds || []).length === selectedSharedMembers.length && selectedSharedMembers.length > 0"
+                @update:checked="(checked) => {
+                  const idx = sharerModalIndex!
+                  updateItemSharing(idx, checked ? selectedSharedMembers.map(m => m.id) : [])
+                }"
+              />
+              <span class="text-sm font-semibold text-foreground flex-1">全選</span>
+            </label>
+
+            <div class="border-t border-slate-100 my-1" />
+
+            <label
+              v-for="member in selectedSharedMembers"
+              :key="member.id"
+              class="flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-colors hover:bg-slate-50"
+              :class="(values.items?.[sharerModalIndex]?.sharedByMemberIds || []).includes(member.id) ? 'border-indigo-200 bg-indigo-50/50' : 'border-transparent'"
+            >
+              <ui-checkbox
+                :checked="(values.items?.[sharerModalIndex]?.sharedByMemberIds || []).includes(member.id)"
+                @update:checked="(checked) => {
+                  const idx = sharerModalIndex!
+                  const currentIds = values.items?.[idx]?.sharedByMemberIds || []
+                  const newIds = checked
+                    ? [...currentIds, member.id]
+                    : currentIds.filter((id: string) => id !== member.id)
+                  updateItemSharing(idx, newIds)
+                }"
+              />
+              <member-avatar :emoji="member.avatarEmoji" size="sm" />
+              <span class="text-sm font-medium text-foreground flex-1">{{ member.name }}</span>
+            </label>
+          </div>
+
+          <div class="flex gap-2 mt-6">
+            <ui-button
+              type="button"
+              variant="outline"
+              class="flex-1"
+              @click="() => { if (sharerModalIndex !== null) updateItemSharing(sharerModalIndex, []); sharerModalIndex = null }"
+            >
+              清除（所有人均攤）
+            </ui-button>
+            <ui-button
+              type="button"
+              class="flex-1"
+              @click="sharerModalIndex = null"
+            >
+              完成
+            </ui-button>
+          </div>
+        </div>
+      </ui-drawer-content>
+    </ui-drawer>
 
     <!-- Sticky bottom action bar -->
     <div class="fixed bottom-0 inset-x-0 bg-background/95 backdrop-blur border-t px-4 pt-4 pb-safe-offset-4 z-20 shadow-[0_-4px_12px_rgba(0,0,0,0.05)]">
