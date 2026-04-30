@@ -380,7 +380,7 @@ function updateItemSharing(index: number, memberIds: string[]) {
 
   <template v-else>
     <!-- Back link -->
-    <div class="flex items-center justify-between mb-2">
+    <div class="flex items-center justify-between mb-4">
       <ui-button
         class="text-muted-foreground flex items-center gap-1 px-0"
         variant="link"
@@ -409,12 +409,12 @@ function updateItemSharing(index: number, memberIds: string[]) {
     </div>
 
     <form id="expense-edit-form" class="pb-safe-offset-32" @submit.prevent="onSubmit">
-      <div class="flex flex-col gap-4 lg:grid lg:grid-cols-2 lg:gap-6">
+      <div class="flex flex-col gap-5 lg:grid lg:grid-cols-2 lg:gap-6">
         <!-- Left column: Basics + Split -->
-        <div class="space-y-4">
+        <div class="space-y-5">
           <!-- Card 1: Basics (amount, description, date) -->
-          <div class="bg-card rounded-xl border p-4 space-y-4">
-            <h2 class="text-sm font-semibold text-foreground mb-2">
+          <div class="bg-card rounded-xl border p-5 space-y-4">
+            <h2 class="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-3">
               基本資訊
             </h2>
 
@@ -448,45 +448,49 @@ function updateItemSharing(index: number, memberIds: string[]) {
                     </ui-badge>
                   </div>
                 </ui-form-control>
-                <div v-if="convertedAmountPreview" class="flex items-center gap-2 mt-2 flex-wrap">
-                  <span class="text-xs text-muted-foreground">≈ {{ trip!.tripCurrency }} {{ convertedAmountPreview }}</span>
-                  <div class="flex items-center gap-1">
-                    <span class="text-xs text-muted-foreground whitespace-nowrap">(1 {{ trip!.tripCurrency }} =</span>
+                <div v-if="convertedAmountPreview" class="mt-2 space-y-2">
+                  <!-- Preview + actions row -->
+                  <div class="flex items-center justify-between gap-2">
+                    <span class="text-xs text-muted-foreground">≈ {{ trip!.tripCurrency }} {{ convertedAmountPreview }}</span>
+                    <div class="flex items-center gap-1 shrink-0">
+                      <ui-button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        class="h-auto py-0.5 px-1.5 text-xs text-muted-foreground"
+                        :disabled="isRateLoading"
+                        @click="applyLatestRate"
+                      >
+                        <Icon v-if="isRateLoading" name="lucide:loader-circle" class="mr-1 h-3 w-3 animate-spin" />
+                        使用最新匯率
+                      </ui-button>
+                      <ui-button
+                        v-if="previousExchangeRate !== null"
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        class="h-auto py-0.5 px-1.5 text-xs text-muted-foreground"
+                        @click="revertRate"
+                      >
+                        還原
+                      </ui-button>
+                    </div>
+                  </div>
+                  <!-- Editable rate row -->
+                  <div class="flex items-center gap-1.5">
                     <ui-label for="exchange-rate-input" class="sr-only">
                       匯率
                     </ui-label>
+                    <span class="text-xs text-muted-foreground whitespace-nowrap">1 {{ trip!.tripCurrency }} =</span>
                     <ui-input
                       id="exchange-rate-input"
                       v-model.number="expenseExchangeRate"
                       type="number"
                       step="0.0001"
                       min="0"
-                      class="h-9 text-xs w-24 px-2"
+                      class="h-7 text-xs w-24 px-2"
                     />
-                    <span class="text-xs text-muted-foreground">{{ trip!.defaultCurrency }})</span>
-                  </div>
-                  <div class="flex items-center gap-1">
-                    <ui-button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      class="h-auto py-0.5 px-1.5 text-xs text-muted-foreground"
-                      :disabled="isRateLoading"
-                      @click="applyLatestRate"
-                    >
-                      <Icon v-if="isRateLoading" name="lucide:loader-circle" class="mr-1 h-3 w-3 animate-spin" />
-                      使用最新匯率
-                    </ui-button>
-                    <ui-button
-                      v-if="previousExchangeRate !== null"
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      class="h-auto py-0.5 px-1.5 text-xs text-muted-foreground"
-                      @click="revertRate"
-                    >
-                      還原
-                    </ui-button>
+                    <span class="text-xs text-muted-foreground">{{ trip!.defaultCurrency }}</span>
                   </div>
                 </div>
                 <ui-form-message />
@@ -556,12 +560,12 @@ function updateItemSharing(index: number, memberIds: string[]) {
           </div>
 
           <!-- Card 2: Payer + Sharers -->
-          <div class="bg-card rounded-xl border p-4 space-y-4">
-            <h2 class="text-sm font-semibold text-foreground mb-2">
+          <div class="bg-card rounded-xl border p-5 space-y-4">
+            <h2 class="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-3">
               付款與分攤
             </h2>
 
-            <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+            <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-5 sm:gap-6">
               <div class="flex-1">
                 <ui-form-field v-slot="{ componentField }" type="radio" name="paidByMemberId">
                   <ui-form-item>
@@ -630,7 +634,7 @@ function updateItemSharing(index: number, memberIds: string[]) {
         </div>
 
         <!-- Right column: Items (collapsible on mobile; moves to top on mobile when items exist) -->
-        <div class="bg-card rounded-xl border p-4 space-y-4 h-fit" :class="{ 'order-first lg:order-none': hasItems }">
+        <div class="bg-card rounded-xl border p-5 space-y-4 h-fit" :class="{ 'order-first lg:order-none': hasItems }">
           <button
             type="button"
             class="w-full flex items-center justify-between"
@@ -639,7 +643,7 @@ function updateItemSharing(index: number, memberIds: string[]) {
             @click="hasItems ? undefined : (itemsExpanded = !itemsExpanded)"
           >
             <div class="flex items-center gap-2">
-              <h2 class="text-sm font-semibold text-foreground">
+              <h2 class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                 購買明細
               </h2>
               <span v-if="values.items && values.items.length > 0" class="text-xs text-muted-foreground">
@@ -671,8 +675,8 @@ function updateItemSharing(index: number, memberIds: string[]) {
                 class="border border-border rounded-lg p-4 space-y-3"
               >
                 <div class="flex items-center justify-between">
-                  <h4 class="text-sm font-medium text-foreground m-0">
-                    項目 {{ index + 1 }}
+                  <h4 class="text-xs font-semibold uppercase tracking-wide text-muted-foreground m-0">
+                    #{{ index + 1 }}
                   </h4>
                   <ui-button
                     type="button"

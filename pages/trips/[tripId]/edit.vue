@@ -79,7 +79,8 @@ const { copyToClipboard } = useCopyToClipboard()
 
 const baseUrl = useRequestURL().origin
 const publicJoinUrl = computed(() => {
-  if (!trip.value?.publicJoinCode) return null
+  if (!trip.value?.publicJoinCode)
+    return null
   return `${baseUrl}/join/${trip.value.publicJoinCode}?openExternalBrowser=1`
 })
 
@@ -398,11 +399,11 @@ async function handleArchiveToggle() {
 </script>
 
 <template>
-  <div class="max-w-2xl mx-auto space-y-4">
+  <div class="max-w-2xl mx-auto space-y-6">
     <!-- Header -->
     <div class="flex items-center justify-between">
       <div class="flex items-center gap-3">
-        <h2 class="text-lg font-semibold text-foreground m-0">
+        <h2 class="text-xl font-bold text-foreground m-0 tracking-tight">
           {{ isOwner ? '編輯行程' : '編輯個人資料' }}
         </h2>
         <ui-badge v-if="trip?.archived" variant="secondary" class="text-xs">
@@ -425,7 +426,7 @@ async function handleArchiveToggle() {
     <template v-if="!isOwner">
       <form v-if="currentUserMember" class="bg-card rounded-xl border p-5 space-y-5" @submit.prevent="handleSelfSave">
         <div class="flex items-center gap-4">
-          <div class="w-16 h-16 flex items-center justify-center text-3xl bg-primary/10 border-2 border-primary/20 rounded-xl shrink-0">
+          <div class="size-16 flex items-center justify-center text-3xl bg-primary/10 border-2 border-primary/20 rounded-full shrink-0">
             {{ selfEditAvatar }}
           </div>
           <div class="flex-1">
@@ -442,8 +443,8 @@ async function handleArchiveToggle() {
         </div>
 
         <!-- Avatar grid -->
-        <div class="space-y-1.5">
-          <label class="text-sm font-medium text-foreground">選擇頭像</label>
+        <div class="space-y-2">
+          <label class="text-xs font-semibold text-muted-foreground uppercase tracking-wide">選擇頭像</label>
           <div class="grid grid-cols-8 sm:grid-cols-10 gap-1.5">
             <button
               v-for="emoji in selfAvailableEmojis"
@@ -461,7 +462,7 @@ async function handleArchiveToggle() {
           </div>
         </div>
 
-        <div class="flex gap-3">
+        <div class="flex gap-3 pt-1">
           <ui-button
             type="button"
             variant="outline"
@@ -489,7 +490,7 @@ async function handleArchiveToggle() {
       <!-- Leave trip -->
       <div class="bg-card rounded-xl border p-5 space-y-3">
         <div>
-          <p class="text-sm font-semibold text-foreground m-0">
+          <p class="text-sm font-semibold text-foreground mb-2">
             離開行程
           </p>
           <p class="text-xs text-muted-foreground m-0 mt-1">
@@ -536,7 +537,7 @@ async function handleArchiveToggle() {
 
           <!-- Tab: Trip Info -->
           <ui-tabs-content value="info" force-mount class="p-5 data-[state=inactive]:hidden">
-            <div class="space-y-4">
+            <div class="space-y-5">
               <ui-form-field v-slot="{ componentField }" name="name" :validate-on-blur="!isFieldDirty">
                 <ui-form-item>
                   <ui-form-label>行程名稱</ui-form-label>
@@ -547,39 +548,42 @@ async function handleArchiveToggle() {
                 </ui-form-item>
               </ui-form-field>
 
-              <ui-form-field v-slot="{ componentField }" name="tripCurrency" :validate-on-blur="!isFieldDirty">
-                <ui-form-item>
-                  <ui-form-label>消費幣別</ui-form-label>
-                  <ui-select v-bind="componentField" :disabled="trip?.archived">
-                    <ui-form-control>
-                      <ui-select-trigger class="w-full">
-                        <ui-select-value placeholder="選擇旅行當地的幣別" />
-                      </ui-select-trigger>
-                      <ui-form-message />
-                    </ui-form-control>
-                    <ui-select-content>
-                      <ui-select-group>
-                        <ui-select-item v-for="currency in supportedCurrencies" :key="currency.code" :value="currency.code">
-                          {{ `${currency.code} - ${currency.name}` }}
-                        </ui-select-item>
-                      </ui-select-group>
-                    </ui-select-content>
-                  </ui-select>
-                </ui-form-item>
-              </ui-form-field>
+              <!-- Currency + exchange rate are related — tight sub-group -->
+              <div class="space-y-3">
+                <ui-form-field v-slot="{ componentField }" name="tripCurrency" :validate-on-blur="!isFieldDirty">
+                  <ui-form-item>
+                    <ui-form-label>消費幣別</ui-form-label>
+                    <ui-select v-bind="componentField" :disabled="trip?.archived">
+                      <ui-form-control>
+                        <ui-select-trigger class="w-full">
+                          <ui-select-value placeholder="選擇旅行當地的幣別" />
+                        </ui-select-trigger>
+                        <ui-form-message />
+                      </ui-form-control>
+                      <ui-select-content>
+                        <ui-select-group>
+                          <ui-select-item v-for="currency in supportedCurrencies" :key="currency.code" :value="currency.code">
+                            {{ `${currency.code} - ${currency.name}` }}
+                          </ui-select-item>
+                        </ui-select-group>
+                      </ui-select-content>
+                    </ui-select>
+                  </ui-form-item>
+                </ui-form-field>
 
-              <ui-form-field v-if="values.tripCurrency !== CurrencyCode.TWD" v-slot="{ componentField }" name="exchangeRate" :validate-on-blur="!isFieldDirty">
-                <ui-form-item>
-                  <ui-form-label>匯率換算</ui-form-label>
-                  <ui-form-control>
-                    <ui-input type="number" step=".00001" :placeholder="exchangeRateToTwd.toString()" :disabled="trip?.archived" v-bind="componentField" />
-                  </ui-form-control>
-                  <ui-form-description>
-                    1 {{ values.tripCurrency }} ≈ {{ exchangeRateToTwd }} TWD（可手動調整）
-                  </ui-form-description>
-                  <ui-form-message />
-                </ui-form-item>
-              </ui-form-field>
+                <ui-form-field v-if="values.tripCurrency !== CurrencyCode.TWD" v-slot="{ componentField }" name="exchangeRate" :validate-on-blur="!isFieldDirty">
+                  <ui-form-item>
+                    <ui-form-label>匯率換算</ui-form-label>
+                    <ui-form-control>
+                      <ui-input type="number" step=".00001" :placeholder="exchangeRateToTwd.toString()" :disabled="trip?.archived" v-bind="componentField" />
+                    </ui-form-control>
+                    <ui-form-description>
+                      1 {{ values.tripCurrency }} ≈ {{ exchangeRateToTwd }} TWD（可手動調整）
+                    </ui-form-description>
+                    <ui-form-message />
+                  </ui-form-item>
+                </ui-form-field>
+              </div>
             </div>
           </ui-tabs-content>
 
@@ -616,7 +620,7 @@ async function handleArchiveToggle() {
 
           <!-- Tab: Collaborators -->
           <ui-tabs-content value="collaborators" class="p-5">
-            <div class="space-y-3">
+            <div class="space-y-4">
               <div v-if="collaborators.length > 0" class="divide-y divide-border">
                 <div
                   v-for="collaborator in collaborators"
@@ -696,37 +700,44 @@ async function handleArchiveToggle() {
 
               <ui-separator v-if="isOwner" />
 
-              <div>
-                <p class="text-sm font-semibold text-foreground m-0">
-                  {{ trip?.archived ? '取消封存行程' : '封存行程' }}
-                </p>
-                <p class="text-xs text-muted-foreground m-0 mt-1">
-                  {{ trip?.archived
-                    ? '取消封存後即可繼續編輯和新增支出'
-                    : '封存後將無法新增支出或修改行程設定。現有支出仍可查看和編輯。'
-                  }}
-                </p>
+              <div class="space-y-3">
+                <div>
+                  <p class="text-sm font-semibold text-foreground m-0">
+                    {{ trip?.archived ? '取消封存行程' : '封存行程' }}
+                  </p>
+                  <p class="text-xs text-muted-foreground m-0 mt-1">
+                    {{ trip?.archived
+                      ? '取消封存後即可繼續編輯和新增支出'
+                      : '封存後將無法新增支出或修改行程設定。現有支出仍可查看和編輯。'
+                    }}
+                  </p>
+                </div>
+                <ui-button
+                  type="button"
+                  :variant="trip?.archived ? 'outline' : 'destructive'"
+                  class="w-full"
+                  :disabled="isArchiving"
+                  @click="handleArchiveClick"
+                >
+                  <Icon :name="trip?.archived ? 'lucide:archive-restore' : 'lucide:archive'" :size="16" class="mr-2" />
+                  {{ isArchiving ? '處理中...' : (trip?.archived ? '取消封存' : '封存行程') }}
+                </ui-button>
               </div>
-              <ui-button
-                type="button"
-                :variant="trip?.archived ? 'outline' : 'destructive'"
-                class="w-full"
-                :disabled="isArchiving"
-                @click="handleArchiveClick"
-              >
-                <Icon :name="trip?.archived ? 'lucide:archive-restore' : 'lucide:archive'" :size="16" class="mr-2" />
-                {{ isArchiving ? '處理中...' : (trip?.archived ? '取消封存' : '封存行程') }}
-              </ui-button>
             </div>
           </ui-tabs-content>
         </ui-tabs>
       </div>
 
       <!-- Save bar (only for info/members tabs) -->
-      <div v-if="!trip?.archived && (activeTab === 'info' || activeTab === 'members')" class="space-y-2">
-        <p v-if="hasUnsavedChanges" class="text-xs text-amber-600 dark:text-amber-400 m-0 text-center">
-          有尚未儲存的變更
-        </p>
+      <div v-if="!trip?.archived && (activeTab === 'info' || activeTab === 'members')" class="space-y-3">
+        <Transition name="fade-shift">
+          <div v-if="hasUnsavedChanges" class="flex items-center gap-1.5">
+            <span class="size-1.5 rounded-full bg-amber-500 shrink-0" />
+            <p class="text-xs font-medium text-amber-600 dark:text-amber-400 m-0">
+              有尚未儲存的變更
+            </p>
+          </div>
+        </Transition>
         <div class="flex gap-3">
           <ui-button
             type="button"
@@ -944,3 +955,19 @@ async function handleArchiveToggle() {
     </ui-drawer>
   </ClientOnly>
 </template>
+
+<style scoped>
+.fade-shift-enter-active {
+  transition: opacity 0.2s ease-out, transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.fade-shift-leave-active {
+  transition: opacity 0.15s ease-in;
+}
+.fade-shift-enter-from {
+  opacity: 0;
+  transform: translateY(-4px);
+}
+.fade-shift-leave-to {
+  opacity: 0;
+}
+</style>

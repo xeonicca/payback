@@ -86,6 +86,33 @@ const { values, isFieldDirty, setFieldValue, handleSubmit, resetForm } = useForm
   },
 })
 
+// Accordion picker state — only one open at a time
+const showPayerPicker = ref(false)
+const showSplitPicker = ref(false)
+
+// Compact summary computed values
+const currentPayer = computed(() =>
+  props.tripMembers.find(m => m.id === values.paidByMemberId),
+)
+const selectedSplitters = computed(() =>
+  props.tripMembers.filter(m => values.sharedWithMemberIds?.includes(m.id)),
+)
+const splitSummary = computed(() => {
+  const n = selectedSplitters.value.length
+  if (n === 0)
+    return '未選擇'
+  if (n === props.tripMembers.length)
+    return `所有 ${n} 人`
+  if (n === 1)
+    return selectedSplitters.value[0].name
+  return `${n} 人`
+})
+
+// Auto-close payer picker after a selection is made
+watch(() => values.paidByMemberId, () => {
+  showPayerPicker.value = false
+})
+
 const convertedAmountPreview = computed(() => {
   if (!useHomeCurrency.value || !values.grandTotal)
     return null
@@ -110,12 +137,24 @@ function toggleSelectAllMembers() {
   }
 }
 
+function togglePayerPicker() {
+  showPayerPicker.value = !showPayerPicker.value
+  showSplitPicker.value = false
+}
+
+function toggleSplitPicker() {
+  showSplitPicker.value = !showSplitPicker.value
+  showPayerPicker.value = false
+}
+
 // Reset form when opened
 watch(open, (val) => {
   if (val) {
     activeTab.value = props.defaultTab ?? 'receipt'
     selectedFile.value = null
     currencyOverride.value = null
+    showPayerPicker.value = false
+    showSplitPicker.value = false
     resetForm({
       values: {
         sharedWithMemberIds: props.defaultPayerMember?.id ? [props.defaultPayerMember.id] : [],
@@ -240,7 +279,6 @@ async function submitManual(formValues: { description?: string, grandTotal?: num
       </div>
 
       <div class="overflow-y-auto flex-1 min-h-0 px-6 py-4 space-y-4">
-        <!-- shared form content -->
         <ui-tabs v-model="activeTab">
           <ui-tabs-list class="grid w-full grid-cols-2">
             <ui-tabs-trigger value="receipt">
@@ -284,29 +322,136 @@ async function submitManual(formValues: { description?: string, grandTotal?: num
                 <Icon name="lucide:loader-2" class="h-3 w-3 animate-spin" />
               </ui-button>
             </div>
-          </ui-tabs-content>
 
-          <ui-tabs-content value="manual" class="mt-4 space-y-4">
-            <ui-form-field v-slot="{ componentField }" name="grandTotal" :validate-on-blur="!isFieldDirty">
-              <ui-form-item>
-                <div class="flex items-center justify-between">
-                  <ui-form-label>支出金額</ui-form-label>
-                  <ui-button
-                    v-if="hasDifferentCurrencies"
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    class="h-6 text-xs"
-                    @click="selectedCurrency = useHomeCurrency ? trip.tripCurrency : trip.defaultCurrency"
+            <ui-separator />
+
+            <!-- Payer: compact accordion row -->
+            <div>
+              <button
+                type="button"
+                class="flex w-full items-center gap-3 py-1.5 rounded-md hover:bg-muted/50 transition-colors"
+                @click="togglePayerPicker"
+              >
+                <span class="text-sm text-muted-foreground shrink-0 w-16 text-left">付款人</span>
+                <div class="flex items-center gap-2 flex-1 min-w-0">
+                  <member-avatar v-if="currentPayer" :emoji="currentPayer.avatarEmoji" size="sm" />
+                  <span class="text-sm font-medium truncate">{{ currentPayer?.name ?? '未選擇' }}</span>
+                </div>
+                <Icon
+                  name="lucide:chevron-down"
+                  class="h-4 w-4 text-muted-foreground shrink-0 transition-transform duration-200"
+                  :class="{ 'rotate-180': showPayerPicker }"
+                />
+              </button>
+
+              <div v-show="showPayerPicker" class="pt-2 pb-1 pl-[4.5rem]">
+                <ui-radio-group
+                  :model-value="values.paidByMemberId"
+                  class="flex flex-col gap-2.5"
+                  @update:model-value="(val: string) => { setFieldValue('paidByMemberId', val); showPayerPicker = false }"
+                >
+                  <label
+                    v-for="member in tripMembers"
+                    :key="member.id"
+                    class="flex items-center gap-1.5 cursor-pointer"
                   >
-                    <Icon name="lucide:arrow-left-right" class="mr-1 h-3 w-3" />
-                    {{ useHomeCurrency ? `改用 ${trip.tripCurrency}` : `改用 ${trip.defaultCurrency}` }}
+                    <ui-radio-group-item :value="member.id" class="shrink-0" />
+                    <member-avatar :emoji="member.avatarEmoji" size="sm" />
+                    <span class="text-sm">{{ member.name }}</span>
+                  </label>
+                </ui-radio-group>
+              </div>
+            </div>
+
+            <!-- Splitters: compact accordion row -->
+            <div>
+              <button
+                type="button"
+                class="flex w-full items-center gap-3 py-1.5 rounded-md hover:bg-muted/50 transition-colors"
+                @click="toggleSplitPicker"
+              >
+                <span class="text-sm text-muted-foreground shrink-0 w-16 text-left">分攤成員</span>
+                <div class="flex items-center gap-2 flex-1 min-w-0">
+                  <div v-if="selectedSplitters.length" class="flex gap-0.5 shrink-0">
+                    <member-avatar
+                      v-for="m in selectedSplitters.slice(0, 4)"
+                      :key="m.id"
+                      :emoji="m.avatarEmoji"
+                      size="sm"
+                    />
+                    <span v-if="selectedSplitters.length > 4" class="text-xs text-muted-foreground self-center ml-0.5">
+                      +{{ selectedSplitters.length - 4 }}
+                    </span>
+                  </div>
+                  <span class="text-sm font-medium truncate">{{ splitSummary }}</span>
+                </div>
+                <Icon
+                  name="lucide:chevron-down"
+                  class="h-4 w-4 text-muted-foreground shrink-0 transition-transform duration-200"
+                  :class="{ 'rotate-180': showSplitPicker }"
+                />
+              </button>
+
+              <div v-show="showSplitPicker" class="pt-2 pb-1 pl-[4.5rem] space-y-2">
+                <div class="flex justify-end">
+                  <ui-button type="button" variant="link" size="sm" class="h-auto p-0 text-xs" @click="toggleSelectAllMembers">
+                    {{ allMembersSelected ? '取消全選' : '全選' }}
                   </ui-button>
                 </div>
+                <div class="flex flex-col gap-2">
+                  <label
+                    v-for="member in tripMembers"
+                    :key="member.id"
+                    class="flex items-center gap-1.5 cursor-pointer"
+                  >
+                    <ui-checkbox
+                      :model-value="values.sharedWithMemberIds?.includes(member.id) ?? false"
+                      @update:model-value="(checked: boolean | 'indeterminate') => {
+                        if (typeof checked !== 'boolean') return
+                        const current = values.sharedWithMemberIds ?? []
+                        setFieldValue('sharedWithMemberIds', checked
+                          ? [...current, member.id]
+                          : current.filter((id: string) => id !== member.id))
+                      }"
+                    />
+                    <member-avatar :emoji="member.avatarEmoji" size="sm" />
+                    <span class="text-sm">{{ member.name }}</span>
+                  </label>
+                </div>
+              </div>
+            </div>
+          </ui-tabs-content>
+
+          <!-- Manual entry: progressive disclosure -->
+          <ui-tabs-content value="manual" class="mt-4 space-y-4">
+            <!-- Amount: hero field -->
+            <ui-form-field v-slot="{ componentField }" name="grandTotal" :validate-on-blur="!isFieldDirty">
+              <ui-form-item>
+                <ui-form-label>支出金額</ui-form-label>
                 <ui-form-control>
                   <div class="relative">
-                    <ui-input id="grandTotalInput" class="pl-14" type="tel" v-bind="componentField" step="0.01" />
-                    <ui-badge class="absolute start-0 inset-y-0 flex items-center justify-center ml-1 my-1 px-2">
+                    <ui-input
+                      id="grandTotalInput"
+                      class="pl-16 h-12 text-lg font-mono"
+                      type="tel"
+                      placeholder="0.00"
+                      v-bind="componentField"
+                      step="0.01"
+                    />
+                    <!-- Clickable badge toggles currency when trip has two currencies -->
+                    <button
+                      v-if="hasDifferentCurrencies"
+                      type="button"
+                      class="absolute start-0 inset-y-0 flex items-center ml-1 my-1"
+                      :title="`切換至 ${useHomeCurrency ? trip.tripCurrency : trip.defaultCurrency}`"
+                      @click="selectedCurrency = useHomeCurrency ? trip.tripCurrency : trip.defaultCurrency"
+                    >
+                      <ui-badge class="h-full px-2 flex items-center gap-1 cursor-pointer hover:opacity-75 transition-opacity">
+                        {{ selectedCurrency }}
+                        <Icon name="lucide:arrow-left-right" class="h-2.5 w-2.5 opacity-60" />
+                      </ui-badge>
+                    </button>
+                    <ui-badge v-else class="absolute start-0 inset-y-0 flex items-center ml-1 my-1 px-2">
                       {{ selectedCurrency }}
                     </ui-badge>
                   </div>
@@ -318,6 +463,7 @@ async function submitManual(formValues: { description?: string, grandTotal?: num
               </ui-form-item>
             </ui-form-field>
 
+            <!-- Exchange rate: only shown when using home currency -->
             <div v-if="hasDifferentCurrencies && useHomeCurrency" class="flex items-center gap-2">
               <span class="text-xs text-muted-foreground whitespace-nowrap">1 {{ trip.tripCurrency }} =</span>
               <ui-input
@@ -340,31 +486,35 @@ async function submitManual(formValues: { description?: string, grandTotal?: num
               </ui-button>
             </div>
 
+            <!-- Description -->
             <ui-form-field v-slot="{ componentField }" name="description" :validate-on-blur="!isFieldDirty">
               <ui-form-item>
                 <ui-form-label>支出描述</ui-form-label>
                 <ui-form-control>
-                  <ui-input type="text" v-bind="componentField" />
+                  <ui-input type="text" placeholder="餐廳、交通、住宿..." v-bind="componentField" />
                 </ui-form-control>
                 <ui-form-message />
               </ui-form-item>
             </ui-form-field>
 
+            <!-- Date: inline compact chip -->
             <ui-form-field name="paidAt">
-              <ui-form-item class="flex flex-col">
-                <ui-form-label>支出日期</ui-form-label>
+              <ui-form-item>
                 <ui-popover>
                   <ui-popover-trigger as-child>
                     <ui-form-control>
-                      <ui-button
-                        variant="outline" :class="cn(
-                          'w-full ps-3 text-start font-normal',
-                          !paidAtDate && 'text-muted-foreground',
+                      <button
+                        type="button"
+                        :class="cn(
+                          'flex items-center gap-1.5 text-sm transition-colors',
+                          paidAtDate && values.paidAt !== today(timezone).toString()
+                            ? 'text-foreground font-medium'
+                            : 'text-muted-foreground hover:text-foreground',
                         )"
                       >
-                        <span>{{ paidAtDate ? df.format(toDate(paidAtDate)) : "Pick a date" }}</span>
-                        <Icon name="lucide:calendar" class="ms-auto h-4 w-4 opacity-50" />
-                      </ui-button>
+                        <Icon name="lucide:calendar" class="h-3.5 w-3.5 shrink-0" />
+                        <span>{{ paidAtDate ? df.format(toDate(paidAtDate)) : '今天' }}</span>
+                      </button>
                       <input hidden>
                     </ui-form-control>
                   </ui-popover-trigger>
@@ -375,12 +525,8 @@ async function submitManual(formValues: { description?: string, grandTotal?: num
                       calendar-label="支出日期"
                       initial-focus
                       @update:model-value="(v) => {
-                        if (v) {
-                          setFieldValue('paidAt', v.toString())
-                        }
-                        else {
-                          setFieldValue('paidAt', undefined)
-                        }
+                        if (v) { setFieldValue('paidAt', v.toString()) }
+                        else { setFieldValue('paidAt', undefined) }
                       }"
                     />
                   </ui-popover-content>
@@ -388,77 +534,106 @@ async function submitManual(formValues: { description?: string, grandTotal?: num
                 <ui-form-message />
               </ui-form-item>
             </ui-form-field>
-          </ui-tabs-content>
-        </ui-tabs>
 
-        <ui-separator />
+            <ui-separator />
 
-        <!-- Payer and sharer selection -->
-        <div class="flex items-start justify-between gap-2">
-          <div class="flex-1 px-2">
-            <ui-form-field v-slot="{ componentField }" type="radio" name="paidByMemberId">
-              <ui-form-item>
-                <ui-form-label class="text-sm">
-                  選擇付款人
-                </ui-form-label>
-                <ui-form-control>
-                  <ui-radio-group
-                    class="flex flex-col gap-2"
-                    v-bind="componentField"
+            <!-- Payer: compact accordion row -->
+            <div>
+              <button
+                type="button"
+                class="flex w-full items-center gap-3 py-1.5 rounded-md hover:bg-muted/50 transition-colors"
+                @click="togglePayerPicker"
+              >
+                <span class="text-sm text-muted-foreground shrink-0 w-16 text-left">付款人</span>
+                <div class="flex items-center gap-2 flex-1 min-w-0">
+                  <member-avatar v-if="currentPayer" :emoji="currentPayer.avatarEmoji" size="sm" />
+                  <span class="text-sm font-medium truncate">{{ currentPayer?.name ?? '未選擇' }}</span>
+                </div>
+                <Icon
+                  name="lucide:chevron-down"
+                  class="h-4 w-4 text-muted-foreground shrink-0 transition-transform duration-200"
+                  :class="{ 'rotate-180': showPayerPicker }"
+                />
+              </button>
+
+              <div v-show="showPayerPicker" class="pt-2 pb-1 pl-[4.5rem]">
+                <ui-radio-group
+                  :model-value="values.paidByMemberId"
+                  class="flex flex-col gap-2.5"
+                  @update:model-value="(val: string) => { setFieldValue('paidByMemberId', val); showPayerPicker = false }"
+                >
+                  <label
+                    v-for="member in tripMembers"
+                    :key="member.id"
+                    class="flex items-center gap-1.5 cursor-pointer"
                   >
-                    <ui-form-item v-for="member in tripMembers" :key="member.id" class="flex items-center">
-                      <ui-form-control>
-                        <ui-radio-group-item :value="member.id" />
-                      </ui-form-control>
-                      <ui-form-label class="font-normal flex items-center gap-1">
-                        <member-avatar :emoji="member.avatarEmoji" size="sm" />
-                        <span class="text-sm truncate">{{ member.name }}</span>
-                      </ui-form-label>
-                    </ui-form-item>
-                  </ui-radio-group>
-                </ui-form-control>
-                <ui-form-message />
-              </ui-form-item>
-            </ui-form-field>
-          </div>
-          <div class="flex-1 px-2">
-            <ui-form-item>
-              <ui-form-field name="sharedWithMemberIds">
-                <div class="flex items-center justify-between">
-                  <ui-form-label class="text-sm">
-                    選擇分攤的成員
-                  </ui-form-label>
+                    <ui-radio-group-item :value="member.id" class="shrink-0" />
+                    <member-avatar :emoji="member.avatarEmoji" size="sm" />
+                    <span class="text-sm">{{ member.name }}</span>
+                  </label>
+                </ui-radio-group>
+              </div>
+            </div>
+
+            <!-- Splitters: compact accordion row -->
+            <div>
+              <button
+                type="button"
+                class="flex w-full items-center gap-3 py-1.5 rounded-md hover:bg-muted/50 transition-colors"
+                @click="toggleSplitPicker"
+              >
+                <span class="text-sm text-muted-foreground shrink-0 w-16 text-left">分攤成員</span>
+                <div class="flex items-center gap-2 flex-1 min-w-0">
+                  <div v-if="selectedSplitters.length" class="flex gap-0.5 shrink-0">
+                    <member-avatar
+                      v-for="m in selectedSplitters.slice(0, 4)"
+                      :key="m.id"
+                      :emoji="m.avatarEmoji"
+                      size="sm"
+                    />
+                    <span v-if="selectedSplitters.length > 4" class="text-xs text-muted-foreground self-center ml-0.5">
+                      +{{ selectedSplitters.length - 4 }}
+                    </span>
+                  </div>
+                  <span class="text-sm font-medium truncate">{{ splitSummary }}</span>
+                </div>
+                <Icon
+                  name="lucide:chevron-down"
+                  class="h-4 w-4 text-muted-foreground shrink-0 transition-transform duration-200"
+                  :class="{ 'rotate-180': showSplitPicker }"
+                />
+              </button>
+
+              <div v-show="showSplitPicker" class="pt-2 pb-1 pl-[4.5rem] space-y-2">
+                <div class="flex justify-end">
                   <ui-button type="button" variant="link" size="sm" class="h-auto p-0 text-xs" @click="toggleSelectAllMembers">
                     {{ allMembersSelected ? '取消全選' : '全選' }}
                   </ui-button>
                 </div>
-                <ui-form-field
-                  v-for="member in tripMembers"
-                  v-slot="{ value, handleChange }"
-                  :key="member.id"
-                  name="sharedWithMemberIds"
-                  type="checkbox"
-                  :value="member.id"
-                  :unchecked-value="false"
-                >
-                  <ui-form-item class="flex flex-row items-center space-x-2 space-y-0">
-                    <ui-form-control>
-                      <ui-checkbox
-                        :model-value="value.includes(member.id)"
-                        @update:model-value="handleChange"
-                      />
-                    </ui-form-control>
-                    <ui-form-label class="font-normal flex items-center gap-1">
-                      <member-avatar :emoji="member.avatarEmoji" size="sm" />
-                      <span class="text-sm truncate">{{ member.name }}</span>
-                    </ui-form-label>
-                  </ui-form-item>
-                </ui-form-field>
-                <ui-form-message />
-              </ui-form-field>
-            </ui-form-item>
-          </div>
-        </div>
+                <div class="flex flex-col gap-2">
+                  <label
+                    v-for="member in tripMembers"
+                    :key="member.id"
+                    class="flex items-center gap-1.5 cursor-pointer"
+                  >
+                    <ui-checkbox
+                      :model-value="values.sharedWithMemberIds?.includes(member.id) ?? false"
+                      @update:model-value="(checked: boolean | 'indeterminate') => {
+                        if (typeof checked !== 'boolean') return
+                        const current = values.sharedWithMemberIds ?? []
+                        setFieldValue('sharedWithMemberIds', checked
+                          ? [...current, member.id]
+                          : current.filter((id: string) => id !== member.id))
+                      }"
+                    />
+                    <member-avatar :emoji="member.avatarEmoji" size="sm" />
+                    <span class="text-sm">{{ member.name }}</span>
+                  </label>
+                </div>
+              </div>
+            </div>
+          </ui-tabs-content>
+        </ui-tabs>
       </div>
 
       <ui-alert-dialog-footer class="px-6 py-4 border-t">
@@ -484,7 +659,7 @@ async function submitManual(formValues: { description?: string, grandTotal?: num
   <!-- Mobile/Tablet: Drawer -->
   <ui-drawer v-else v-model:open="open">
     <ui-drawer-content>
-      <div class="mx-auto w-full max-w-sm flex flex-col max-h-[85dvh]">
+      <div class="mx-auto w-full max-w-sm flex flex-col flex-1 min-h-0">
         <ui-drawer-header>
           <ui-drawer-title class="text-primary font-bold">
             新增支出
@@ -492,7 +667,6 @@ async function submitManual(formValues: { description?: string, grandTotal?: num
         </ui-drawer-header>
 
         <div class="overflow-y-auto flex-1 min-h-0 px-4 py-2 space-y-4">
-          <!-- Tabs -->
           <ui-tabs v-model="activeTab">
             <ui-tabs-list class="grid w-full grid-cols-2">
               <ui-tabs-trigger value="receipt">
@@ -536,29 +710,136 @@ async function submitManual(formValues: { description?: string, grandTotal?: num
                   <Icon name="lucide:loader-2" class="h-3 w-3 animate-spin" />
                 </ui-button>
               </div>
-            </ui-tabs-content>
 
-            <ui-tabs-content value="manual" class="mt-4 space-y-4">
-              <ui-form-field v-slot="{ componentField }" name="grandTotal" :validate-on-blur="!isFieldDirty">
-                <ui-form-item>
-                  <div class="flex items-center justify-between">
-                    <ui-form-label>支出金額</ui-form-label>
-                    <ui-button
-                      v-if="hasDifferentCurrencies"
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      class="h-6 text-xs"
-                      @click="selectedCurrency = useHomeCurrency ? trip.tripCurrency : trip.defaultCurrency"
+              <ui-separator />
+
+              <!-- Payer: compact accordion row -->
+              <div>
+                <button
+                  type="button"
+                  class="flex w-full items-center gap-3 py-1.5 rounded-md hover:bg-muted/50 transition-colors"
+                  @click="togglePayerPicker"
+                >
+                  <span class="text-sm text-muted-foreground shrink-0 w-16 text-left">付款人</span>
+                  <div class="flex items-center gap-2 flex-1 min-w-0">
+                    <member-avatar v-if="currentPayer" :emoji="currentPayer.avatarEmoji" size="sm" />
+                    <span class="text-sm font-medium truncate">{{ currentPayer?.name ?? '未選擇' }}</span>
+                  </div>
+                  <Icon
+                    name="lucide:chevron-down"
+                    class="h-4 w-4 text-muted-foreground shrink-0 transition-transform duration-200"
+                    :class="{ 'rotate-180': showPayerPicker }"
+                  />
+                </button>
+
+                <div v-show="showPayerPicker" class="pt-2 pb-1 pl-[4.5rem]">
+                  <ui-radio-group
+                    :model-value="values.paidByMemberId"
+                    class="flex flex-col gap-2.5"
+                    @update:model-value="(val: string) => { setFieldValue('paidByMemberId', val); showPayerPicker = false }"
+                  >
+                    <label
+                      v-for="member in tripMembers"
+                      :key="member.id"
+                      class="flex items-center gap-1.5 cursor-pointer"
                     >
-                      <Icon name="lucide:arrow-left-right" class="mr-1 h-3 w-3" />
-                      {{ useHomeCurrency ? `改用 ${trip.tripCurrency}` : `改用 ${trip.defaultCurrency}` }}
+                      <ui-radio-group-item :value="member.id" class="shrink-0" />
+                      <member-avatar :emoji="member.avatarEmoji" size="sm" />
+                      <span class="text-sm">{{ member.name }}</span>
+                    </label>
+                  </ui-radio-group>
+                </div>
+              </div>
+
+              <!-- Splitters: compact accordion row -->
+              <div>
+                <button
+                  type="button"
+                  class="flex w-full items-center gap-3 py-1.5 rounded-md hover:bg-muted/50 transition-colors"
+                  @click="toggleSplitPicker"
+                >
+                  <span class="text-sm text-muted-foreground shrink-0 w-16 text-left">分攤成員</span>
+                  <div class="flex items-center gap-2 flex-1 min-w-0">
+                    <div v-if="selectedSplitters.length" class="flex gap-0.5 shrink-0">
+                      <member-avatar
+                        v-for="m in selectedSplitters.slice(0, 4)"
+                        :key="m.id"
+                        :emoji="m.avatarEmoji"
+                        size="sm"
+                      />
+                      <span v-if="selectedSplitters.length > 4" class="text-xs text-muted-foreground self-center ml-0.5">
+                        +{{ selectedSplitters.length - 4 }}
+                      </span>
+                    </div>
+                    <span class="text-sm font-medium truncate">{{ splitSummary }}</span>
+                  </div>
+                  <Icon
+                    name="lucide:chevron-down"
+                    class="h-4 w-4 text-muted-foreground shrink-0 transition-transform duration-200"
+                    :class="{ 'rotate-180': showSplitPicker }"
+                  />
+                </button>
+
+                <div v-show="showSplitPicker" class="pt-2 pb-1 pl-[4.5rem] space-y-2">
+                  <div class="flex justify-end">
+                    <ui-button type="button" variant="link" size="sm" class="h-auto p-0 text-xs" @click="toggleSelectAllMembers">
+                      {{ allMembersSelected ? '取消全選' : '全選' }}
                     </ui-button>
                   </div>
+                  <div class="flex flex-col gap-2">
+                    <label
+                      v-for="member in tripMembers"
+                      :key="member.id"
+                      class="flex items-center gap-1.5 cursor-pointer"
+                    >
+                      <ui-checkbox
+                        :model-value="values.sharedWithMemberIds?.includes(member.id) ?? false"
+                        @update:model-value="(checked: boolean | 'indeterminate') => {
+                          if (typeof checked !== 'boolean') return
+                          const current = values.sharedWithMemberIds ?? []
+                          setFieldValue('sharedWithMemberIds', checked
+                            ? [...current, member.id]
+                            : current.filter((id: string) => id !== member.id))
+                        }"
+                      />
+                      <member-avatar :emoji="member.avatarEmoji" size="sm" />
+                      <span class="text-sm">{{ member.name }}</span>
+                    </label>
+                  </div>
+                </div>
+              </div>
+            </ui-tabs-content>
+
+            <!-- Manual entry: progressive disclosure -->
+            <ui-tabs-content value="manual" class="mt-4 space-y-4">
+              <!-- Amount: hero field -->
+              <ui-form-field v-slot="{ componentField }" name="grandTotal" :validate-on-blur="!isFieldDirty">
+                <ui-form-item>
+                  <ui-form-label>支出金額</ui-form-label>
                   <ui-form-control>
                     <div class="relative">
-                      <ui-input id="grandTotalInput" class="pl-14" type="tel" v-bind="componentField" step="0.01" />
-                      <ui-badge class="absolute start-0 inset-y-0 flex items-center justify-center ml-1 my-1 px-2">
+                      <ui-input
+                        id="grandTotalInput"
+                        class="pl-16 h-12 text-lg font-mono"
+                        type="tel"
+                        placeholder="0.00"
+                        v-bind="componentField"
+                        step="0.01"
+                      />
+                      <!-- Clickable badge toggles currency when trip has two currencies -->
+                      <button
+                        v-if="hasDifferentCurrencies"
+                        type="button"
+                        class="absolute start-0 inset-y-0 flex items-center ml-1 my-1"
+                        :title="`切換至 ${useHomeCurrency ? trip.tripCurrency : trip.defaultCurrency}`"
+                        @click="selectedCurrency = useHomeCurrency ? trip.tripCurrency : trip.defaultCurrency"
+                      >
+                        <ui-badge class="h-full px-2 flex items-center gap-1 cursor-pointer hover:opacity-75 transition-opacity">
+                          {{ selectedCurrency }}
+                          <Icon name="lucide:arrow-left-right" class="h-2.5 w-2.5 opacity-60" />
+                        </ui-badge>
+                      </button>
+                      <ui-badge v-else class="absolute start-0 inset-y-0 flex items-center ml-1 my-1 px-2">
                         {{ selectedCurrency }}
                       </ui-badge>
                     </div>
@@ -570,6 +851,7 @@ async function submitManual(formValues: { description?: string, grandTotal?: num
                 </ui-form-item>
               </ui-form-field>
 
+              <!-- Exchange rate: only shown when using home currency -->
               <div v-if="hasDifferentCurrencies && useHomeCurrency" class="flex items-center gap-2">
                 <span class="text-xs text-muted-foreground whitespace-nowrap">1 {{ trip.tripCurrency }} =</span>
                 <ui-input
@@ -592,31 +874,35 @@ async function submitManual(formValues: { description?: string, grandTotal?: num
                 </ui-button>
               </div>
 
+              <!-- Description -->
               <ui-form-field v-slot="{ componentField }" name="description" :validate-on-blur="!isFieldDirty">
                 <ui-form-item>
                   <ui-form-label>支出描述</ui-form-label>
                   <ui-form-control>
-                    <ui-input type="text" v-bind="componentField" />
+                    <ui-input type="text" placeholder="餐廳、交通、住宿..." v-bind="componentField" />
                   </ui-form-control>
                   <ui-form-message />
                 </ui-form-item>
               </ui-form-field>
 
+              <!-- Date: inline compact chip -->
               <ui-form-field name="paidAt">
-                <ui-form-item class="flex flex-col">
-                  <ui-form-label>支出日期</ui-form-label>
+                <ui-form-item>
                   <ui-popover>
                     <ui-popover-trigger as-child>
                       <ui-form-control>
-                        <ui-button
-                          variant="outline" :class="cn(
-                            'w-full ps-3 text-start font-normal',
-                            !paidAtDate && 'text-muted-foreground',
+                        <button
+                          type="button"
+                          :class="cn(
+                            'flex items-center gap-1.5 text-sm transition-colors',
+                            paidAtDate && values.paidAt !== today(timezone).toString()
+                              ? 'text-foreground font-medium'
+                              : 'text-muted-foreground hover:text-foreground',
                           )"
                         >
-                          <span>{{ paidAtDate ? df.format(toDate(paidAtDate)) : "Pick a date" }}</span>
-                          <Icon name="lucide:calendar" class="ms-auto h-4 w-4 opacity-50" />
-                        </ui-button>
+                          <Icon name="lucide:calendar" class="h-3.5 w-3.5 shrink-0" />
+                          <span>{{ paidAtDate ? df.format(toDate(paidAtDate)) : '今天' }}</span>
+                        </button>
                         <input hidden>
                       </ui-form-control>
                     </ui-popover-trigger>
@@ -627,12 +913,8 @@ async function submitManual(formValues: { description?: string, grandTotal?: num
                         calendar-label="支出日期"
                         initial-focus
                         @update:model-value="(v) => {
-                          if (v) {
-                            setFieldValue('paidAt', v.toString())
-                          }
-                          else {
-                            setFieldValue('paidAt', undefined)
-                          }
+                          if (v) { setFieldValue('paidAt', v.toString()) }
+                          else { setFieldValue('paidAt', undefined) }
                         }"
                       />
                     </ui-popover-content>
@@ -640,80 +922,109 @@ async function submitManual(formValues: { description?: string, grandTotal?: num
                   <ui-form-message />
                 </ui-form-item>
               </ui-form-field>
-            </ui-tabs-content>
-          </ui-tabs>
 
-          <ui-separator />
+              <ui-separator />
 
-          <!-- Payer and sharer selection -->
-          <div class="flex items-start justify-between gap-2">
-            <div class="flex-1 px-2">
-              <ui-form-field v-slot="{ componentField }" type="radio" name="paidByMemberId">
-                <ui-form-item>
-                  <ui-form-label class="text-sm">
-                    選擇付款人
-                  </ui-form-label>
-                  <ui-form-control>
-                    <ui-radio-group
-                      class="flex flex-col gap-2"
-                      v-bind="componentField"
+              <!-- Payer: compact accordion row -->
+              <div>
+                <button
+                  type="button"
+                  class="flex w-full items-center gap-3 py-1.5 rounded-md hover:bg-muted/50 transition-colors"
+                  @click="togglePayerPicker"
+                >
+                  <span class="text-sm text-muted-foreground shrink-0 w-16 text-left">付款人</span>
+                  <div class="flex items-center gap-2 flex-1 min-w-0">
+                    <member-avatar v-if="currentPayer" :emoji="currentPayer.avatarEmoji" size="sm" />
+                    <span class="text-sm font-medium truncate">{{ currentPayer?.name ?? '未選擇' }}</span>
+                  </div>
+                  <Icon
+                    name="lucide:chevron-down"
+                    class="h-4 w-4 text-muted-foreground shrink-0 transition-transform duration-200"
+                    :class="{ 'rotate-180': showPayerPicker }"
+                  />
+                </button>
+
+                <div v-show="showPayerPicker" class="pt-2 pb-1 pl-[4.5rem]">
+                  <ui-radio-group
+                    :model-value="values.paidByMemberId"
+                    class="flex flex-col gap-2.5"
+                    @update:model-value="(val: string) => { setFieldValue('paidByMemberId', val); showPayerPicker = false }"
+                  >
+                    <label
+                      v-for="member in tripMembers"
+                      :key="member.id"
+                      class="flex items-center gap-1.5 cursor-pointer"
                     >
-                      <ui-form-item v-for="member in tripMembers" :key="member.id" class="flex items-center">
-                        <ui-form-control>
-                          <ui-radio-group-item :value="member.id" />
-                        </ui-form-control>
-                        <ui-form-label class="font-normal flex items-center gap-1">
-                          <member-avatar :emoji="member.avatarEmoji" size="sm" />
-                          <span class="text-sm truncate">{{ member.name }}</span>
-                        </ui-form-label>
-                      </ui-form-item>
-                    </ui-radio-group>
-                  </ui-form-control>
-                  <ui-form-message />
-                </ui-form-item>
-              </ui-form-field>
-            </div>
-            <div class="flex-1 px-2">
-              <ui-form-item>
-                <ui-form-field name="sharedWithMemberIds">
-                  <div class="flex items-center justify-between">
-                    <ui-form-label class="text-sm">
-                      選擇平分的成員
-                    </ui-form-label>
+                      <ui-radio-group-item :value="member.id" class="shrink-0" />
+                      <member-avatar :emoji="member.avatarEmoji" size="sm" />
+                      <span class="text-sm">{{ member.name }}</span>
+                    </label>
+                  </ui-radio-group>
+                </div>
+              </div>
+
+              <!-- Splitters: compact accordion row -->
+              <div>
+                <button
+                  type="button"
+                  class="flex w-full items-center gap-3 py-1.5 rounded-md hover:bg-muted/50 transition-colors"
+                  @click="toggleSplitPicker"
+                >
+                  <span class="text-sm text-muted-foreground shrink-0 w-16 text-left">分攤成員</span>
+                  <div class="flex items-center gap-2 flex-1 min-w-0">
+                    <div v-if="selectedSplitters.length" class="flex gap-0.5 shrink-0">
+                      <member-avatar
+                        v-for="m in selectedSplitters.slice(0, 4)"
+                        :key="m.id"
+                        :emoji="m.avatarEmoji"
+                        size="sm"
+                      />
+                      <span v-if="selectedSplitters.length > 4" class="text-xs text-muted-foreground self-center ml-0.5">
+                        +{{ selectedSplitters.length - 4 }}
+                      </span>
+                    </div>
+                    <span class="text-sm font-medium truncate">{{ splitSummary }}</span>
+                  </div>
+                  <Icon
+                    name="lucide:chevron-down"
+                    class="h-4 w-4 text-muted-foreground shrink-0 transition-transform duration-200"
+                    :class="{ 'rotate-180': showSplitPicker }"
+                  />
+                </button>
+
+                <div v-show="showSplitPicker" class="pt-2 pb-1 pl-[4.5rem] space-y-2">
+                  <div class="flex justify-end">
                     <ui-button type="button" variant="link" size="sm" class="h-auto p-0 text-xs" @click="toggleSelectAllMembers">
                       {{ allMembersSelected ? '取消全選' : '全選' }}
                     </ui-button>
                   </div>
-                  <ui-form-field
-                    v-for="member in tripMembers"
-                    v-slot="{ value, handleChange }"
-                    :key="member.id"
-                    name="sharedWithMemberIds"
-                    type="checkbox"
-                    :value="member.id"
-                    :unchecked-value="false"
-                  >
-                    <ui-form-item class="flex flex-row items-center space-x-2 space-y-0">
-                      <ui-form-control>
-                        <ui-checkbox
-                          :model-value="value.includes(member.id)"
-                          @update:model-value="handleChange"
-                        />
-                      </ui-form-control>
-                      <ui-form-label class="font-normal flex items-center gap-1">
-                        <member-avatar :emoji="member.avatarEmoji" size="sm" />
-                        <span class="text-sm truncate">{{ member.name }}</span>
-                      </ui-form-label>
-                    </ui-form-item>
-                  </ui-form-field>
-                  <ui-form-message />
-                </ui-form-field>
-              </ui-form-item>
-            </div>
-          </div>
+                  <div class="flex flex-col gap-2">
+                    <label
+                      v-for="member in tripMembers"
+                      :key="member.id"
+                      class="flex items-center gap-1.5 cursor-pointer"
+                    >
+                      <ui-checkbox
+                        :model-value="values.sharedWithMemberIds?.includes(member.id) ?? false"
+                        @update:model-value="(checked: boolean | 'indeterminate') => {
+                          if (typeof checked !== 'boolean') return
+                          const current = values.sharedWithMemberIds ?? []
+                          setFieldValue('sharedWithMemberIds', checked
+                            ? [...current, member.id]
+                            : current.filter((id: string) => id !== member.id))
+                        }"
+                      />
+                      <member-avatar :emoji="member.avatarEmoji" size="sm" />
+                      <span class="text-sm">{{ member.name }}</span>
+                    </label>
+                  </div>
+                </div>
+              </div>
+            </ui-tabs-content>
+          </ui-tabs>
         </div>
 
-        <ui-drawer-footer class="pb-safe">
+        <ui-drawer-footer class="pb-safe shrink-0">
           <ui-button
             :disabled="isSubmitting"
             @click="onSubmit"

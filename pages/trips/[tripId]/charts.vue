@@ -18,12 +18,17 @@ const { primaryCurrency, toPrimary } = useCurrencyToggle(tripId as string, trip)
 const dailySpending = computed(() => {
   const grouped: Record<string, number> = {}
   for (const expense of enabledExpenses.value) {
-    const key = `${expense.paidAtObject.month}/${expense.paidAtObject.day}`
+    const { year, month, day } = expense.paidAtObject
+    // Zero-pad month and day so lexicographic sort is chronologically correct
+    const key = `${year}/${month.padStart(2, '0')}/${day.padStart(2, '0')}`
     grouped[key] = (grouped[key] || 0) + expense.grandTotal
   }
   return Object.entries(grouped)
     .sort((a, b) => a[0].localeCompare(b[0]))
-    .map(([date, total]) => ({ date, total: Math.round(total * 100) / 100 }))
+    .map(([key, total]) => {
+      const [, m, d] = key.split('/')
+      return { date: `${Number(m)}/${Number(d)}`, total: Math.round(total * 100) / 100 }
+    })
 })
 
 const maxDailySpend = computed(() => Math.max(...dailySpending.value.map(d => d.total), 1))
