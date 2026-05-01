@@ -15,7 +15,7 @@ const { canAddExpenses } = useTripCollaborators(tripId as string)
 
 const { getMemberPaidAmount, getMemberOwedAmount } = useTripBalances(tripId as string)
 
-const { showHomeCurrency, toggleCurrency, hasDualCurrency, primaryCurrency, secondaryCurrency, toPrimary, toSecondary } = useCurrencyToggle(tripId as string, trip)
+const { showHomeCurrency, hasDualCurrency, primaryCurrency, secondaryCurrency, toPrimary, toSecondary } = useCurrencyToggle(tripId as string, trip)
 
 const openAddExpenseDrawer = ref(false)
 
@@ -91,7 +91,8 @@ function formatAmount(amount: number) {
 }
 
 function formatSecondary(amount: number) {
-  if (!hasDualCurrency.value) return null
+  if (!hasDualCurrency.value)
+    return null
   return Math.abs(toSecondary(amount)).toFixed(2)
 }
 </script>
@@ -371,10 +372,21 @@ function formatSecondary(amount: number) {
             </nuxt-link>
           </div>
         </div>
-        <div v-else class="mt-2 px-4 py-6 bg-card rounded-xl border">
-          <p class="text-sm text-muted-foreground">
-            尚未有支出紀錄
-          </p>
+        <div v-else class="mt-2 bg-card rounded-xl border">
+          <empty-state
+            icon="lucide:receipt"
+            title="尚未有支出紀錄"
+            description="新增第一筆支出，開始記錄旅途花費"
+          >
+            <ui-button
+              v-if="!trip.archived && canAddExpenses"
+              size="sm"
+              @click="openAddExpenseDrawer = true"
+            >
+              <Icon name="lucide:plus" :size="16" class="mr-1" />
+              新增支出
+            </ui-button>
+          </empty-state>
         </div>
       </section>
     </div>

@@ -8,12 +8,11 @@ import { getStorage, ref as storageRef, uploadBytes } from 'firebase/storage'
 import { toDate } from 'reka-ui/date'
 import { useForm } from 'vee-validate'
 import { ref } from 'vue'
+import { useRouter } from 'vue-router'
 import { toast } from 'vue-sonner'
 import { useFirestore } from 'vuefire'
 import { z } from 'zod'
 import { cn } from '@/lib/utils'
-
-const { logEvent } = useAnalytics()
 
 const props = defineProps<{
   trip: Trip
@@ -21,6 +20,8 @@ const props = defineProps<{
   defaultPayerMember?: TripMember
   defaultTab?: 'receipt' | 'manual'
 }>()
+const { logEvent } = useAnalytics()
+const router = useRouter()
 
 const open = defineModel<boolean>('open', { default: false })
 
@@ -242,7 +243,7 @@ async function submitManual(formValues: { description?: string, grandTotal?: num
 
     const grandTotalInTripCurrency = convertToTripCurrency(formValues.grandTotal)
 
-    await addDoc(collection(db, 'trips', props.trip.id, 'expenses'), {
+    const docRef = await addDoc(collection(db, 'trips', props.trip.id, 'expenses'), {
       ...formValues,
       grandTotal: grandTotalInTripCurrency,
       inputCurrency: selectedCurrency.value,
@@ -256,7 +257,12 @@ async function submitManual(formValues: { description?: string, grandTotal?: num
 
     open.value = false
     logEvent('add_expense', { method: 'manual', trip_id: props.trip.id })
-    toast.success('已新增支出')
+    toast.success('已新增支出', {
+      action: {
+        label: '查看支出',
+        onClick: () => router.push(`/trips/${props.trip.id}/expenses/${docRef.id}`),
+      },
+    })
   }
   catch (error) {
     console.error(error)
@@ -270,12 +276,12 @@ async function submitManual(formValues: { description?: string, grandTotal?: num
 
 <template>
   <!-- Desktop: Dialog -->
-  <ui-alert-dialog v-if="isDesktop" v-model:open="open">
-    <ui-alert-dialog-content class="max-w-lg max-h-[85dvh] flex flex-col p-0 gap-0">
+  <ui-dialog v-if="isDesktop" v-model:open="open">
+    <ui-dialog-content class="max-w-lg max-h-[85dvh] flex flex-col p-0 gap-0">
       <div class="px-6 pt-6 pb-4 border-b">
-        <ui-alert-dialog-title class="text-lg font-bold text-primary">
+        <ui-dialog-title class="text-lg font-bold text-primary">
           新增支出
-        </ui-alert-dialog-title>
+        </ui-dialog-title>
       </div>
 
       <div class="overflow-y-auto flex-1 min-h-0 px-6 py-4 space-y-4">
@@ -636,10 +642,10 @@ async function submitManual(formValues: { description?: string, grandTotal?: num
         </ui-tabs>
       </div>
 
-      <ui-alert-dialog-footer class="px-6 py-4 border-t">
-        <ui-alert-dialog-cancel :disabled="isSubmitting">
+      <ui-dialog-footer class="px-6 py-4 border-t">
+        <ui-button variant="outline" :disabled="isSubmitting" @click="open = false">
           取消
-        </ui-alert-dialog-cancel>
+        </ui-button>
         <ui-button
           :disabled="isSubmitting"
           @click="onSubmit"
@@ -652,9 +658,9 @@ async function submitManual(formValues: { description?: string, grandTotal?: num
             {{ activeTab === 'receipt' ? '上傳收據' : '新增支出' }}
           </template>
         </ui-button>
-      </ui-alert-dialog-footer>
-    </ui-alert-dialog-content>
-  </ui-alert-dialog>
+      </ui-dialog-footer>
+    </ui-dialog-content>
+  </ui-dialog>
 
   <!-- Mobile/Tablet: Drawer -->
   <ui-drawer v-else v-model:open="open">

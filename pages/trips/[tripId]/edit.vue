@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import type { TripMember } from '@/types'
 import { toTypedSchema } from '@vee-validate/zod'
-import { useMediaQuery } from '@vueuse/core'
 import { addDoc, collection, deleteDoc, doc, updateDoc } from 'firebase/firestore'
 import { useForm } from 'vee-validate'
 import { computed, ref, watch } from 'vue'
@@ -26,6 +25,7 @@ definePageMeta({
 const route = useRoute()
 const router = useRouter()
 const db = useFirestore()
+const sessionUser = useSessionUser()
 
 const tripId = route.params.tripId as string
 
@@ -74,7 +74,6 @@ const showArchiveWarning = ref(false)
 const showUnarchiveWarning = ref(false)
 const showInviteDrawer = ref(false)
 const isTogglingPublicInvite = ref(false)
-const isDesktop = useMediaQuery('(min-width: 1024px)')
 const { copyToClipboard } = useCopyToClipboard()
 
 const baseUrl = useRequestURL().origin
@@ -768,192 +767,60 @@ async function handleArchiveToggle() {
     @update:open="showInviteDrawer = $event"
   />
 
-  <!-- Archive Warning — Dialog on desktop, Drawer on mobile -->
-  <ClientOnly>
-    <ui-dialog v-if="isDesktop" :open="showArchiveWarning" @update:open="showArchiveWarning = $event">
-      <ui-dialog-content v-if="showArchiveWarning" class="max-w-md" :show-close-button="false">
-        <ui-dialog-header>
-          <ui-dialog-title>確定要封存「{{ trip?.name }}」？</ui-dialog-title>
-          <ui-dialog-description>封存後會限制以下功能</ui-dialog-description>
-        </ui-dialog-header>
+  <confirmation-dialog
+    v-model:open="showArchiveWarning"
+    :title="`確定要封存「${trip?.name}」？`"
+    description="封存後會限制以下功能"
+    confirm-label="確定封存"
+    confirm-variant="destructive"
+    :is-loading="isArchiving"
+    @confirm="handleArchiveToggle"
+  >
+    <div class="space-y-2 text-sm">
+      <div class="flex items-center gap-2 px-3 py-2 bg-destructive/10 rounded-lg">
+        <Icon name="lucide:x" :size="14" class="text-destructive shrink-0" />
+        <span class="text-foreground">無法新增支出或修改行程設定</span>
+      </div>
+      <div class="flex items-center gap-2 px-3 py-2 bg-muted rounded-lg">
+        <Icon name="lucide:check" :size="14" class="text-green-600 dark:text-green-400 shrink-0" />
+        <span class="text-foreground">現有支出仍可查看和編輯</span>
+      </div>
+      <div class="flex items-center gap-2 px-3 py-2 bg-muted rounded-lg">
+        <Icon name="lucide:rotate-ccw" :size="14" class="text-muted-foreground shrink-0" />
+        <span class="text-foreground">隨時可以取消封存</span>
+      </div>
+    </div>
+  </confirmation-dialog>
 
-        <div class="space-y-2 text-sm">
-          <div class="flex items-center gap-2 px-3 py-2 bg-destructive/10 rounded-lg">
-            <Icon name="lucide:x" :size="14" class="text-destructive shrink-0" />
-            <span class="text-foreground">無法新增支出或修改行程設定</span>
-          </div>
-          <div class="flex items-center gap-2 px-3 py-2 bg-muted rounded-lg">
-            <Icon name="lucide:check" :size="14" class="text-green-600 dark:text-green-400 shrink-0" />
-            <span class="text-foreground">現有支出仍可查看和編輯</span>
-          </div>
-          <div class="flex items-center gap-2 px-3 py-2 bg-muted rounded-lg">
-            <Icon name="lucide:rotate-ccw" :size="14" class="text-muted-foreground shrink-0" />
-            <span class="text-foreground">隨時可以取消封存</span>
-          </div>
-        </div>
+  <confirmation-dialog
+    v-model:open="showLeaveWarning"
+    :title="`確定要離開「${trip?.name}」？`"
+    description="離開後你將無法再查看或編輯此行程"
+    confirm-label="確定離開"
+    confirm-variant="destructive"
+    :is-loading="isLeaving"
+    @confirm="handleLeaveTrip"
+  />
 
-        <ui-dialog-footer>
-          <ui-button type="button" variant="outline" :disabled="isArchiving" @click="showArchiveWarning = false">
-            取消
-          </ui-button>
-          <ui-button type="button" variant="destructive" :disabled="isArchiving" @click="handleArchiveToggle">
-            {{ isArchiving ? '處理中...' : '確定封存' }}
-          </ui-button>
-        </ui-dialog-footer>
-      </ui-dialog-content>
-    </ui-dialog>
-
-    <ui-drawer v-else v-model:open="showArchiveWarning">
-      <ui-drawer-content>
-        <div class="mx-auto w-full max-w-md p-6">
-          <div class="space-y-6">
-            <div class="text-center space-y-2">
-              <h2 class="text-xl font-bold text-foreground m-0">
-                確定要封存「{{ trip?.name }}」？
-              </h2>
-              <p class="text-sm text-muted-foreground m-0">
-                封存後會限制以下功能
-              </p>
-            </div>
-
-            <div class="space-y-2 text-sm">
-              <div class="flex items-center gap-2 px-3 py-2 bg-destructive/10 rounded-lg">
-                <Icon name="lucide:x" :size="14" class="text-destructive shrink-0" />
-                <span class="text-foreground">無法新增支出或修改行程設定</span>
-              </div>
-              <div class="flex items-center gap-2 px-3 py-2 bg-muted rounded-lg">
-                <Icon name="lucide:check" :size="14" class="text-green-600 dark:text-green-400 shrink-0" />
-                <span class="text-foreground">現有支出仍可查看和編輯</span>
-              </div>
-              <div class="flex items-center gap-2 px-3 py-2 bg-muted rounded-lg">
-                <Icon name="lucide:rotate-ccw" :size="14" class="text-muted-foreground shrink-0" />
-                <span class="text-foreground">隨時可以取消封存</span>
-              </div>
-            </div>
-
-            <div class="flex gap-3">
-              <ui-button type="button" variant="outline" class="flex-1" :disabled="isArchiving" @click="showArchiveWarning = false">
-                取消
-              </ui-button>
-              <ui-button type="button" variant="destructive" class="flex-1" :disabled="isArchiving" @click="handleArchiveToggle">
-                {{ isArchiving ? '處理中...' : '確定封存' }}
-              </ui-button>
-            </div>
-          </div>
-        </div>
-      </ui-drawer-content>
-    </ui-drawer>
-
-    <!-- Leave Trip Warning — Dialog on desktop, Drawer on mobile -->
-    <ui-dialog v-if="isDesktop" :open="showLeaveWarning" @update:open="showLeaveWarning = $event">
-      <ui-dialog-content v-if="showLeaveWarning" class="max-w-md" :show-close-button="false">
-        <ui-dialog-header>
-          <ui-dialog-title>確定要離開「{{ trip?.name }}」？</ui-dialog-title>
-          <ui-dialog-description>離開後你將無法再查看或編輯此行程</ui-dialog-description>
-        </ui-dialog-header>
-        <ui-dialog-footer>
-          <ui-button type="button" variant="outline" :disabled="isLeaving" @click="showLeaveWarning = false">
-            取消
-          </ui-button>
-          <ui-button type="button" variant="destructive" :disabled="isLeaving" @click="handleLeaveTrip">
-            {{ isLeaving ? '處理中...' : '確定離開' }}
-          </ui-button>
-        </ui-dialog-footer>
-      </ui-dialog-content>
-    </ui-dialog>
-
-    <ui-drawer v-else v-model:open="showLeaveWarning">
-      <ui-drawer-content>
-        <div class="mx-auto w-full max-w-md p-6">
-          <div class="space-y-6">
-            <div class="text-center space-y-2">
-              <h2 class="text-xl font-bold text-foreground m-0">
-                確定要離開「{{ trip?.name }}」？
-              </h2>
-              <p class="text-sm text-muted-foreground m-0">
-                離開後你將無法再查看或編輯此行程
-              </p>
-            </div>
-            <div class="flex gap-3">
-              <ui-button type="button" variant="outline" class="flex-1" :disabled="isLeaving" @click="showLeaveWarning = false">
-                取消
-              </ui-button>
-              <ui-button type="button" variant="destructive" class="flex-1" :disabled="isLeaving" @click="handleLeaveTrip">
-                {{ isLeaving ? '處理中...' : '確定離開' }}
-              </ui-button>
-            </div>
-          </div>
-        </div>
-      </ui-drawer-content>
-    </ui-drawer>
-
-    <!-- Unarchive Warning — Dialog on desktop, Drawer on mobile -->
-    <ui-dialog v-if="isDesktop" :open="showUnarchiveWarning" @update:open="showUnarchiveWarning = $event">
-      <ui-dialog-content v-if="showUnarchiveWarning" class="max-w-md" :show-close-button="false">
-        <ui-dialog-header>
-          <ui-dialog-title>確定要取消封存「{{ trip?.name }}」？</ui-dialog-title>
-          <ui-dialog-description>取消封存後將恢復以下功能</ui-dialog-description>
-        </ui-dialog-header>
-
-        <div class="space-y-2 text-sm">
-          <div class="flex items-center gap-2 px-3 py-2 bg-muted rounded-lg">
-            <Icon name="lucide:check" :size="14" class="text-green-600 dark:text-green-400 shrink-0" />
-            <span class="text-foreground">可以新增支出和修改行程設定</span>
-          </div>
-          <div class="flex items-center gap-2 px-3 py-2 bg-muted rounded-lg">
-            <Icon name="lucide:check" :size="14" class="text-green-600 dark:text-green-400 shrink-0" />
-            <span class="text-foreground">協作者可以繼續編輯支出</span>
-          </div>
-        </div>
-
-        <ui-dialog-footer>
-          <ui-button type="button" variant="outline" :disabled="isArchiving" @click="showUnarchiveWarning = false">
-            取消
-          </ui-button>
-          <ui-button type="button" :disabled="isArchiving" @click="handleArchiveToggle">
-            {{ isArchiving ? '處理中...' : '確定取消封存' }}
-          </ui-button>
-        </ui-dialog-footer>
-      </ui-dialog-content>
-    </ui-dialog>
-
-    <ui-drawer v-else v-model:open="showUnarchiveWarning">
-      <ui-drawer-content>
-        <div class="mx-auto w-full max-w-md p-6">
-          <div class="space-y-6">
-            <div class="text-center space-y-2">
-              <h2 class="text-xl font-bold text-foreground m-0">
-                確定要取消封存「{{ trip?.name }}」？
-              </h2>
-              <p class="text-sm text-muted-foreground m-0">
-                取消封存後將恢復以下功能
-              </p>
-            </div>
-
-            <div class="space-y-2 text-sm">
-              <div class="flex items-center gap-2 px-3 py-2 bg-muted rounded-lg">
-                <Icon name="lucide:check" :size="14" class="text-green-600 dark:text-green-400 shrink-0" />
-                <span class="text-foreground">可以新增支出和修改行程設定</span>
-              </div>
-              <div class="flex items-center gap-2 px-3 py-2 bg-muted rounded-lg">
-                <Icon name="lucide:check" :size="14" class="text-green-600 dark:text-green-400 shrink-0" />
-                <span class="text-foreground">協作者可以繼續編輯支出</span>
-              </div>
-            </div>
-
-            <div class="flex gap-3">
-              <ui-button type="button" variant="outline" class="flex-1" :disabled="isArchiving" @click="showUnarchiveWarning = false">
-                取消
-              </ui-button>
-              <ui-button type="button" class="flex-1" :disabled="isArchiving" @click="handleArchiveToggle">
-                {{ isArchiving ? '處理中...' : '確定取消封存' }}
-              </ui-button>
-            </div>
-          </div>
-        </div>
-      </ui-drawer-content>
-    </ui-drawer>
-  </ClientOnly>
+  <confirmation-dialog
+    v-model:open="showUnarchiveWarning"
+    :title="`確定要取消封存「${trip?.name}」？`"
+    description="取消封存後將恢復以下功能"
+    confirm-label="確定取消封存"
+    :is-loading="isArchiving"
+    @confirm="handleArchiveToggle"
+  >
+    <div class="space-y-2 text-sm">
+      <div class="flex items-center gap-2 px-3 py-2 bg-muted rounded-lg">
+        <Icon name="lucide:check" :size="14" class="text-green-600 dark:text-green-400 shrink-0" />
+        <span class="text-foreground">可以新增支出和修改行程設定</span>
+      </div>
+      <div class="flex items-center gap-2 px-3 py-2 bg-muted rounded-lg">
+        <Icon name="lucide:check" :size="14" class="text-green-600 dark:text-green-400 shrink-0" />
+        <span class="text-foreground">協作者可以繼續編輯支出</span>
+      </div>
+    </div>
+  </confirmation-dialog>
 </template>
 
 <style scoped>
