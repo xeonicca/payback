@@ -58,7 +58,7 @@ export function useTripCollaborators(tripId: string) {
   const canEditExpense = (expense: Expense) => {
     if (isOwner.value || currentUserCollaborator.value?.role === 'editor')
       return true
-    if (isGuest.value && expense.createdByUserId === sessionUser.value?.uid)
+    if (isCollaborator.value && expense.createdByUserId === sessionUser.value?.uid)
       return true
     return false
   }
@@ -66,7 +66,7 @@ export function useTripCollaborators(tripId: string) {
   const canDeleteExpense = (expense: Expense) => {
     if (isOwner.value || currentUserCollaborator.value?.role === 'editor')
       return true
-    if (isGuest.value && expense.createdByUserId === sessionUser.value?.uid)
+    if (isCollaborator.value && expense.createdByUserId === sessionUser.value?.uid)
       return true
     return false
   }

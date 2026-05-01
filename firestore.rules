@@ -84,12 +84,12 @@ service cloud.firestore {
               || request.resource.data.createdByUserId == request.auth.uid);
 
         // Owner/editor can update/delete any expense
-        // Guest can only update/delete expenses they created
+        // Any collaborator can update/delete expenses they created
         allow update, delete: if request.auth != null
           && isCollaborator(tripId)
           && (
             getRole(tripId) in ['owner', 'editor']
-            || (getRole(tripId) == 'guest' && resource.data.createdByUserId == request.auth.uid)
+            || resource.data.createdByUserId == request.auth.uid
           );
       }
     }
