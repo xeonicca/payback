@@ -418,6 +418,68 @@ describe('debt calculations', () => {
     })
   })
 
+  describe('grandTotal vs item sum relationship', () => {
+    it('owed amount uses item prices not grandTotal when items exist', () => {
+      const expenses: Expense[] = [
+        {
+          id: '1',
+          paidByMemberId: 'alice',
+          grandTotal: 150, // intentionally higher than item sum
+          sharedWithMemberIds: ['alice', 'bob'],
+          items: [
+            { name: 'Item', price: 50, quantity: 1, sharedByMemberIds: ['alice', 'bob'] },
+          ],
+        } as Expense,
+      ]
+
+      // Each person owes 25 (item-based), not 75 (grandTotal / 2)
+      expect(calculateMemberOwedAmount(expenses, 'alice')).toBe(25)
+      expect(calculateMemberOwedAmount(expenses, 'bob')).toBe(25)
+    })
+
+    it('system is balanced when grandTotal equals item sum', () => {
+      const expenses: Expense[] = [
+        {
+          id: '1',
+          paidByMemberId: 'alice',
+          grandTotal: 100,
+          sharedWithMemberIds: ['alice', 'bob'],
+          items: [
+            { name: 'Item A', price: 60, quantity: 1, sharedByMemberIds: ['alice', 'bob'] },
+            { name: 'Item B', price: 40, quantity: 1, sharedByMemberIds: ['alice', 'bob'] },
+          ],
+        } as Expense,
+      ]
+
+      const totalPaid = calculateMemberPaidAmount(expenses, 'alice') + calculateMemberPaidAmount(expenses, 'bob')
+      const totalOwed = calculateMemberOwedAmount(expenses, 'alice') + calculateMemberOwedAmount(expenses, 'bob')
+
+      expect(totalPaid).toBeCloseTo(totalOwed)
+    })
+
+    it('system is unbalanced when grandTotal differs from item sum', () => {
+      const expenses: Expense[] = [
+        {
+          id: '1',
+          paidByMemberId: 'alice',
+          grandTotal: 150,
+          sharedWithMemberIds: ['alice', 'bob'],
+          items: [
+            { name: 'Item', price: 100, quantity: 1, sharedByMemberIds: ['alice', 'bob'] },
+          ],
+        } as Expense,
+      ]
+
+      const totalPaid = calculateMemberPaidAmount(expenses, 'alice') + calculateMemberPaidAmount(expenses, 'bob')
+      const totalOwed = calculateMemberOwedAmount(expenses, 'alice') + calculateMemberOwedAmount(expenses, 'bob')
+
+      // paid uses grandTotal (150), owed uses item sum (100) — UI must keep these in sync
+      expect(totalPaid).toBe(150)
+      expect(totalOwed).toBe(100)
+      expect(totalPaid).not.toBeCloseTo(totalOwed)
+    })
+  })
+
   describe('calculateSettlements', () => {
     it('returns empty array when no members', () => {
       expect(calculateSettlements([])).toEqual([])
