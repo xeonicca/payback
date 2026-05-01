@@ -52,8 +52,7 @@ function toggleMember(memberId: string) {
   const newIds = current.includes(memberId)
     ? current.filter(id => id !== memberId)
     : [...current, memberId]
-  // Store empty array if all selected (means "all members share" by convention)
-  sharedByMemberIds.value = newIds.length === props.shareableMembers.length ? [] : newIds
+  sharedByMemberIds.value = newIds
 }
 
 function toggleAll() {
@@ -71,12 +70,14 @@ function handleClose() {
 function handleSave() {
   if (props.itemIndex === null)
     return
+  const ids = sharedByMemberIds.value
+  const normalizedIds = ids.length === props.shareableMembers.length ? [] : ids
   emit('save', props.itemIndex, {
     name: name.value,
     price: price.value,
     quantity: quantity.value,
     ...(translatedName.value ? { translatedName: translatedName.value } : {}),
-    sharedByMemberIds: sharedByMemberIds.value,
+    sharedByMemberIds: normalizedIds,
   })
 }
 </script>
