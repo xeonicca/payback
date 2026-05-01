@@ -75,7 +75,7 @@ function handleSave() {
     name: name.value,
     price: price.value,
     quantity: quantity.value,
-    translatedName: translatedName.value || undefined,
+    ...(translatedName.value ? { translatedName: translatedName.value } : {}),
     sharedByMemberIds: sharedByMemberIds.value,
   })
 }
@@ -83,7 +83,7 @@ function handleSave() {
 
 <template>
   <ui-dialog :open="open" @update:open="handleOpenChange">
-    <ui-dialog-content class="max-w-md">
+    <ui-dialog-content class="max-w-md" @open-auto-focus.prevent>
       <ui-dialog-header>
         <ui-dialog-title>編輯明細項目</ui-dialog-title>
       </ui-dialog-header>
