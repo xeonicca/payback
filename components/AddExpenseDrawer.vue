@@ -64,7 +64,7 @@ function convertToTripCurrency(amount: number): number {
   return amount / expenseExchangeRate.value
 }
 
-const df = new DateFormatter('en-US', { dateStyle: 'long' })
+const df = new DateFormatter('zh-TW', { dateStyle: 'long' })
 
 const formSchema = toTypedSchema(z.object({
   description: z.string().min(2).max(200).optional(),
@@ -220,7 +220,7 @@ async function submitReceipt(formValues: { paidByMemberId: string, sharedWithMem
   }
   catch (error) {
     console.error('Error uploading receipt:', error)
-    toast.error('收據上傳失敗，請重新上傳')
+    toast.error((error as Error).message || '收據上傳失敗，請重新上傳')
   }
   finally {
     isSubmitting.value = false
@@ -266,7 +266,7 @@ async function submitManual(formValues: { description?: string, grandTotal?: num
   }
   catch (error) {
     console.error(error)
-    toast.error('新增支出失敗')
+    toast.error((error as Error).message || '新增支出失敗')
   }
   finally {
     isSubmitting.value = false

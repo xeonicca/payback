@@ -116,7 +116,7 @@ function selectAvatar(emoji: string) {
         </div>
         <ui-badge variant="default" class="text-xs shrink-0">
           <Icon name="lucide:crown" :size="12" class="mr-1" />
-          你
+          建立者
         </ui-badge>
       </div>
 

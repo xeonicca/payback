@@ -352,7 +352,7 @@ const onSubmit = handleSubmit(async (values) => {
   }
   catch (error) {
     console.error(error)
-    toast.error('更新支出失敗')
+    toast.error((error as Error).message || '更新支出失敗')
     isSubmitting.value = false
   }
 })

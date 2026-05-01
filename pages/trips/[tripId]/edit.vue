@@ -94,7 +94,7 @@ async function handleTogglePublicInvite(enabled: boolean) {
   }
   catch (error: any) {
     console.error('Error toggling public invite:', error)
-    toast.error('操作失敗')
+    toast.error(error.data?.message || '操作失敗')
   }
   finally {
     isTogglingPublicInvite.value = false
@@ -234,7 +234,7 @@ const onSubmit = handleSubmit(async (values) => {
   }
   catch (error) {
     console.error('Error updating trip:', error)
-    toast.error('更新失敗，請稍後再試')
+    toast.error((error as Error).message || '更新失敗，請稍後再試')
   }
   finally {
     isSubmitting.value = false
@@ -374,7 +374,7 @@ async function handleSelfSave() {
   }
   catch (error) {
     console.error('Error updating member:', error)
-    toast.error('更新失敗，請稍後再試')
+    toast.error((error as Error).message || '更新失敗，請稍後再試')
   }
   finally {
     isSelfSubmitting.value = false
@@ -413,7 +413,7 @@ async function handleArchiveToggle() {
   }
   catch (error) {
     console.error('Error toggling archive:', error)
-    toast.error('操作失敗，請稍後再試')
+    toast.error((error as Error).message || '操作失敗，請稍後再試')
   }
   finally {
     isArchiving.value = false
@@ -678,6 +678,15 @@ async function handleArchiveToggle() {
                     編輯者
                   </ui-badge>
                 </div>
+              </div>
+
+              <div v-if="collaborators.length === 0" class="py-4 text-center">
+                <p class="text-sm text-muted-foreground m-0">
+                  尚未邀請任何協作者
+                </p>
+                <p class="text-xs text-muted-foreground m-0 mt-1">
+                  僅你可以存取此行程
+                </p>
               </div>
 
               <ui-button
