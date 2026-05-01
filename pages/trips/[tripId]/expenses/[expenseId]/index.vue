@@ -1,12 +1,11 @@
 <script setup lang="ts">
-import type { Expense, Trip } from '@/types'
+import type { Expense, ExpenseDetailItem, Trip } from '@/types'
 import { computedAsync } from '@vueuse/core'
-import { deleteDoc, doc, updateDoc } from 'firebase/firestore'
+import { deleteDoc, doc, serverTimestamp, updateDoc } from 'firebase/firestore'
 import { getFunctions, httpsCallable } from 'firebase/functions'
 import { getDownloadURL, ref as storageRef } from 'firebase/storage'
 import { toast } from 'vue-sonner'
 import { useDocument, useFirebaseStorage, useFirestore } from 'vuefire'
-import ExpenseDetailItem from '@/components/ExpenseDetailItem.vue'
 import { useTripMembers } from '@/composables/useTripMember'
 import { expenseConverter, tripConverter } from '@/utils/converter'
 
@@ -41,6 +40,40 @@ watch([trip, expense], ([tripValue, expenseValue]) => {
 const showDeleteDialog = ref(false)
 const isDeleting = ref(false)
 const isReanalyzing = ref(false)
+const editingItemIndex = ref<number | null>(null)
+const isSavingItem = ref(false)
+
+const editingItem = computed(() =>
+  editingItemIndex.value !== null ? (expense.value?.items?.[editingItemIndex.value] ?? null) : null,
+)
+
+function closeItemEditDialog() {
+  editingItemIndex.value = null
+}
+
+async function saveItem(index: number, updated: ExpenseDetailItem) {
+  if (!expense.value)
+    return
+  try {
+    isSavingItem.value = true
+    const items = [...(expense.value.items ?? [])]
+    items[index] = updated
+    const grandTotal = Math.round(items.reduce((sum, item) => sum + item.price * (item.quantity ?? 1), 0) * 100) / 100
+    await updateDoc(doc(db, 'trips', tripId as string, 'expenses', expenseId as string), {
+      items,
+      grandTotal,
+      lastEditedAt: serverTimestamp(),
+    })
+    editingItemIndex.value = null
+  }
+  catch (error) {
+    console.error('Error saving item:', error)
+    toast.error('儲存失敗')
+  }
+  finally {
+    isSavingItem.value = false
+  }
+}
 
 const paidByMember = computed(() => tripMembers.value?.find(member => member.id === expense.value?.paidByMemberId))
 
@@ -411,16 +444,18 @@ async function reanalyzeReceipt() {
           </div>
           <div class="space-y-1">
             <expense-detail-item
-              v-for="item in expense.items"
+              v-for="(item, index) in expense.items"
               :key="item.name"
               :item="item"
               :currency="trip?.tripCurrency || ''"
               :exchange-rate="expense?.exchangeRate ?? trip?.exchangeRate ?? 1"
               :default-currency="trip?.defaultCurrency || 'TWD'"
               :edit-mode="false"
+              :can-edit="canEditThisExpense && !trip?.archived"
               :trip-members="tripMembers"
               :shareable-members="sharedWithMembers"
               :shared-by-member-ids="item.sharedByMemberIds"
+              @edit="editingItemIndex = index"
             />
           </div>
         </div>
@@ -454,6 +489,18 @@ async function reanalyzeReceipt() {
         </div>
       </div>
     </div>
+
+    <!-- Quick Edit Item Dialog -->
+    <expense-item-edit-dialog
+      :open="editingItemIndex !== null"
+      :item="editingItem"
+      :item-index="editingItemIndex"
+      :currency="trip?.tripCurrency || ''"
+      :shareable-members="sharedWithMembers || []"
+      :is-saving="isSavingItem"
+      @update:open="closeItemEditDialog"
+      @save="saveItem"
+    />
 
     <!-- Delete Expense Confirmation Dialog -->
     <ui-alert-dialog v-if="canDeleteThisExpense" v-model:open="showDeleteDialog">

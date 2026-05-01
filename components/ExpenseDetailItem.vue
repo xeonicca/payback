@@ -5,6 +5,7 @@ interface Props {
   item: ExpenseDetailItem
   currency: string
   editMode?: boolean
+  canEdit?: boolean
   tripMembers?: Array<{
     id: string
     name: string
@@ -22,6 +23,7 @@ interface Props {
 
 const props = withDefaults(defineProps<Props>(), {
   editMode: false,
+  canEdit: false,
   tripMembers: () => [],
   exchangeRate: 1,
   defaultCurrency: 'TWD',
@@ -30,6 +32,7 @@ const props = withDefaults(defineProps<Props>(), {
 
 const emit = defineEmits<{
   (e: 'update:sharedByMemberIds', memberIds: string[]): void
+  (e: 'edit'): void
 }>()
 
 // When sharedByMemberIds is empty/undefined, all members are selected
@@ -98,9 +101,20 @@ const sharedByMemberAvatars = computed(() => {
         </span>
       </div>
     </div>
-    <div class="text-right font-mono text-sm ml-4">
-      <div class="text-green-600 dark:text-green-400">
-        {{ currency }} {{ Math.round(item.price * (item.quantity ?? 1) * 100) / 100 }}
+    <div class="text-right font-mono text-sm ml-4 flex flex-col items-end gap-1">
+      <div class="flex items-center gap-1">
+        <ui-button
+          v-if="canEdit"
+          variant="ghost"
+          size="icon"
+          class="size-6 text-muted-foreground hover:text-foreground -mr-1"
+          @click.stop="emit('edit')"
+        >
+          <Icon name="lucide:pencil" :size="12" />
+        </ui-button>
+        <span class="text-green-600 dark:text-green-400">
+          {{ currency }} {{ Math.round(item.price * (item.quantity ?? 1) * 100) / 100 }}
+        </span>
       </div>
       <div v-if="convertedPrice" class="text-xs text-muted-foreground inline-flex items-center gap-1">
         <Icon name="lucide:equal-approximately" class="text-muted-foreground" size="12" />
