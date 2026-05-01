@@ -354,27 +354,23 @@ async function handleSelfSave() {
     return
   }
 
-  const nameExists = tripMembers.value?.some(
-    m => m.id !== currentUserMember.value!.id && m.name.toLowerCase() === trimmedName.toLowerCase(),
-  )
-  if (nameExists) {
-    toast.error(`「${trimmedName}」已被其他成員使用`)
-    return
-  }
-
   try {
     isSelfSubmitting.value = true
-    const memberRef = doc(db, 'trips', tripId, 'members', currentUserMember.value.id)
-    await updateDoc(memberRef, {
-      name: trimmedName,
-      avatarEmoji: selfEditAvatar.value,
+    await $fetch(`/api/trips/${tripId}/members/me`, {
+      method: 'PATCH',
+      body: { name: trimmedName, avatarEmoji: selfEditAvatar.value },
     })
     toast.success('個人資料已更新')
     router.push(`/trips/${tripId}`)
   }
-  catch (error) {
+  catch (error: any) {
     console.error('Error updating member:', error)
-    toast.error((error as Error).message || '更新失敗，請稍後再試')
+    if (error.status === 409) {
+      toast.error(error.data?.message || `「${trimmedName}」已被其他成員使用`)
+    }
+    else {
+      toast.error(error.data?.message || '更新失敗，請稍後再試')
+    }
   }
   finally {
     isSelfSubmitting.value = false
