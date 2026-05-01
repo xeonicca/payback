@@ -81,7 +81,7 @@ const sharedByMemberAvatars = computed(() => {
 </script>
 
 <template>
-  <div class="flex flex-wrap items-start justify-between py-3 border-b border-border last:border-b-0">
+  <div class="relative flex flex-wrap items-start justify-between py-3 border-b border-border last:border-b-0">
     <div class="flex-1 min-w-0">
       <div class="flex flex-col items-start gap-1">
         <span class="font-medium text-sm text-foreground">{{ item.name }}</span>
@@ -99,28 +99,26 @@ const sharedByMemberAvatars = computed(() => {
         <span v-for="memberAvatar in sharedByMemberAvatars" :key="memberAvatar">
           {{ memberAvatar }}
         </span>
-        <ui-button
-          v-if="canEdit"
-          variant="ghost"
-          size="icon"
-          class="size-5 text-muted-foreground hover:text-foreground"
-          @click.stop="emit('edit')"
-        >
-          <Icon name="lucide:pencil" :size="11" />
-        </ui-button>
       </div>
     </div>
     <div class="text-right font-mono text-sm ml-4 flex flex-col items-end gap-1">
-      <div class="flex items-center gap-1">
-        <span class="text-green-600 dark:text-green-400">
-          {{ currency }} {{ Math.round(item.price * (item.quantity ?? 1) * 100) / 100 }}
-        </span>
-      </div>
+      <span class="text-green-600 dark:text-green-400">
+        {{ currency }} {{ Math.round(item.price * (item.quantity ?? 1) * 100) / 100 }}
+      </span>
       <div v-if="convertedPrice" class="text-xs text-muted-foreground inline-flex items-center gap-1">
         <Icon name="lucide:equal-approximately" class="text-muted-foreground" size="12" />
         {{ defaultCurrency }} {{ convertedPrice }}
       </div>
     </div>
+    <ui-button
+      v-if="canEdit && !editMode"
+      variant="ghost"
+      size="icon"
+      class="absolute bottom-3 right-0 size-6 rounded-full bg-indigo-100 text-indigo-500 hover:bg-indigo-200 hover:text-indigo-700"
+      @click.stop="emit('edit')"
+    >
+      <Icon name="mdi:pencil" :size="13" />
+    </ui-button>
 
     <!-- Member selection section when in edit mode -->
     <div v-if="editMode && tripMembers.length > 0" class="mt-3 w-full space-y-2 bg-muted rounded-lg p-2">
