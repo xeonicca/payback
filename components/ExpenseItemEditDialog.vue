@@ -16,16 +16,21 @@ const emit = defineEmits<{
 }>()
 
 const name = ref('')
-const price = ref(0)
+const priceRaw = ref('')
 const quantity = ref(1)
 const translatedName = ref('')
 const sharedByMemberIds = ref<string[]>([])
+
+const price = computed(() => {
+  const n = parseFloat(priceRaw.value)
+  return isNaN(n) ? 0 : n
+})
 
 watch(() => props.item, (item) => {
   if (!item)
     return
   name.value = item.name
-  price.value = item.price
+  priceRaw.value = String(item.price)
   quantity.value = item.quantity ?? 1
   translatedName.value = item.translatedName ?? ''
   sharedByMemberIds.value = [...(item.sharedByMemberIds ?? [])]
@@ -85,33 +90,41 @@ function handleSave() {
 
       <div class="space-y-4 py-2">
         <!-- Name -->
-        <div class="space-y-1.5">
-          <ui-label>名稱</ui-label>
-          <ui-input v-model="name" placeholder="項目名稱" />
+        <div>
+          <ui-label class="text-sm font-medium text-foreground">名稱</ui-label>
+          <ui-input v-model="name" placeholder="項目名稱" autocomplete="off" class="mt-1" />
         </div>
 
         <!-- Price + Quantity -->
-        <div class="grid grid-cols-2 gap-3">
-          <div class="space-y-1.5">
-            <ui-label>價格</ui-label>
-            <div class="flex items-center gap-2">
-              <span class="text-xs font-mono text-muted-foreground shrink-0">{{ currency }}</span>
-              <ui-input v-model.number="price" type="number" min="0" step="0.01" class="font-mono" />
+        <div class="flex gap-3">
+          <div class="flex-1 min-w-0">
+            <ui-label class="text-sm font-medium text-foreground">價格</ui-label>
+            <div class="relative mt-1">
+              <ui-input
+                v-model="priceRaw"
+                type="text"
+                inputmode="decimal"
+                placeholder="0.00"
+                class="pl-14 font-mono"
+              />
+              <ui-badge class="absolute start-0 inset-y-0 flex items-center ml-1 my-1 px-2 pointer-events-none">
+                {{ currency }}
+              </ui-badge>
             </div>
           </div>
-          <div class="space-y-1.5">
-            <ui-label>數量</ui-label>
-            <ui-input v-model.number="quantity" type="number" min="1" step="1" class="font-mono" />
+          <div class="w-20 shrink-0">
+            <ui-label class="text-sm font-medium text-foreground">數量</ui-label>
+            <ui-input v-model.number="quantity" type="number" min="1" placeholder="1" class="mt-1 text-center" />
           </div>
         </div>
 
         <!-- Translated name -->
-        <div class="space-y-1.5">
-          <ui-label class="flex items-center gap-1.5">
+        <div>
+          <ui-label class="text-sm font-medium text-foreground">
             翻譯名稱
-            <span class="text-xs text-muted-foreground font-normal">選填</span>
+            <span class="text-xs font-normal text-muted-foreground ml-0.5">選填</span>
           </ui-label>
-          <ui-input v-model="translatedName" placeholder="本地語言名稱" />
+          <ui-input v-model="translatedName" placeholder="本地語言名稱" class="mt-1" />
         </div>
 
         <!-- Member sharing -->
