@@ -191,6 +191,13 @@ function clearItems() {
   expenseItems.value = []
 }
 
+function revealQtyInput(id: string, suffix: string) {
+  updateItem(id, { qtyVisible: true })
+  nextTick(() => {
+    document.getElementById(`item-qty-${suffix}-${id}`)?.focus()
+  })
+}
+
 function onItemBlur(id: string) {
   const item = expenseItems.value.find(it => it.id === id)
   if (item && !item.name.trim() && !item.price) {
@@ -644,13 +651,14 @@ async function submitManual(formValues: { description?: string, grandTotal?: num
                     v-if="!item.qtyVisible && (Number(item.qty) || 1) <= 1"
                     type="button"
                     class="h-[22px] px-1.5 border border-dashed border-border rounded text-[10px] font-mono text-muted-foreground hover:border-solid hover:text-foreground transition-colors"
-                    @click="updateItem(item.id, { qtyVisible: true })"
+                    @click="revealQtyInput(item.id, 'd')"
                   >
                     × 1
                   </button>
                   <div v-else class="inline-flex items-center gap-0.5">
                     <span class="text-[11px] text-muted-foreground">×</span>
                     <input
+                      :id="`item-qty-d-${item.id}`"
                       type="tel"
                       inputmode="numeric"
                       :value="item.qty"
@@ -1159,13 +1167,14 @@ async function submitManual(formValues: { description?: string, grandTotal?: num
                       v-if="!item.qtyVisible && (Number(item.qty) || 1) <= 1"
                       type="button"
                       class="h-[22px] px-1.5 border border-dashed border-border rounded text-[10px] font-mono text-muted-foreground hover:border-solid hover:text-foreground transition-colors"
-                      @click="updateItem(item.id, { qtyVisible: true })"
+                      @click="revealQtyInput(item.id, 'm')"
                     >
                       × 1
                     </button>
                     <div v-else class="inline-flex items-center gap-0.5">
                       <span class="text-[11px] text-muted-foreground">×</span>
                       <input
+                        :id="`item-qty-m-${item.id}`"
                         type="tel"
                         inputmode="numeric"
                         :value="item.qty"
