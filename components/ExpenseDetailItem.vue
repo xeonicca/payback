@@ -95,23 +95,23 @@ const sharedByMemberAvatars = computed(() => {
       <p v-if="item.translatedName" class="text-xs text-muted-foreground mt-2">
         翻譯: {{ item.translatedName }}
       </p>
-      <div v-if="!editMode" class="mt-2 flex items-center gap-1">
+      <div v-if="!editMode" class="mt-2 flex items-center gap-1.5">
         <span v-for="memberAvatar in sharedByMemberAvatars" :key="memberAvatar">
           {{ memberAvatar }}
         </span>
-      </div>
-    </div>
-    <div class="text-right font-mono text-sm ml-4 flex flex-col items-end gap-1">
-      <div class="flex items-center gap-1">
         <ui-button
           v-if="canEdit"
           variant="ghost"
           size="icon"
-          class="size-6 text-muted-foreground hover:text-foreground -mr-1"
+          class="size-5 text-muted-foreground hover:text-foreground"
           @click.stop="emit('edit')"
         >
-          <Icon name="lucide:pencil" :size="12" />
+          <Icon name="lucide:pencil" :size="11" />
         </ui-button>
+      </div>
+    </div>
+    <div class="text-right font-mono text-sm ml-4 flex flex-col items-end gap-1">
+      <div class="flex items-center gap-1">
         <span class="text-green-600 dark:text-green-400">
           {{ currency }} {{ Math.round(item.price * (item.quantity ?? 1) * 100) / 100 }}
         </span>
