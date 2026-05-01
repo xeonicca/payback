@@ -476,6 +476,7 @@ async function handleArchiveToggle() {
             class="flex-1"
             :disabled="isSelfSubmitting"
           >
+            <Icon v-if="isSelfSubmitting" name="lucide:loader-circle" :size="16" class="animate-spin mr-2" />
             {{ isSelfSubmitting ? '儲存中...' : '儲存變更' }}
           </ui-button>
         </div>
@@ -718,7 +719,12 @@ async function handleArchiveToggle() {
                   :disabled="isArchiving"
                   @click="handleArchiveClick"
                 >
-                  <Icon :name="trip?.archived ? 'lucide:archive-restore' : 'lucide:archive'" :size="16" class="mr-2" />
+                  <Icon
+                    :name="isArchiving ? 'lucide:loader-circle' : (trip?.archived ? 'lucide:archive-restore' : 'lucide:archive')"
+                    :size="16"
+                    class="mr-2"
+                    :class="{ 'animate-spin': isArchiving }"
+                  />
                   {{ isArchiving ? '處理中...' : (trip?.archived ? '取消封存' : '封存行程') }}
                 </ui-button>
               </div>
@@ -752,6 +758,7 @@ async function handleArchiveToggle() {
             class="flex-1"
             @click="onSubmit"
           >
+            <Icon v-if="isSubmitting" name="lucide:loader-circle" :size="16" class="animate-spin mr-2" />
             {{ isSubmitting ? '儲存中...' : '儲存變更' }}
           </ui-button>
         </div>

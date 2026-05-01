@@ -212,7 +212,7 @@ async function updateExpense(newValue: boolean) {
     toast.success('支出已顯示')
   }
   else {
-    toast.error('支出已隱藏')
+    toast.success('支出已隱藏')
   }
 }
 

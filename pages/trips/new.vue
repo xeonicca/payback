@@ -354,6 +354,7 @@ function onMembersChange(updatedMembers: NewTripMember[]) {
           class="flex-1"
           variant="default"
         >
+          <Icon v-if="isSubmitting" name="lucide:loader-circle" :size="16" class="animate-spin mr-2" />
           {{ isSubmitting ? '建立中...' : '建立行程' }}
         </ui-button>
       </div>
