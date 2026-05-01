@@ -5,6 +5,7 @@ import {
   calculateMemberBalance,
   calculateMemberOwedAmount,
   calculateMemberPaidAmount,
+  calculateSettlements,
 } from './debt'
 
 describe('debt calculations', () => {
@@ -414,6 +415,115 @@ describe('debt calculations', () => {
       expect(calculateMemberOwedAmount(expenses, 'alice')).toBe(30)
       expect(calculateMemberOwedAmount(expenses, 'bob')).toBe(30)
       expect(calculateMemberOwedAmount(expenses, 'charlie')).toBe(0)
+    })
+  })
+
+  describe('calculateSettlements', () => {
+    it('returns empty array when no members', () => {
+      expect(calculateSettlements([])).toEqual([])
+    })
+
+    it('returns empty array when all balances are zero', () => {
+      expect(calculateSettlements([
+        { id: 'alice', balance: 0 },
+        { id: 'bob', balance: 0 },
+      ])).toEqual([])
+    })
+
+    it('returns empty array when all balances are within rounding threshold', () => {
+      expect(calculateSettlements([
+        { id: 'alice', balance: 0.005 },
+        { id: 'bob', balance: -0.005 },
+      ])).toEqual([])
+    })
+
+    it('single debtor pays single creditor', () => {
+      const result = calculateSettlements([
+        { id: 'alice', balance: 50 },
+        { id: 'bob', balance: -50 },
+      ])
+      expect(result).toEqual([{ fromId: 'bob', toId: 'alice', amount: 50 }])
+    })
+
+    it('two debtors each pay a single creditor cleanly', () => {
+      const result = calculateSettlements([
+        { id: 'alice', balance: 100 },
+        { id: 'bob', balance: -60 },
+        { id: 'charlie', balance: -40 },
+      ])
+      expect(result).toHaveLength(2)
+      expect(result).toContainEqual({ fromId: 'bob', toId: 'alice', amount: 60 })
+      expect(result).toContainEqual({ fromId: 'charlie', toId: 'alice', amount: 40 })
+    })
+
+    it('members with equal debt both pay the same creditor cleanly', () => {
+      // alice and bob each owe 30 to charlie
+      const result = calculateSettlements([
+        { id: 'alice', balance: -30 },
+        { id: 'bob', balance: -30 },
+        { id: 'charlie', balance: 60 },
+      ])
+      expect(result).toHaveLength(2)
+      expect(result.every(s => s.toId === 'charlie')).toBe(true)
+      expect(result.find(s => s.fromId === 'alice')?.amount).toBe(30)
+      expect(result.find(s => s.fromId === 'bob')?.amount).toBe(30)
+    })
+
+    it('splits land on the largest debtor when perfect partition is impossible', () => {
+      // debtors: A(-30), B(-30), C(-40), D(-50) — no subset sums to either creditor amount
+      // creditors: X(+42), Y(+108)
+      // smallest-first: A and B fill up cleanly; split falls on D (largest)
+      const result = calculateSettlements([
+        { id: 'A', balance: -30 },
+        { id: 'B', balance: -30 },
+        { id: 'C', balance: -40 },
+        { id: 'D', balance: -50 },
+        { id: 'X', balance: 42 },
+        { id: 'Y', balance: 108 },
+      ])
+
+      const aPayments = result.filter(s => s.fromId === 'A')
+      const bPayments = result.filter(s => s.fromId === 'B')
+      const dPayments = result.filter(s => s.fromId === 'D')
+
+      // A and B (equal, smallest) each make exactly one payment
+      expect(aPayments).toHaveLength(1)
+      expect(bPayments).toHaveLength(1)
+
+      // D (largest) absorbs the unavoidable split
+      expect(dPayments).toHaveLength(2)
+      expect(dPayments.reduce((sum, s) => sum + s.amount, 0)).toBeCloseTo(50)
+
+      // totals balance out
+      const totalPaid = result.reduce((sum, s) => sum + s.amount, 0)
+      expect(totalPaid).toBeCloseTo(150)
+    })
+
+    it('total amount paid in settlements equals total debt', () => {
+      const members = [
+        { id: 'alice', balance: 70 },
+        { id: 'bob', balance: 30 },
+        { id: 'charlie', balance: -40 },
+        { id: 'dave', balance: -60 },
+      ]
+      const result = calculateSettlements(members)
+      const totalPaid = result.reduce((sum, s) => sum + s.amount, 0)
+      expect(totalPaid).toBeCloseTo(100)
+    })
+
+    it('each debtor pays the full amount they owe across all their settlements', () => {
+      const members = [
+        { id: 'alice', balance: 150 },
+        { id: 'bob', balance: -80 },
+        { id: 'charlie', balance: -70 },
+      ]
+      const result = calculateSettlements(members)
+
+      const bobTotal = result.filter(s => s.fromId === 'bob').reduce((sum, s) => sum + s.amount, 0)
+      const charlieTotal = result.filter(s => s.fromId === 'charlie').reduce((sum, s) => sum + s.amount, 0)
+
+      expect(bobTotal).toBeCloseTo(80)
+      expect(charlieTotal).toBeCloseTo(70)
     })
   })
 })

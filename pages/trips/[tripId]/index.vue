@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { toast } from 'vue-sonner'
+import { calculateSettlements } from '@/utils/debt'
 
 definePageMeta({
   middleware: ['auth'],
@@ -32,42 +33,19 @@ const memberBalances = computed(() => {
 
 // Settlement suggestions: directed payments to settle all debts
 const settlements = computed(() => {
-  const results: Array<{ from: string, fromId: string, to: string, toId: string, amount: number }> = []
-
-  const debtors = tripMembers.value
-    .map(m => ({ ...m, balance: memberBalances.value[m.id]?.balance ?? 0 }))
-    .filter(m => m.balance < -0.01)
-    .sort((a, b) => a.balance - b.balance)
-
-  const creditors = tripMembers.value
-    .map(m => ({ ...m, balance: memberBalances.value[m.id]?.balance ?? 0 }))
-    .filter(m => m.balance > 0.01)
-    .sort((a, b) => b.balance - a.balance)
-
-  // Greedy settlement
-  const debtorBalances = debtors.map(d => ({ ...d, remaining: Math.abs(d.balance) }))
-  const creditorBalances = creditors.map(c => ({ ...c, remaining: c.balance }))
-
-  for (const debtor of debtorBalances) {
-    for (const creditor of creditorBalances) {
-      if (debtor.remaining < 0.01 || creditor.remaining < 0.01)
-        continue
-      const amount = Math.min(debtor.remaining, creditor.remaining)
-      if (amount >= 0.01) {
-        results.push({
-          from: debtor.name,
-          fromId: debtor.id,
-          to: creditor.name,
-          toId: creditor.id,
-          amount,
-        })
-        debtor.remaining -= amount
-        creditor.remaining -= amount
-      }
-    }
-  }
-
-  return results
+  const members = tripMembers.value.map(m => ({
+    id: m.id,
+    name: m.name,
+    balance: memberBalances.value[m.id]?.balance ?? 0,
+  }))
+  const nameById = Object.fromEntries(members.map(m => [m.id, m.name]))
+  return calculateSettlements(members).map(s => ({
+    from: nameById[s.fromId],
+    fromId: s.fromId,
+    to: nameById[s.toId],
+    toId: s.toId,
+    amount: s.amount,
+  }))
 })
 
 // Current user's settlements (what they owe or are owed)

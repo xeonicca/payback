@@ -65,6 +65,46 @@ export function calculateMemberBalance(expenses: Expense[], memberId: string): n
   return paid - owed
 }
 
+export interface Settlement {
+  fromId: string
+  toId: string
+  amount: number
+}
+
+/**
+ * Calculate the minimum set of payments to settle all debts.
+ * Processes smallest debtors first so equal-balance members get symmetric treatment
+ * and unavoidable splits land on the largest debtor.
+ */
+export function calculateSettlements(members: Array<{ id: string, balance: number }>): Settlement[] {
+  const results: Settlement[] = []
+
+  const debtors = members
+    .filter(m => m.balance < -0.01)
+    .sort((a, b) => b.balance - a.balance) // smallest debt first
+    .map(m => ({ id: m.id, remaining: Math.abs(m.balance) }))
+
+  const creditors = members
+    .filter(m => m.balance > 0.01)
+    .sort((a, b) => b.balance - a.balance) // largest credit first
+    .map(m => ({ id: m.id, remaining: m.balance }))
+
+  for (const debtor of debtors) {
+    for (const creditor of creditors) {
+      if (debtor.remaining < 0.01 || creditor.remaining < 0.01)
+        continue
+      const amount = Math.min(debtor.remaining, creditor.remaining)
+      if (amount >= 0.01) {
+        results.push({ fromId: debtor.id, toId: creditor.id, amount })
+        debtor.remaining -= amount
+        creditor.remaining -= amount
+      }
+    }
+  }
+
+  return results
+}
+
 /**
  * Calculate debt amount between two members
  * Positive value means member1 is owed money by member2
