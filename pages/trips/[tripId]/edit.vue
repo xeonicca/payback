@@ -124,11 +124,6 @@ const hasUnsavedChanges = computed(() => {
   return tripChanged || membersChanged
 })
 
-// Warn before browser close/refresh
-onBeforeUnmount(() => {
-  window.removeEventListener('beforeunload', handleBeforeUnload)
-})
-
 function handleBeforeUnload(e: BeforeUnloadEvent) {
   if (hasUnsavedChanges.value) {
     e.preventDefault()
@@ -145,11 +140,40 @@ watch(hasUnsavedChanges, (dirty) => {
 })
 
 // Warn before route navigation
+const showUnsavedChangesDialog = ref(false)
+let resolveNavigation: ((allow: boolean) => void) | null = null
+
+// Warn before browser close/refresh
+onBeforeUnmount(() => {
+  window.removeEventListener('beforeunload', handleBeforeUnload)
+  if (resolveNavigation) {
+    resolveNavigation(false)
+    resolveNavigation = null
+  }
+  showUnsavedChangesDialog.value = false
+})
+
 onBeforeRouteLeave(() => {
   if (hasUnsavedChanges.value) {
-    return window.confirm('你有尚未儲存的變更，確定要離開嗎？')
+    showUnsavedChangesDialog.value = true
+    return new Promise<boolean>((resolve) => {
+      resolveNavigation = resolve
+    })
   }
 })
+
+watch(showUnsavedChangesDialog, (open) => {
+  if (!open && resolveNavigation) {
+    resolveNavigation(false)
+    resolveNavigation = null
+  }
+})
+
+function confirmUnsavedLeave() {
+  resolveNavigation?.(true)
+  resolveNavigation = null
+  showUnsavedChangesDialog.value = false
+}
 
 // Initialize form values when trip data loads
 watch(trip, (newTrip) => {
@@ -828,6 +852,15 @@ async function handleArchiveToggle() {
       </div>
     </div>
   </confirmation-dialog>
+
+  <confirmation-dialog
+    v-model:open="showUnsavedChangesDialog"
+    title="離開並放棄變更？"
+    description="你有尚未儲存的變更，離開後將會遺失。"
+    confirm-label="確定離開"
+    confirm-variant="destructive"
+    @confirm="confirmUnsavedLeave"
+  />
 </template>
 
 <style scoped>

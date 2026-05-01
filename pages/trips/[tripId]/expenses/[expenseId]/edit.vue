@@ -264,11 +264,29 @@ const isDirty = computed(() => {
     || paidAtTime.value !== initialPaidAtTime.value
 })
 
-function confirmLeave(): boolean {
+const showUnsavedChangesDialog = ref(false)
+let resolveNavigation: ((allow: boolean) => void) | null = null
+
+onBeforeRouteLeave(() => {
   if (!isDirty.value || isSubmitting.value)
     return true
-  // eslint-disable-next-line no-alert
-  return window.confirm('您有未儲存的變更，確定要離開嗎？')
+  showUnsavedChangesDialog.value = true
+  return new Promise<boolean>((resolve) => {
+    resolveNavigation = resolve
+  })
+})
+
+watch(showUnsavedChangesDialog, (open) => {
+  if (!open && resolveNavigation) {
+    resolveNavigation(false)
+    resolveNavigation = null
+  }
+})
+
+function confirmUnsavedLeave() {
+  resolveNavigation?.(true)
+  resolveNavigation = null
+  showUnsavedChangesDialog.value = false
 }
 
 function handleCancel() {
@@ -282,9 +300,15 @@ function handleBeforeUnload(e: BeforeUnloadEvent) {
 }
 
 onMounted(() => window.addEventListener('beforeunload', handleBeforeUnload))
-onBeforeUnmount(() => window.removeEventListener('beforeunload', handleBeforeUnload))
 
-onBeforeRouteLeave(() => confirmLeave())
+onBeforeUnmount(() => {
+  window.removeEventListener('beforeunload', handleBeforeUnload)
+  if (resolveNavigation) {
+    resolveNavigation(false)
+    resolveNavigation = null
+  }
+  showUnsavedChangesDialog.value = false
+})
 
 const onSubmit = handleSubmit(async (values) => {
   if (!expense.value || !trip.value)
@@ -896,4 +920,13 @@ function updateItemSharing(index: number, memberIds: string[]) {
       </div>
     </div>
   </template>
+
+  <confirmation-dialog
+    v-model:open="showUnsavedChangesDialog"
+    title="離開並放棄變更？"
+    description="你有尚未儲存的變更，離開後將會遺失。"
+    confirm-label="確定離開"
+    confirm-variant="destructive"
+    @confirm="confirmUnsavedLeave"
+  />
 </template>
