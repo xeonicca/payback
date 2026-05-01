@@ -90,6 +90,7 @@ const { values, isFieldDirty, setFieldValue, handleSubmit, resetForm } = useForm
 // Accordion picker state — only one open at a time
 const showPayerPicker = ref(false)
 const showSplitPicker = ref(false)
+const paidAtTime = ref<string>(new Date().toTimeString().slice(0, 5))
 
 // Compact summary computed values
 const currentPayer = computed(() =>
@@ -227,6 +228,7 @@ watch(open, (val) => {
     showItemsPicker.value = false
     expenseItems.value = []
     preLockAmount.value = undefined
+    paidAtTime.value = new Date().toTimeString().slice(0, 5)
     resetForm({
       values: {
         sharedWithMemberIds: props.defaultPayerMember?.id ? [props.defaultPayerMember.id] : [],
@@ -309,8 +311,14 @@ async function submitManual(formValues: { description?: string, grandTotal?: num
     const db = useFirestore()
 
     const selectedDate = parseDate(formValues.paidAt).toDate(timezone)
-    const now = new Date()
-    selectedDate.setHours(now.getHours(), now.getMinutes(), now.getSeconds())
+    if (paidAtTime.value) {
+      const [h, m] = paidAtTime.value.split(':').map(Number)
+      selectedDate.setHours(h, m, 0, 0)
+    }
+    else {
+      const now = new Date()
+      selectedDate.setHours(now.getHours(), now.getMinutes(), 0, 0)
+    }
 
     const grandTotalInTripCurrency = convertToTripCurrency(formValues.grandTotal)
 
@@ -526,7 +534,7 @@ async function submitManual(formValues: { description?: string, grandTotal?: num
                   <div class="relative">
                     <ui-input
                       id="grandTotalInput"
-                      class="pl-16 h-12 text-lg font-mono" :class="[{ 'bg-muted cursor-default': hasItems }]"
+                      class="pl-17 h-12 text-lg font-mono" :class="[{ 'bg-muted cursor-default': hasItems }]"
                       type="tel"
                       placeholder="0.00"
                       v-bind="componentField"
@@ -620,14 +628,14 @@ async function submitManual(formValues: { description?: string, grandTotal?: num
                   :key="item.id"
                   class="grid items-center gap-1.5 py-1"
                   :class="[index < expenseItems.length - 1 ? 'border-b border-dashed border-border' : '']"
-                  style="grid-template-columns: 1fr auto minmax(72px,auto) 20px"
+                  style="grid-template-columns: 1fr auto 96px 20px"
                 >
                   <input
                     :id="`item-name-${item.id}`"
                     type="text"
                     placeholder="品項"
                     :value="item.name"
-                    class="h-8 px-2 border border-transparent rounded bg-transparent text-[13px] focus:border-ring focus:bg-white outline-none text-foreground placeholder:text-muted-foreground min-w-0"
+                    class="h-8 px-2 rounded text-[13px] outline-none text-foreground placeholder:text-muted-foreground min-w-0 focus:border focus:border-ring focus:bg-white transition-colors" :class="[item.name ? 'border border-transparent bg-transparent' : 'border border-dashed border-border bg-transparent']"
                     @input="updateItem(item.id, { name: ($event.target as HTMLInputElement).value })"
                     @keydown.enter.prevent="document.getElementById(`item-price-${item.id}`)?.focus()"
                     @blur="onItemBlur(item.id)"
@@ -657,7 +665,7 @@ async function submitManual(formValues: { description?: string, grandTotal?: num
                     inputmode="decimal"
                     placeholder="0"
                     :value="item.price"
-                    class="w-full min-w-[64px] h-8 px-2 border border-border rounded bg-white text-[13px] font-mono text-right tabular-nums outline-none focus:border-ring placeholder:text-muted-foreground"
+                    class="w-full h-8 px-1.5 border border-border rounded bg-white text-[13px] font-mono text-right tabular-nums outline-none focus:border-ring placeholder:text-muted-foreground"
                     @input="updateItem(item.id, { price: ($event.target as HTMLInputElement).value })"
                     @keydown.enter.prevent="($event.target as HTMLInputElement).blur()"
                     @blur="onItemBlur(item.id)"
@@ -697,40 +705,49 @@ async function submitManual(formValues: { description?: string, grandTotal?: num
               </div>
             </div>
 
-            <!-- Date: inline compact chip -->
+            <!-- Date + Time -->
             <ui-form-field name="paidAt">
-              <ui-form-item>
-                <ui-popover>
-                  <ui-popover-trigger as-child>
-                    <ui-form-control>
-                      <button
-                        type="button"
-                        :class="cn(
-                          'flex items-center gap-1.5 text-sm transition-colors',
-                          paidAtDate && values.paidAt !== today(timezone).toString()
-                            ? 'text-foreground font-medium'
-                            : 'text-muted-foreground hover:text-foreground',
-                        )"
-                      >
-                        <Icon name="lucide:calendar" class="h-3.5 w-3.5 shrink-0" />
-                        <span>{{ paidAtDate ? df.format(toDate(paidAtDate)) : '今天' }}</span>
-                      </button>
-                      <input hidden>
-                    </ui-form-control>
-                  </ui-popover-trigger>
-                  <ui-popover-content class="w-auto p-0">
-                    <ui-calendar
-                      v-model:placeholder="paidAtPlaceholder"
-                      v-model="paidAtDate"
-                      calendar-label="支出日期"
-                      initial-focus
-                      @update:model-value="(v) => {
-                        if (v) { setFieldValue('paidAt', v.toString()) }
-                        else { setFieldValue('paidAt', undefined) }
-                      }"
-                    />
-                  </ui-popover-content>
-                </ui-popover>
+              <ui-form-item class="flex flex-col">
+                <ui-form-label>日期與時間</ui-form-label>
+                <div class="flex gap-2">
+                  <ui-popover>
+                    <ui-popover-trigger as-child>
+                      <ui-form-control>
+                        <ui-button
+                          type="button"
+                          variant="outline"
+                          :class="cn(
+                            'flex-1 ps-3 text-start font-normal',
+                            !paidAtDate && 'text-muted-foreground',
+                          )"
+                        >
+                          <span>{{ paidAtDate ? df.format(toDate(paidAtDate)) : '選擇日期' }}</span>
+                          <Icon name="lucide:calendar" class="ms-auto h-4 w-4 opacity-50" />
+                        </ui-button>
+                        <input hidden>
+                      </ui-form-control>
+                    </ui-popover-trigger>
+                    <ui-popover-content class="w-auto p-0">
+                      <ui-calendar
+                        v-model:placeholder="paidAtPlaceholder"
+                        v-model="paidAtDate"
+                        calendar-label="支出日期"
+                        initial-focus
+                        @update:model-value="(v) => {
+                          if (v) { setFieldValue('paidAt', v.toString()) }
+                          else { setFieldValue('paidAt', undefined) }
+                        }"
+                      />
+                    </ui-popover-content>
+                  </ui-popover>
+                  <ui-input
+                    v-model="paidAtTime"
+                    type="time"
+                    step="60"
+                    class="w-32 shrink-0"
+                    aria-label="時間"
+                  />
+                </div>
                 <ui-form-message />
               </ui-form-item>
             </ui-form-field>
@@ -1032,7 +1049,7 @@ async function submitManual(formValues: { description?: string, grandTotal?: num
                     <div class="relative">
                       <ui-input
                         id="grandTotalInput"
-                        class="pl-16 h-12 text-lg font-mono" :class="[{ 'bg-muted cursor-default': hasItems }]"
+                        class="pl-17 h-12 text-lg font-mono" :class="[{ 'bg-muted cursor-default': hasItems }]"
                         type="tel"
                         placeholder="0.00"
                         v-bind="componentField"
@@ -1126,14 +1143,14 @@ async function submitManual(formValues: { description?: string, grandTotal?: num
                     :key="item.id"
                     class="grid items-center gap-1.5 py-1"
                     :class="[index < expenseItems.length - 1 ? 'border-b border-dashed border-border' : '']"
-                    style="grid-template-columns: 1fr auto minmax(72px,auto) 20px"
+                    style="grid-template-columns: 1fr auto 96px 20px"
                   >
                     <input
                       :id="`item-name-m-${item.id}`"
                       type="text"
                       placeholder="品項"
                       :value="item.name"
-                      class="h-8 px-2 border border-transparent rounded bg-transparent text-[13px] focus:border-ring focus:bg-white outline-none text-foreground placeholder:text-muted-foreground min-w-0"
+                      class="h-8 px-2 rounded text-[13px] outline-none text-foreground placeholder:text-muted-foreground min-w-0 focus:border focus:border-ring focus:bg-white transition-colors" :class="[item.name ? 'border border-transparent bg-transparent' : 'border border-dashed border-border bg-transparent']"
                       @input="updateItem(item.id, { name: ($event.target as HTMLInputElement).value })"
                       @keydown.enter.prevent="document.getElementById(`item-price-m-${item.id}`)?.focus()"
                       @blur="onItemBlur(item.id)"
@@ -1163,7 +1180,7 @@ async function submitManual(formValues: { description?: string, grandTotal?: num
                       inputmode="decimal"
                       placeholder="0"
                       :value="item.price"
-                      class="w-full min-w-[64px] h-8 px-2 border border-border rounded bg-white text-[13px] font-mono text-right tabular-nums outline-none focus:border-ring placeholder:text-muted-foreground"
+                      class="w-full h-8 px-1.5 border border-border rounded bg-white text-[13px] font-mono text-right tabular-nums outline-none focus:border-ring placeholder:text-muted-foreground"
                       @input="updateItem(item.id, { price: ($event.target as HTMLInputElement).value })"
                       @keydown.enter.prevent="($event.target as HTMLInputElement).blur()"
                       @blur="onItemBlur(item.id)"
@@ -1203,40 +1220,48 @@ async function submitManual(formValues: { description?: string, grandTotal?: num
                 </div>
               </div>
 
-              <!-- Date: inline compact chip -->
+              <!-- Date + Time -->
               <ui-form-field name="paidAt">
-                <ui-form-item>
-                  <ui-popover>
-                    <ui-popover-trigger as-child>
-                      <ui-form-control>
-                        <button
-                          type="button"
-                          :class="cn(
-                            'flex items-center gap-1.5 text-sm transition-colors',
-                            paidAtDate && values.paidAt !== today(timezone).toString()
-                              ? 'text-foreground font-medium'
-                              : 'text-muted-foreground hover:text-foreground',
-                          )"
-                        >
-                          <Icon name="lucide:calendar" class="h-3.5 w-3.5 shrink-0" />
-                          <span>{{ paidAtDate ? df.format(toDate(paidAtDate)) : '今天' }}</span>
-                        </button>
-                        <input hidden>
-                      </ui-form-control>
-                    </ui-popover-trigger>
-                    <ui-popover-content class="w-auto p-0">
-                      <ui-calendar
-                        v-model:placeholder="paidAtPlaceholder"
-                        v-model="paidAtDate"
-                        calendar-label="支出日期"
-                        initial-focus
-                        @update:model-value="(v) => {
-                          if (v) { setFieldValue('paidAt', v.toString()) }
-                          else { setFieldValue('paidAt', undefined) }
-                        }"
-                      />
-                    </ui-popover-content>
-                  </ui-popover>
+                <ui-form-item class="flex flex-col">
+                  <ui-form-label>日期與時間</ui-form-label>
+                  <div class="flex gap-2">
+                    <ui-popover>
+                      <ui-popover-trigger as-child>
+                        <ui-form-control>
+                          <ui-button
+                            type="button"
+                            variant="outline"
+                            :class="cn(
+                              'flex-1 ps-3 text-start font-normal',
+                              !paidAtDate && 'text-muted-foreground',
+                            )"
+                          >
+                            <span>{{ paidAtDate ? df.format(toDate(paidAtDate)) : '選擇日期' }}</span>
+                            <Icon name="lucide:calendar" class="ms-auto h-4 w-4 opacity-50" />
+                          </ui-button>
+                          <input hidden>
+                        </ui-form-control>
+                      </ui-popover-trigger>
+                      <ui-popover-content class="w-auto p-0">
+                        <ui-calendar
+                          v-model:placeholder="paidAtPlaceholder"
+                          v-model="paidAtDate"
+                          calendar-label="支出日期"
+                          initial-focus
+                          @update:model-value="(v) => {
+                            if (v) { setFieldValue('paidAt', v.toString()) }
+                            else { setFieldValue('paidAt', undefined) }
+                          }"
+                        />
+                      </ui-popover-content>
+                    </ui-popover>
+                    <ui-input
+                      v-model="paidAtTime"
+                      type="time"
+                      class="w-32 shrink-0"
+                      aria-label="時間"
+                    />
+                  </div>
                   <ui-form-message />
                 </ui-form-item>
               </ui-form-field>
@@ -1369,3 +1394,9 @@ async function submitManual(formValues: { description?: string, grandTotal?: num
     </ui-drawer-content>
   </ui-drawer>
 </template>
+
+<style>
+.drawer-time-input::-webkit-calendar-picker-indicator {
+  margin-right: 4px;
+}
+</style>
