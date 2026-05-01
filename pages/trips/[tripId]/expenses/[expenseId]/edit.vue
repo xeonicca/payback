@@ -390,11 +390,7 @@ function updateItem(index: number, field: keyof ExpenseDetailItem, value: any) {
 }
 
 function updateItemSharing(index: number, memberIds: string[]) {
-  if (values.items) {
-    const updatedItems = [...values.items]
-    updatedItems[index] = { ...updatedItems[index], sharedByMemberIds: memberIds }
-    setFieldValue('items', updatedItems)
-  }
+  setFieldValue(`items[${index}].sharedByMemberIds` as any, memberIds)
 }
 </script>
 
@@ -840,31 +836,46 @@ function updateItemSharing(index: number, memberIds: string[]) {
 
         <div v-if="sharerModalIndex !== null" class="space-y-2">
           <!-- Select all row -->
-          <label
+          <div
             class="flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-colors hover:bg-slate-50"
             :class="(values.items?.[sharerModalIndex]?.sharedByMemberIds || []).length === selectedSharedMembers.length && selectedSharedMembers.length > 0 ? 'border-indigo-200 bg-indigo-50/50' : 'border-transparent'"
+            @click="() => {
+              const idx = sharerModalIndex!
+              const allSelected = (values.items?.[idx]?.sharedByMemberIds || []).length === selectedSharedMembers.length && selectedSharedMembers.length > 0
+              updateItemSharing(idx, allSelected ? [] : selectedSharedMembers.map(m => m.id))
+            }"
           >
             <ui-checkbox
-              :checked="(values.items?.[sharerModalIndex]?.sharedByMemberIds || []).length === selectedSharedMembers.length && selectedSharedMembers.length > 0"
-              @update:checked="(checked) => {
+              :model-value="(values.items?.[sharerModalIndex]?.sharedByMemberIds || []).length === selectedSharedMembers.length && selectedSharedMembers.length > 0"
+              @click.stop
+              @update:model-value="(checked) => {
                 const idx = sharerModalIndex!
                 updateItemSharing(idx, checked ? selectedSharedMembers.map(m => m.id) : [])
               }"
             />
             <span class="text-sm font-semibold text-foreground flex-1">全選</span>
-          </label>
+          </div>
 
           <div class="border-t border-slate-100 my-1" />
 
-          <label
+          <div
             v-for="member in selectedSharedMembers"
             :key="member.id"
             class="flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-colors hover:bg-slate-50"
             :class="(values.items?.[sharerModalIndex]?.sharedByMemberIds || []).includes(member.id) ? 'border-indigo-200 bg-indigo-50/50' : 'border-transparent'"
+            @click="() => {
+              const idx = sharerModalIndex!
+              const currentIds = values.items?.[idx]?.sharedByMemberIds || []
+              const newIds = currentIds.includes(member.id)
+                ? currentIds.filter((id: string) => id !== member.id)
+                : [...currentIds, member.id]
+              updateItemSharing(idx, newIds)
+            }"
           >
             <ui-checkbox
-              :checked="(values.items?.[sharerModalIndex]?.sharedByMemberIds || []).includes(member.id)"
-              @update:checked="(checked) => {
+              :model-value="(values.items?.[sharerModalIndex]?.sharedByMemberIds || []).includes(member.id)"
+              @click.stop
+              @update:model-value="(checked) => {
                 const idx = sharerModalIndex!
                 const currentIds = values.items?.[idx]?.sharedByMemberIds || []
                 const newIds = checked
@@ -875,7 +886,7 @@ function updateItemSharing(index: number, memberIds: string[]) {
             />
             <member-avatar :emoji="member.avatarEmoji" size="sm" />
             <span class="text-sm font-medium text-foreground flex-1">{{ member.name }}</span>
-          </label>
+          </div>
         </div>
 
         <ui-dialog-footer class="flex-row gap-2 sm:justify-start">
