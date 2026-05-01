@@ -18,9 +18,15 @@ function loginSuccessRedirect() {
   $router.replace('/')
   localStorage.removeItem('prevRoute')
   toast.success(`登入成功`, {
-    description: `Hello ${sessionUser.value?.displayName}`,
+    description: `Hello ${sessionUser.value?.displayName || ''}`.trim() || undefined,
   })
 }
+
+// Watch for login state changes (e.g. after popup login completes)
+watch(isUserLoggedIn, (loggedIn) => {
+  if (loggedIn)
+    loginSuccessRedirect()
+})
 
 onMounted(async () => {
   isLoading.value = true
