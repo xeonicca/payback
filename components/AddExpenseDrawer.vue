@@ -129,6 +129,74 @@ const allMembersSelected = computed(() =>
   values.sharedWithMemberIds?.length === props.tripMembers.length,
 )
 
+// Items state
+interface ExpenseItem {
+  id: string
+  name: string
+  price: string
+  qty: string
+  qtyVisible: boolean
+}
+const expenseItems = ref<ExpenseItem[]>([])
+const hasItems = computed(() => expenseItems.value.length > 0)
+const itemsSum = computed(() =>
+  expenseItems.value.reduce((s, it) => s + (Number(it.price) || 0) * (Number(it.qty) || 1), 0),
+)
+const showItemsPicker = ref(false)
+const itemsSummary = computed(() => {
+  if (!hasItems.value)
+    return '加入品項'
+  return `${expenseItems.value.length} 項・${selectedCurrency.value} ${itemsSum.value.toLocaleString()}`
+})
+
+const preLockAmount = ref<number | undefined>(undefined)
+
+watch(hasItems, (isLocked, wasLocked) => {
+  if (isLocked && !wasLocked) {
+    preLockAmount.value = values.grandTotal
+    setFieldValue('grandTotal', itemsSum.value > 0 ? itemsSum.value : undefined)
+  }
+  else if (!isLocked && wasLocked) {
+    setFieldValue('grandTotal', preLockAmount.value)
+  }
+})
+
+watch(itemsSum, (val) => {
+  if (hasItems.value) {
+    setFieldValue('grandTotal', val > 0 ? val : undefined)
+  }
+})
+
+function addItem() {
+  const id = `item-${Date.now()}-${Math.random().toString(36).slice(2, 5)}`
+  expenseItems.value.push({ id, name: '', price: '', qty: '1', qtyVisible: false })
+  showItemsPicker.value = true
+  nextTick(() => {
+    document.getElementById(`item-name-${id}`)?.focus()
+  })
+}
+
+function updateItem(id: string, patch: Partial<ExpenseItem>) {
+  const idx = expenseItems.value.findIndex(it => it.id === id)
+  if (idx !== -1)
+    expenseItems.value[idx] = { ...expenseItems.value[idx], ...patch }
+}
+
+function removeItem(id: string) {
+  expenseItems.value = expenseItems.value.filter(it => it.id !== id)
+}
+
+function clearItems() {
+  expenseItems.value = []
+}
+
+function onItemBlur(id: string) {
+  const item = expenseItems.value.find(it => it.id === id)
+  if (item && !item.name.trim() && !item.price) {
+    removeItem(id)
+  }
+}
+
 function toggleSelectAllMembers() {
   if (allMembersSelected.value) {
     setFieldValue('sharedWithMemberIds', [])
@@ -156,6 +224,9 @@ watch(open, (val) => {
     currencyOverride.value = null
     showPayerPicker.value = false
     showSplitPicker.value = false
+    showItemsPicker.value = false
+    expenseItems.value = []
+    preLockAmount.value = undefined
     resetForm({
       values: {
         sharedWithMemberIds: props.defaultPayerMember?.id ? [props.defaultPayerMember.id] : [],
@@ -243,6 +314,14 @@ async function submitManual(formValues: { description?: string, grandTotal?: num
 
     const grandTotalInTripCurrency = convertToTripCurrency(formValues.grandTotal)
 
+    const cleanItems = expenseItems.value
+      .map(it => ({
+        name: it.name.trim(),
+        price: Number(it.price) || 0,
+        quantity: Number(it.qty) || 1,
+      }))
+      .filter(it => it.price > 0 || it.name)
+
     const docRef = await addDoc(collection(db, 'trips', props.trip.id, 'expenses'), {
       ...formValues,
       grandTotal: grandTotalInTripCurrency,
@@ -253,6 +332,7 @@ async function submitManual(formValues: { description?: string, grandTotal?: num
       isProcessing: false,
       enabled: true,
       createdByUserId: sessionUser.value?.uid,
+      ...(cleanItems.length > 0 ? { items: cleanItems } : {}),
     })
 
     open.value = false
@@ -433,15 +513,24 @@ async function submitManual(formValues: { description?: string, grandTotal?: num
             <!-- Amount: hero field -->
             <ui-form-field v-slot="{ componentField }" name="grandTotal" :validate-on-blur="!isFieldDirty">
               <ui-form-item>
-                <ui-form-label>支出金額</ui-form-label>
+                <div class="flex items-center justify-between mb-1.5">
+                  <ui-form-label class="mb-0">
+                    支出金額
+                  </ui-form-label>
+                  <span v-if="hasItems" class="inline-flex items-center gap-1 text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded-full">
+                    <Icon name="lucide:link" class="h-2.5 w-2.5" />
+                    依品項加總
+                  </span>
+                </div>
                 <ui-form-control>
                   <div class="relative">
                     <ui-input
                       id="grandTotalInput"
-                      class="pl-16 h-12 text-lg font-mono"
+                      class="pl-16 h-12 text-lg font-mono" :class="[{ 'bg-muted cursor-default': hasItems }]"
                       type="tel"
                       placeholder="0.00"
                       v-bind="componentField"
+                      :readonly="hasItems"
                       step="0.01"
                     />
                     <!-- Clickable badge toggles currency when trip has two currencies -->
@@ -502,6 +591,111 @@ async function submitManual(formValues: { description?: string, grandTotal?: num
                 <ui-form-message />
               </ui-form-item>
             </ui-form-field>
+
+            <!-- Items accordion -->
+            <div>
+              <button
+                type="button"
+                class="flex w-full items-center gap-3 py-1.5 rounded-md hover:bg-muted/50 transition-colors"
+                @click="showItemsPicker = !showItemsPicker"
+              >
+                <span class="text-sm text-muted-foreground shrink-0 w-16 text-left">品項</span>
+                <div class="flex items-center gap-2 flex-1 min-w-0">
+                  <span class="text-sm truncate" :class="[hasItems ? 'font-medium text-foreground' : 'text-muted-foreground font-normal']">
+                    {{ itemsSummary }}
+                  </span>
+                </div>
+                <Icon
+                  name="lucide:chevron-down"
+                  class="h-4 w-4 text-muted-foreground shrink-0 transition-transform duration-200"
+                  :class="{ 'rotate-180': showItemsPicker }"
+                />
+              </button>
+              <div v-show="showItemsPicker" class="pt-1 pb-1">
+                <div v-if="expenseItems.length === 0" class="px-1 py-1 text-[11px] text-muted-foreground">
+                  逐項輸入後，金額會自動加總
+                </div>
+                <div
+                  v-for="(item, index) in expenseItems"
+                  :key="item.id"
+                  class="grid items-center gap-1.5 py-1"
+                  :class="[index < expenseItems.length - 1 ? 'border-b border-dashed border-border' : '']"
+                  style="grid-template-columns: 1fr auto minmax(72px,auto) 20px"
+                >
+                  <input
+                    :id="`item-name-${item.id}`"
+                    type="text"
+                    placeholder="品項"
+                    :value="item.name"
+                    class="h-8 px-2 border border-transparent rounded bg-transparent text-[13px] focus:border-ring focus:bg-white outline-none text-foreground placeholder:text-muted-foreground min-w-0"
+                    @input="updateItem(item.id, { name: ($event.target as HTMLInputElement).value })"
+                    @keydown.enter.prevent="document.getElementById(`item-price-${item.id}`)?.focus()"
+                    @blur="onItemBlur(item.id)"
+                  >
+                  <button
+                    v-if="!item.qtyVisible && (Number(item.qty) || 1) <= 1"
+                    type="button"
+                    class="h-[22px] px-1.5 border border-dashed border-border rounded text-[10px] font-mono text-muted-foreground hover:border-solid hover:text-foreground transition-colors"
+                    @click="updateItem(item.id, { qtyVisible: true })"
+                  >
+                    × 1
+                  </button>
+                  <div v-else class="inline-flex items-center gap-0.5">
+                    <span class="text-[11px] text-muted-foreground">×</span>
+                    <input
+                      type="tel"
+                      inputmode="numeric"
+                      :value="item.qty"
+                      class="w-9 h-7 px-1 border border-border rounded text-[12px] font-mono text-center bg-white outline-none focus:border-ring"
+                      @input="updateItem(item.id, { qty: ($event.target as HTMLInputElement).value.replace(/\D/g, '') })"
+                      @blur="() => { const q = Number(item.qty) || 1; updateItem(item.id, { qty: String(q), qtyVisible: q > 1 }) }"
+                    >
+                  </div>
+                  <input
+                    :id="`item-price-${item.id}`"
+                    type="tel"
+                    inputmode="decimal"
+                    placeholder="0"
+                    :value="item.price"
+                    class="w-full min-w-[64px] h-8 px-2 border border-border rounded bg-white text-[13px] font-mono text-right tabular-nums outline-none focus:border-ring placeholder:text-muted-foreground"
+                    @input="updateItem(item.id, { price: ($event.target as HTMLInputElement).value })"
+                    @keydown.enter.prevent="($event.target as HTMLInputElement).blur()"
+                    @blur="onItemBlur(item.id)"
+                  >
+                  <button
+                    type="button"
+                    class="w-5 h-5 flex items-center justify-center rounded text-muted-foreground hover:text-destructive hover:bg-muted transition-colors"
+                    @click="removeItem(item.id)"
+                  >
+                    <Icon name="lucide:x" class="h-3 w-3" />
+                  </button>
+                  <div
+                    v-if="item.qtyVisible && Number(item.qty) > 1 && Number(item.price) > 0"
+                    class="col-span-full text-[10px] font-mono text-muted-foreground text-right pr-6 pb-1 tabular-nums"
+                  >
+                    = {{ selectedCurrency }} {{ ((Number(item.qty) || 1) * (Number(item.price) || 0)).toLocaleString() }}
+                  </div>
+                </div>
+                <div class="flex items-center justify-between pt-1.5">
+                  <button
+                    type="button"
+                    class="inline-flex items-center gap-1 text-[12px] font-medium text-primary hover:underline"
+                    @click="addItem"
+                  >
+                    <Icon name="lucide:plus" class="h-3 w-3" />
+                    加入品項
+                  </button>
+                  <button
+                    v-if="hasItems"
+                    type="button"
+                    class="text-[11px] text-primary hover:underline bg-transparent border-0 p-0 cursor-pointer"
+                    @click="clearItems"
+                  >
+                    清除品項
+                  </button>
+                </div>
+              </div>
+            </div>
 
             <!-- Date: inline compact chip -->
             <ui-form-field name="paidAt">
@@ -635,6 +829,10 @@ async function submitManual(formValues: { description?: string, grandTotal?: num
                     <member-avatar :emoji="member.avatarEmoji" size="sm" />
                     <span class="text-sm">{{ member.name }}</span>
                   </label>
+                </div>
+                <div v-if="hasItems" class="flex items-center gap-1 mt-1.5 px-2 py-1.5 bg-muted rounded text-[11px] text-muted-foreground">
+                  <Icon name="lucide:info" class="h-2.5 w-2.5 shrink-0" />
+                  <span>需要不同品項分配？儲存後到明細頁面調整</span>
                 </div>
               </div>
             </div>
@@ -821,15 +1019,24 @@ async function submitManual(formValues: { description?: string, grandTotal?: num
               <!-- Amount: hero field -->
               <ui-form-field v-slot="{ componentField }" name="grandTotal" :validate-on-blur="!isFieldDirty">
                 <ui-form-item>
-                  <ui-form-label>支出金額</ui-form-label>
+                  <div class="flex items-center justify-between mb-1.5">
+                    <ui-form-label class="mb-0">
+                      支出金額
+                    </ui-form-label>
+                    <span v-if="hasItems" class="inline-flex items-center gap-1 text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded-full">
+                      <Icon name="lucide:link" class="h-2.5 w-2.5" />
+                      依品項加總
+                    </span>
+                  </div>
                   <ui-form-control>
                     <div class="relative">
                       <ui-input
                         id="grandTotalInput"
-                        class="pl-16 h-12 text-lg font-mono"
+                        class="pl-16 h-12 text-lg font-mono" :class="[{ 'bg-muted cursor-default': hasItems }]"
                         type="tel"
                         placeholder="0.00"
                         v-bind="componentField"
+                        :readonly="hasItems"
                         step="0.01"
                       />
                       <!-- Clickable badge toggles currency when trip has two currencies -->
@@ -890,6 +1097,111 @@ async function submitManual(formValues: { description?: string, grandTotal?: num
                   <ui-form-message />
                 </ui-form-item>
               </ui-form-field>
+
+              <!-- Items accordion -->
+              <div>
+                <button
+                  type="button"
+                  class="flex w-full items-center gap-3 py-1.5 rounded-md hover:bg-muted/50 transition-colors"
+                  @click="showItemsPicker ? (showItemsPicker = false) : (expenseItems.length === 0 ? addItem() : (showItemsPicker = true))"
+                >
+                  <span class="text-sm text-muted-foreground shrink-0 w-16 text-left">品項</span>
+                  <div class="flex items-center gap-2 flex-1 min-w-0">
+                    <span class="text-sm truncate" :class="[hasItems ? 'font-medium text-foreground' : 'text-muted-foreground font-normal']">
+                      {{ itemsSummary }}
+                    </span>
+                  </div>
+                  <Icon
+                    name="lucide:chevron-down"
+                    class="h-4 w-4 text-muted-foreground shrink-0 transition-transform duration-200"
+                    :class="{ 'rotate-180': showItemsPicker }"
+                  />
+                </button>
+                <div v-show="showItemsPicker" class="pt-1 pb-1">
+                  <div v-if="expenseItems.length === 0" class="px-1 py-1 text-[11px] text-muted-foreground">
+                    逐項輸入後，金額會自動加總
+                  </div>
+                  <div
+                    v-for="(item, index) in expenseItems"
+                    :key="item.id"
+                    class="grid items-center gap-1.5 py-1"
+                    :class="[index < expenseItems.length - 1 ? 'border-b border-dashed border-border' : '']"
+                    style="grid-template-columns: 1fr auto minmax(72px,auto) 20px"
+                  >
+                    <input
+                      :id="`item-name-m-${item.id}`"
+                      type="text"
+                      placeholder="品項"
+                      :value="item.name"
+                      class="h-8 px-2 border border-transparent rounded bg-transparent text-[13px] focus:border-ring focus:bg-white outline-none text-foreground placeholder:text-muted-foreground min-w-0"
+                      @input="updateItem(item.id, { name: ($event.target as HTMLInputElement).value })"
+                      @keydown.enter.prevent="document.getElementById(`item-price-m-${item.id}`)?.focus()"
+                      @blur="onItemBlur(item.id)"
+                    >
+                    <button
+                      v-if="!item.qtyVisible && (Number(item.qty) || 1) <= 1"
+                      type="button"
+                      class="h-[22px] px-1.5 border border-dashed border-border rounded text-[10px] font-mono text-muted-foreground hover:border-solid hover:text-foreground transition-colors"
+                      @click="updateItem(item.id, { qtyVisible: true })"
+                    >
+                      × 1
+                    </button>
+                    <div v-else class="inline-flex items-center gap-0.5">
+                      <span class="text-[11px] text-muted-foreground">×</span>
+                      <input
+                        type="tel"
+                        inputmode="numeric"
+                        :value="item.qty"
+                        class="w-9 h-7 px-1 border border-border rounded text-[12px] font-mono text-center bg-white outline-none focus:border-ring"
+                        @input="updateItem(item.id, { qty: ($event.target as HTMLInputElement).value.replace(/\D/g, '') })"
+                        @blur="() => { const q = Number(item.qty) || 1; updateItem(item.id, { qty: String(q), qtyVisible: q > 1 }) }"
+                      >
+                    </div>
+                    <input
+                      :id="`item-price-m-${item.id}`"
+                      type="tel"
+                      inputmode="decimal"
+                      placeholder="0"
+                      :value="item.price"
+                      class="w-full min-w-[64px] h-8 px-2 border border-border rounded bg-white text-[13px] font-mono text-right tabular-nums outline-none focus:border-ring placeholder:text-muted-foreground"
+                      @input="updateItem(item.id, { price: ($event.target as HTMLInputElement).value })"
+                      @keydown.enter.prevent="($event.target as HTMLInputElement).blur()"
+                      @blur="onItemBlur(item.id)"
+                    >
+                    <button
+                      type="button"
+                      class="w-5 h-5 flex items-center justify-center rounded text-muted-foreground hover:text-destructive hover:bg-muted transition-colors"
+                      @click="removeItem(item.id)"
+                    >
+                      <Icon name="lucide:x" class="h-3 w-3" />
+                    </button>
+                    <div
+                      v-if="item.qtyVisible && Number(item.qty) > 1 && Number(item.price) > 0"
+                      class="col-span-full text-[10px] font-mono text-muted-foreground text-right pr-6 pb-1 tabular-nums"
+                    >
+                      = {{ selectedCurrency }} {{ ((Number(item.qty) || 1) * (Number(item.price) || 0)).toLocaleString() }}
+                    </div>
+                  </div>
+                  <div class="flex items-center justify-between pt-1.5">
+                    <button
+                      type="button"
+                      class="inline-flex items-center gap-1 text-[12px] font-medium text-primary hover:underline"
+                      @click="addItem"
+                    >
+                      <Icon name="lucide:plus" class="h-3 w-3" />
+                      加入品項
+                    </button>
+                    <button
+                      v-if="hasItems"
+                      type="button"
+                      class="text-[11px] text-primary hover:underline bg-transparent border-0 p-0 cursor-pointer"
+                      @click="clearItems"
+                    >
+                      清除品項
+                    </button>
+                  </div>
+                </div>
+              </div>
 
               <!-- Date: inline compact chip -->
               <ui-form-field name="paidAt">
@@ -1023,6 +1335,10 @@ async function submitManual(formValues: { description?: string, grandTotal?: num
                       <member-avatar :emoji="member.avatarEmoji" size="sm" />
                       <span class="text-sm">{{ member.name }}</span>
                     </label>
+                  </div>
+                  <div v-if="hasItems" class="flex items-center gap-1 mt-1.5 px-2 py-1.5 bg-muted rounded text-[11px] text-muted-foreground">
+                    <Icon name="lucide:info" class="h-2.5 w-2.5 shrink-0" />
+                    <span>需要不同品項分配？儲存後到明細頁面調整</span>
                   </div>
                 </div>
               </div>
