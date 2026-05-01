@@ -25,21 +25,10 @@ const isLoading = ref(false)
 const isCreating = ref(false)
 const expiresInDays = ref(7)
 const maxUses = ref<number | null>(1)
-const generatedInvitation = ref<{
-  code: string
-  url: string
-  expiresAt: string
-} | null>(null)
-
 // Guest link state
 const isCreatingGuest = ref(false)
 const guestExpiresInDays = ref(7)
 const guestMaxUses = ref<number | null>(null)
-const generatedGuestInvitation = ref<{
-  code: string
-  url: string
-  expiresAt: string
-} | null>(null)
 
 // Load invitations when modal opens
 watch(() => props.open, async (isOpen) => {
@@ -71,12 +60,6 @@ async function handleCreateInvitation() {
       maxUses: maxUses.value,
     })
 
-    generatedInvitation.value = {
-      code: result.invitationCode,
-      url: result.invitationUrl,
-      expiresAt: result.expiresAt,
-    }
-
     toast.success('邀請連結已建立！')
     await loadInvitations()
   }
@@ -98,12 +81,6 @@ async function handleCreateGuestInvitation() {
       maxUses: guestMaxUses.value,
       type: 'guest',
     })
-
-    generatedGuestInvitation.value = {
-      code: result.invitationCode,
-      url: result.invitationUrl,
-      expiresAt: result.expiresAt,
-    }
 
     toast.success('訪客連結已建立！')
     await loadInvitations()
@@ -298,26 +275,6 @@ function getInvitationUrl(invitation: Invitation) {
                 <Icon v-else name="lucide:plus" :size="20" class="mr-2" />
                 {{ isCreating ? '建立中...' : '建立邀請連結' }}
               </ui-button>
-
-              <div v-if="generatedInvitation" class="bg-card rounded-lg p-4 space-y-3 border">
-                <div class="flex items-center gap-2">
-                  <Icon name="lucide:check-circle" class="w-5 h-5 text-green-600 dark:text-green-400" />
-                  <p class="text-sm font-medium text-foreground m-0">
-                    邀請連結已建立！
-                  </p>
-                </div>
-                <div class="space-y-2">
-                  <div class="flex items-center gap-2">
-                    <ui-input :value="generatedInvitation.url" readonly class="flex-1 font-mono text-sm" />
-                    <ui-button size="sm" variant="outline" @click="copyToClipboard(generatedInvitation.url)">
-                      <Icon name="lucide:copy" :size="16" />
-                    </ui-button>
-                  </div>
-                  <p class="text-xs text-muted-foreground m-0">
-                    有效期限：{{ new Date(generatedInvitation.expiresAt).toLocaleDateString('zh-TW') }}
-                  </p>
-                </div>
-              </div>
             </div>
 
             <!-- Active Invitations -->
@@ -473,26 +430,6 @@ function getInvitationUrl(invitation: Invitation) {
                 <Icon v-else name="lucide:plus" :size="20" class="mr-2" />
                 {{ isCreatingGuest ? '建立中...' : '建立訪客連結' }}
               </ui-button>
-
-              <div v-if="generatedGuestInvitation" class="bg-card rounded-lg p-4 space-y-3 border">
-                <div class="flex items-center gap-2">
-                  <Icon name="lucide:check-circle" class="w-5 h-5 text-green-600 dark:text-green-400" />
-                  <p class="text-sm font-medium text-foreground m-0">
-                    訪客連結已建立！
-                  </p>
-                </div>
-                <div class="space-y-2">
-                  <div class="flex items-center gap-2">
-                    <ui-input :value="generatedGuestInvitation.url" readonly class="flex-1 font-mono text-sm" />
-                    <ui-button size="sm" variant="outline" @click="copyToClipboard(generatedGuestInvitation.url)">
-                      <Icon name="lucide:copy" :size="16" />
-                    </ui-button>
-                  </div>
-                  <p class="text-xs text-muted-foreground m-0">
-                    有效期限：{{ new Date(generatedGuestInvitation.expiresAt).toLocaleDateString('zh-TW') }}
-                  </p>
-                </div>
-              </div>
             </div>
 
             <!-- Active Guest Invitations -->
@@ -665,26 +602,6 @@ function getInvitationUrl(invitation: Invitation) {
                   <Icon v-else name="lucide:plus" :size="20" class="mr-2" />
                   {{ isCreating ? '建立中...' : '建立邀請連結' }}
                 </ui-button>
-
-                <div v-if="generatedInvitation" class="bg-card rounded-lg p-4 space-y-3 border">
-                  <div class="flex items-center gap-2">
-                    <Icon name="lucide:check-circle" class="w-5 h-5 text-green-600 dark:text-green-400" />
-                    <p class="text-sm font-medium text-foreground m-0">
-                      邀請連結已建立！
-                    </p>
-                  </div>
-                  <div class="space-y-2">
-                    <div class="flex items-center gap-2">
-                      <ui-input :value="generatedInvitation.url" readonly class="flex-1 font-mono text-sm" />
-                      <ui-button size="sm" variant="outline" @click="copyToClipboard(generatedInvitation.url)">
-                        <Icon name="lucide:copy" :size="16" />
-                      </ui-button>
-                    </div>
-                    <p class="text-xs text-muted-foreground m-0">
-                      有效期限：{{ new Date(generatedInvitation.expiresAt).toLocaleDateString('zh-TW') }}
-                    </p>
-                  </div>
-                </div>
               </div>
 
               <div v-if="pendingInvitations.length > 0" class="space-y-3">
@@ -776,26 +693,6 @@ function getInvitationUrl(invitation: Invitation) {
                   <Icon v-else name="lucide:plus" :size="20" class="mr-2" />
                   {{ isCreatingGuest ? '建立中...' : '建立訪客連結' }}
                 </ui-button>
-
-                <div v-if="generatedGuestInvitation" class="bg-card rounded-lg p-4 space-y-3 border">
-                  <div class="flex items-center gap-2">
-                    <Icon name="lucide:check-circle" class="w-5 h-5 text-green-600 dark:text-green-400" />
-                    <p class="text-sm font-medium text-foreground m-0">
-                      訪客連結已建立！
-                    </p>
-                  </div>
-                  <div class="space-y-2">
-                    <div class="flex items-center gap-2">
-                      <ui-input :value="generatedGuestInvitation.url" readonly class="flex-1 font-mono text-sm" />
-                      <ui-button size="sm" variant="outline" @click="copyToClipboard(generatedGuestInvitation.url)">
-                        <Icon name="lucide:copy" :size="16" />
-                      </ui-button>
-                    </div>
-                    <p class="text-xs text-muted-foreground m-0">
-                      有效期限：{{ new Date(generatedGuestInvitation.expiresAt).toLocaleDateString('zh-TW') }}
-                    </p>
-                  </div>
-                </div>
               </div>
 
               <div v-if="pendingGuestInvitations.length > 0" class="space-y-3">
@@ -815,6 +712,16 @@ function getInvitationUrl(invitation: Invitation) {
                           <ui-badge variant="secondary">
                             訪客
                           </ui-badge>
+                        </div>
+                        <div class="text-sm text-muted-foreground space-y-1">
+                          <p class="m-0">
+                            <Icon name="lucide:clock" class="w-4 h-4 inline mr-1" />
+                            到期日：{{ invitation.expiresAtString }}
+                          </p>
+                          <p class="m-0">
+                            <Icon name="lucide:users" class="w-4 h-4 inline mr-1" />
+                            使用次數：{{ getUsageText(invitation) }}
+                          </p>
                         </div>
                         <div class="flex gap-2 mt-2">
                           <ui-button size="sm" variant="outline" @click="copyToClipboard(getInvitationUrl(invitation))">
