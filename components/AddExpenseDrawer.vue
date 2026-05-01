@@ -1258,6 +1258,7 @@ async function submitManual(formValues: { description?: string, grandTotal?: num
                     <ui-input
                       v-model="paidAtTime"
                       type="time"
+                      step="60"
                       class="w-32 shrink-0"
                       aria-label="時間"
                     />
@@ -1394,9 +1395,3 @@ async function submitManual(formValues: { description?: string, grandTotal?: num
     </ui-drawer-content>
   </ui-drawer>
 </template>
-
-<style>
-.drawer-time-input::-webkit-calendar-picker-indicator {
-  margin-right: 4px;
-}
-</style>

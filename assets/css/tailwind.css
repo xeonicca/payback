@@ -136,3 +136,8 @@
     @apply bg-slate-700 text-foreground;
   }
 }
+
+input[type="time"]::-webkit-calendar-picker-indicator {
+  position: relative;
+  right: 12px;
+}
