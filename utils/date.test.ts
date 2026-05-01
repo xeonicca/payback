@@ -1,6 +1,7 @@
 import type { Timestamp } from 'firebase/firestore'
 import { describe, expect, it } from 'vitest'
 import {
+  formatDate,
   formatFirebaseDateAndTime,
   formatFirebaseDate,
   formatFirebaseTime,
@@ -126,5 +127,25 @@ describe('formatFirebaseDateAndTime', () => {
     for (const key of ['year', 'month', 'day', 'hour', 'minute'] as const) {
       expect(result[key]).toMatch(/^\d+$/)
     }
+  })
+})
+
+describe('formatDate', () => {
+  it('returns empty string for null', () => {
+    expect(formatDate(null)).toBe('')
+  })
+
+  it('returns empty string for undefined', () => {
+    expect(formatDate(undefined)).toBe('')
+  })
+
+  it('returns a string matching YYYY/MM/DD, HH:mm format', () => {
+    const result = formatDate(new Date(MARCH_15_NOON_UTC))
+    expect(result).toMatch(/^\d{4}\/\d{2}\/\d{2}, \d{2}:\d{2}$/)
+  })
+
+  it('includes the correct year', () => {
+    const result = formatDate(new Date(MARCH_15_NOON_UTC))
+    expect(result.startsWith('2024/')).toBe(true)
   })
 })

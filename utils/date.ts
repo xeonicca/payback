@@ -62,6 +62,19 @@ export function formatFirebaseTime(timestamp: Timestamp | null | undefined): str
   }).format(date)
 }
 
+export function formatDate(date: Date | null | undefined): string {
+  if (!date)
+    return ''
+  return new Intl.DateTimeFormat('en-US', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  }).format(date).replace(/(\d+)\/(\d+)\/(\d+)/, '$3/$1/$2')
+}
+
 export function formatFirebaseDateAndTime(timestamp: Timestamp | null | undefined): {
   year: string
   month: string
