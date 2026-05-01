@@ -145,6 +145,7 @@ function getInitialValues() {
 const formInitialized = ref(false)
 const initialCurrency = ref<string>('')
 const initialExchangeRate = ref<number>(0)
+const initialGrandTotal = ref<number>(0)
 const paidAtTime = ref<string>('')
 const initialPaidAtTime = ref<string>('')
 const isSubmitting = ref(false)
@@ -171,6 +172,7 @@ watch(expense, (exp) => {
     initialCurrency.value = startingCurrency
     initialExchangeRate.value = startingRate
     const initialValues = getInitialValues()
+    initialGrandTotal.value = (initialValues.grandTotal as number) ?? 0
     resetForm({ values: initialValues })
     const { hour, minute } = exp.paidAtObject
     const timeStr = hour && minute
@@ -228,6 +230,10 @@ function toggleSelectAllMembers() {
 }
 
 watch(calculatedTotal, (newTotal) => {
+  if (!hasItems.value) {
+    setFieldValue('grandTotal', initialGrandTotal.value)
+    return
+  }
   setFieldValue('grandTotal', Math.round(newTotal * 100) / 100)
 })
 
