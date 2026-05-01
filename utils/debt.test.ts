@@ -317,5 +317,103 @@ describe('debt calculations', () => {
       expect(calculateDebtAmount(expenses, 'bob', 'charlie')).toBe(10)
       expect(calculateDebtAmount(expenses, 'charlie', 'alice')).toBe(-40)
     })
+
+    it('should return 0 when both members have positive balance', () => {
+      const expenses: Expense[] = [
+        {
+          id: '1',
+          paidByMemberId: 'alice',
+          grandTotal: 90,
+          sharedWithMemberIds: ['alice', 'bob', 'charlie'],
+          items: [],
+        } as Expense,
+        {
+          id: '2',
+          paidByMemberId: 'bob',
+          grandTotal: 60,
+          sharedWithMemberIds: ['alice', 'bob', 'charlie'],
+          items: [],
+        } as Expense,
+      ]
+
+      // Alice balance: +40, Bob balance: +10 — neither owes the other
+      expect(calculateDebtAmount(expenses, 'alice', 'bob')).toBe(0)
+      expect(calculateDebtAmount(expenses, 'bob', 'alice')).toBe(0)
+    })
+
+    it('should return 0 when both members have negative balance', () => {
+      const expenses: Expense[] = [
+        {
+          id: '1',
+          paidByMemberId: 'charlie',
+          grandTotal: 90,
+          sharedWithMemberIds: ['alice', 'bob', 'charlie'],
+          items: [],
+        } as Expense,
+      ]
+
+      // Alice balance: -30, Bob balance: -30 — neither owes the other
+      expect(calculateDebtAmount(expenses, 'alice', 'bob')).toBe(0)
+    })
+
+    it('should return 0 for empty expenses', () => {
+      expect(calculateDebtAmount([], 'alice', 'bob')).toBe(0)
+    })
+  })
+
+  describe('edge cases', () => {
+    it('calculateMemberPaidAmount returns 0 for empty expenses', () => {
+      expect(calculateMemberPaidAmount([], 'alice')).toBe(0)
+    })
+
+    it('calculateMemberOwedAmount returns 0 for empty expenses', () => {
+      expect(calculateMemberOwedAmount([], 'alice')).toBe(0)
+    })
+
+    it('calculateMemberBalance returns 0 for empty expenses', () => {
+      expect(calculateMemberBalance([], 'alice')).toBe(0)
+    })
+
+    it('items with zero price do not contribute to owed amount', () => {
+      const expenses: Expense[] = [
+        {
+          id: '1',
+          paidByMemberId: 'alice',
+          grandTotal: 50,
+          sharedWithMemberIds: ['alice', 'bob'],
+          items: [
+            { name: 'Free item', price: 0, quantity: 1, sharedByMemberIds: ['alice', 'bob'] },
+            { name: 'Paid item', price: 50, quantity: 1, sharedByMemberIds: ['alice', 'bob'] },
+          ],
+        } as Expense,
+      ]
+
+      expect(calculateMemberOwedAmount(expenses, 'alice')).toBe(25)
+      expect(calculateMemberOwedAmount(expenses, 'bob')).toBe(25)
+    })
+
+    it('item sharedByMemberIds members not in sharedWithMemberIds are excluded', () => {
+      const expenses: Expense[] = [
+        {
+          id: '1',
+          paidByMemberId: 'alice',
+          grandTotal: 60,
+          sharedWithMemberIds: ['alice', 'bob'],
+          items: [
+            {
+              name: 'Item',
+              price: 60,
+              quantity: 1,
+              // charlie is listed but is not in sharedWithMemberIds — should be ignored
+              sharedByMemberIds: ['alice', 'bob', 'charlie'],
+            },
+          ],
+        } as Expense,
+      ]
+
+      expect(calculateMemberOwedAmount(expenses, 'alice')).toBe(30)
+      expect(calculateMemberOwedAmount(expenses, 'bob')).toBe(30)
+      expect(calculateMemberOwedAmount(expenses, 'charlie')).toBe(0)
+    })
   })
 })
