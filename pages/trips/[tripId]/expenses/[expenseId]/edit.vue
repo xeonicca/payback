@@ -828,79 +828,75 @@ function updateItemSharing(index: number, memberIds: string[]) {
       </div>
     </form>
 
-    <!-- Item sharer drawer -->
-    <ui-drawer :open="sharerModalIndex !== null" @update:open="(open) => { if (!open) sharerModalIndex = null }">
-      <ui-drawer-content>
-        <div class="mx-auto w-full max-w-md px-6 pb-8 pt-2">
-          <ui-drawer-header class="px-0 pt-4 pb-5">
-            <ui-drawer-title class="text-base font-semibold">
-              選擇分攤成員
-            </ui-drawer-title>
-            <ui-drawer-description class="text-xs text-muted-foreground">
-              未選擇則由所有分攤成員共同分攤
-            </ui-drawer-description>
-          </ui-drawer-header>
+    <!-- Item sharer dialog -->
+    <ui-dialog :open="sharerModalIndex !== null" @update:open="(open) => { if (!open) sharerModalIndex = null }">
+      <ui-dialog-content class="max-w-sm" :show-close-button="false">
+        <ui-dialog-header>
+          <ui-dialog-title>選擇分攤成員</ui-dialog-title>
+          <ui-dialog-description class="text-xs text-muted-foreground">
+            未選擇則由所有分攤成員共同分攤
+          </ui-dialog-description>
+        </ui-dialog-header>
 
-          <div v-if="sharerModalIndex !== null" class="space-y-2">
-            <!-- Select all row -->
-            <label
-              class="flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-colors hover:bg-slate-50"
-              :class="(values.items?.[sharerModalIndex]?.sharedByMemberIds || []).length === selectedSharedMembers.length && selectedSharedMembers.length > 0 ? 'border-indigo-200 bg-indigo-50/50' : 'border-transparent'"
-            >
-              <ui-checkbox
-                :checked="(values.items?.[sharerModalIndex]?.sharedByMemberIds || []).length === selectedSharedMembers.length && selectedSharedMembers.length > 0"
-                @update:checked="(checked) => {
-                  const idx = sharerModalIndex!
-                  updateItemSharing(idx, checked ? selectedSharedMembers.map(m => m.id) : [])
-                }"
-              />
-              <span class="text-sm font-semibold text-foreground flex-1">全選</span>
-            </label>
+        <div v-if="sharerModalIndex !== null" class="space-y-2">
+          <!-- Select all row -->
+          <label
+            class="flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-colors hover:bg-slate-50"
+            :class="(values.items?.[sharerModalIndex]?.sharedByMemberIds || []).length === selectedSharedMembers.length && selectedSharedMembers.length > 0 ? 'border-indigo-200 bg-indigo-50/50' : 'border-transparent'"
+          >
+            <ui-checkbox
+              :checked="(values.items?.[sharerModalIndex]?.sharedByMemberIds || []).length === selectedSharedMembers.length && selectedSharedMembers.length > 0"
+              @update:checked="(checked) => {
+                const idx = sharerModalIndex!
+                updateItemSharing(idx, checked ? selectedSharedMembers.map(m => m.id) : [])
+              }"
+            />
+            <span class="text-sm font-semibold text-foreground flex-1">全選</span>
+          </label>
 
-            <div class="border-t border-slate-100 my-1" />
+          <div class="border-t border-slate-100 my-1" />
 
-            <label
-              v-for="member in selectedSharedMembers"
-              :key="member.id"
-              class="flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-colors hover:bg-slate-50"
-              :class="(values.items?.[sharerModalIndex]?.sharedByMemberIds || []).includes(member.id) ? 'border-indigo-200 bg-indigo-50/50' : 'border-transparent'"
-            >
-              <ui-checkbox
-                :checked="(values.items?.[sharerModalIndex]?.sharedByMemberIds || []).includes(member.id)"
-                @update:checked="(checked) => {
-                  const idx = sharerModalIndex!
-                  const currentIds = values.items?.[idx]?.sharedByMemberIds || []
-                  const newIds = checked
-                    ? [...currentIds, member.id]
-                    : currentIds.filter((id: string) => id !== member.id)
-                  updateItemSharing(idx, newIds)
-                }"
-              />
-              <member-avatar :emoji="member.avatarEmoji" size="sm" />
-              <span class="text-sm font-medium text-foreground flex-1">{{ member.name }}</span>
-            </label>
-          </div>
-
-          <div class="flex gap-2 mt-6">
-            <ui-button
-              type="button"
-              variant="outline"
-              class="flex-1"
-              @click="() => { if (sharerModalIndex !== null) updateItemSharing(sharerModalIndex, []); sharerModalIndex = null }"
-            >
-              清除（所有人均攤）
-            </ui-button>
-            <ui-button
-              type="button"
-              class="flex-1"
-              @click="sharerModalIndex = null"
-            >
-              完成
-            </ui-button>
-          </div>
+          <label
+            v-for="member in selectedSharedMembers"
+            :key="member.id"
+            class="flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-colors hover:bg-slate-50"
+            :class="(values.items?.[sharerModalIndex]?.sharedByMemberIds || []).includes(member.id) ? 'border-indigo-200 bg-indigo-50/50' : 'border-transparent'"
+          >
+            <ui-checkbox
+              :checked="(values.items?.[sharerModalIndex]?.sharedByMemberIds || []).includes(member.id)"
+              @update:checked="(checked) => {
+                const idx = sharerModalIndex!
+                const currentIds = values.items?.[idx]?.sharedByMemberIds || []
+                const newIds = checked
+                  ? [...currentIds, member.id]
+                  : currentIds.filter((id: string) => id !== member.id)
+                updateItemSharing(idx, newIds)
+              }"
+            />
+            <member-avatar :emoji="member.avatarEmoji" size="sm" />
+            <span class="text-sm font-medium text-foreground flex-1">{{ member.name }}</span>
+          </label>
         </div>
-      </ui-drawer-content>
-    </ui-drawer>
+
+        <ui-dialog-footer class="flex-row gap-2 sm:justify-start">
+          <ui-button
+            type="button"
+            variant="outline"
+            class="flex-1"
+            @click="() => { if (sharerModalIndex !== null) updateItemSharing(sharerModalIndex, []); sharerModalIndex = null }"
+          >
+            清除（所有人均攤）
+          </ui-button>
+          <ui-button
+            type="button"
+            class="flex-1"
+            @click="sharerModalIndex = null"
+          >
+            完成
+          </ui-button>
+        </ui-dialog-footer>
+      </ui-dialog-content>
+    </ui-dialog>
 
     <!-- Sticky bottom action bar -->
     <div class="fixed bottom-0 inset-x-0 bg-background/95 backdrop-blur border-t px-4 pt-4 pb-safe-offset-4 z-20 shadow-[0_-4px_12px_rgba(0,0,0,0.05)]">
