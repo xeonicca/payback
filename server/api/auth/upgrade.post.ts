@@ -1,4 +1,4 @@
-import { getFirebaseAdminFirestore, getUserFromSession } from '~/server/utils/session'
+import { getFirebaseAdminAuth, getFirebaseAdminFirestore, getUserFromSession } from '~/server/utils/session'
 
 export default defineEventHandler(async (event) => {
   const user = await getUserFromSession(event)
@@ -10,8 +10,9 @@ export default defineEventHandler(async (event) => {
     })
   }
 
-  // User should now have Google provider data after linking
-  if (user.providerData.length === 0) {
+  // User should now have Google provider data after linking — verify against Firebase Admin
+  const adminUser = await getFirebaseAdminAuth().getUser(user.uid)
+  if (adminUser.providerData.length === 0) {
     throw createError({
       statusCode: 400,
       statusMessage: 'Account has not been linked to a provider yet',
