@@ -198,6 +198,10 @@ function revealQtyInput(id: string, suffix: string) {
   })
 }
 
+function focusItemPrice(id: string, suffix: string) {
+  document.getElementById(`item-price-${suffix}-${id}`)?.focus()
+}
+
 function onItemBlur(id: string) {
   const item = expenseItems.value.find(it => it.id === id)
   if (item && !item.name.trim() && !item.price) {
@@ -644,7 +648,7 @@ async function submitManual(formValues: { description?: string, grandTotal?: num
                     :value="item.name"
                     class="h-8 px-2 rounded text-[13px] outline-none text-foreground placeholder:text-muted-foreground min-w-0 focus:border focus:border-ring focus:bg-white transition-colors" :class="[item.name ? 'border border-transparent bg-transparent' : 'border border-dashed border-border bg-transparent']"
                     @input="updateItem(item.id, { name: ($event.target as HTMLInputElement).value })"
-                    @keydown.enter.prevent="document.getElementById(`item-price-${item.id}`)?.focus()"
+                    @keydown.enter.prevent="focusItemPrice(item.id, 'd')"
                     @blur="onItemBlur(item.id)"
                   >
                   <button
@@ -668,7 +672,7 @@ async function submitManual(formValues: { description?: string, grandTotal?: num
                     >
                   </div>
                   <input
-                    :id="`item-price-${item.id}`"
+                    :id="`item-price-d-${item.id}`"
                     type="tel"
                     inputmode="decimal"
                     placeholder="0"
@@ -1160,7 +1164,7 @@ async function submitManual(formValues: { description?: string, grandTotal?: num
                       :value="item.name"
                       class="h-8 px-2 rounded text-[13px] outline-none text-foreground placeholder:text-muted-foreground min-w-0 focus:border focus:border-ring focus:bg-white transition-colors" :class="[item.name ? 'border border-transparent bg-transparent' : 'border border-dashed border-border bg-transparent']"
                       @input="updateItem(item.id, { name: ($event.target as HTMLInputElement).value })"
-                      @keydown.enter.prevent="document.getElementById(`item-price-m-${item.id}`)?.focus()"
+                      @keydown.enter.prevent="focusItemPrice(item.id, 'm')"
                       @blur="onItemBlur(item.id)"
                     >
                     <button

@@ -17,7 +17,7 @@ describe('debt calculations', () => {
           paidByMemberId: 'alice',
           grandTotal: 100,
           sharedWithMemberIds: ['alice', 'bob'],
-        } as Expense,
+        } as unknown as Expense,
       ]
 
       expect(calculateMemberPaidAmount(expenses, 'bob')).toBe(0)
@@ -30,7 +30,7 @@ describe('debt calculations', () => {
           paidByMemberId: 'alice',
           grandTotal: 100,
           sharedWithMemberIds: ['alice', 'bob'],
-        } as Expense,
+        } as unknown as Expense,
       ]
 
       expect(calculateMemberPaidAmount(expenses, 'alice')).toBe(100)
@@ -43,19 +43,19 @@ describe('debt calculations', () => {
           paidByMemberId: 'alice',
           grandTotal: 100,
           sharedWithMemberIds: ['alice', 'bob'],
-        } as Expense,
+        } as unknown as Expense,
         {
           id: '2',
           paidByMemberId: 'alice',
           grandTotal: 50,
           sharedWithMemberIds: ['alice', 'bob'],
-        } as Expense,
+        } as unknown as Expense,
         {
           id: '3',
           paidByMemberId: 'bob',
           grandTotal: 75,
           sharedWithMemberIds: ['alice', 'bob'],
-        } as Expense,
+        } as unknown as Expense,
       ]
 
       expect(calculateMemberPaidAmount(expenses, 'alice')).toBe(150)
@@ -70,7 +70,7 @@ describe('debt calculations', () => {
           paidByMemberId: 'alice',
           grandTotal: 100,
           sharedWithMemberIds: ['alice', 'bob'],
-        } as Expense,
+        } as unknown as Expense,
       ]
 
       expect(calculateMemberOwedAmount(expenses, 'charlie')).toBe(0)
@@ -84,7 +84,7 @@ describe('debt calculations', () => {
           grandTotal: 100,
           sharedWithMemberIds: ['alice', 'bob'],
           items: [],
-        } as Expense,
+        } as unknown as Expense,
       ]
 
       expect(calculateMemberOwedAmount(expenses, 'alice')).toBe(50)
@@ -99,7 +99,7 @@ describe('debt calculations', () => {
           grandTotal: 150,
           sharedWithMemberIds: ['alice', 'bob', 'charlie'],
           items: [],
-        } as Expense,
+        } as unknown as Expense,
       ]
 
       expect(calculateMemberOwedAmount(expenses, 'alice')).toBe(50)
@@ -128,7 +128,7 @@ describe('debt calculations', () => {
               sharedByMemberIds: [], // Empty means all expense members share
             },
           ],
-        } as Expense,
+        } as unknown as Expense,
       ]
 
       // Alice: 60/2 (pizza) + 40/3 (drinks) = 30 + 13.33 = 43.33
@@ -154,7 +154,7 @@ describe('debt calculations', () => {
               sharedByMemberIds: ['alice', 'bob'],
             },
           ],
-        } as Expense,
+        } as unknown as Expense,
       ]
 
       // Each person: 20/2 = 10
@@ -172,7 +172,7 @@ describe('debt calculations', () => {
           grandTotal: 100,
           sharedWithMemberIds: ['alice', 'bob'],
           items: [],
-        } as Expense,
+        } as unknown as Expense,
       ]
 
       // Alice paid 100 but only owes 50, so balance is +50
@@ -187,7 +187,7 @@ describe('debt calculations', () => {
           grandTotal: 100,
           sharedWithMemberIds: ['alice', 'bob'],
           items: [],
-        } as Expense,
+        } as unknown as Expense,
       ]
 
       // Bob paid 0 but owes 50, so balance is -50
@@ -202,14 +202,14 @@ describe('debt calculations', () => {
           grandTotal: 100,
           sharedWithMemberIds: ['alice', 'bob'],
           items: [],
-        } as Expense,
+        } as unknown as Expense,
         {
           id: '2',
           paidByMemberId: 'bob',
           grandTotal: 100,
           sharedWithMemberIds: ['alice', 'bob'],
           items: [],
-        } as Expense,
+        } as unknown as Expense,
       ]
 
       // Alice paid 100, owes 100, balance = 0
@@ -228,14 +228,14 @@ describe('debt calculations', () => {
           grandTotal: 100,
           sharedWithMemberIds: ['alice', 'bob'],
           items: [],
-        } as Expense,
+        } as unknown as Expense,
         {
           id: '2',
           paidByMemberId: 'bob',
           grandTotal: 100,
           sharedWithMemberIds: ['alice', 'bob'],
           items: [],
-        } as Expense,
+        } as unknown as Expense,
       ]
 
       expect(calculateDebtAmount(expenses, 'alice', 'bob')).toBe(0)
@@ -249,7 +249,7 @@ describe('debt calculations', () => {
           grandTotal: 100,
           sharedWithMemberIds: ['alice', 'bob'],
           items: [],
-        } as Expense,
+        } as unknown as Expense,
       ]
 
       // Alice balance: +50, Bob balance: -50
@@ -265,7 +265,7 @@ describe('debt calculations', () => {
           grandTotal: 100,
           sharedWithMemberIds: ['alice', 'bob'],
           items: [],
-        } as Expense,
+        } as unknown as Expense,
       ]
 
       // Bob balance: -50, Alice balance: +50
@@ -281,7 +281,7 @@ describe('debt calculations', () => {
           grandTotal: 150,
           sharedWithMemberIds: ['alice', 'bob', 'charlie'],
           items: [],
-        } as Expense,
+        } as unknown as Expense,
       ]
 
       // Alice: paid 150, owes 50, balance = +100
@@ -299,14 +299,14 @@ describe('debt calculations', () => {
           grandTotal: 90,
           sharedWithMemberIds: ['alice', 'bob', 'charlie'],
           items: [],
-        } as Expense,
+        } as unknown as Expense,
         {
           id: '2',
           paidByMemberId: 'bob',
           grandTotal: 60,
           sharedWithMemberIds: ['alice', 'bob', 'charlie'],
           items: [],
-        } as Expense,
+        } as unknown as Expense,
       ]
 
       // Total: 150, each owes 50
@@ -327,14 +327,14 @@ describe('debt calculations', () => {
           grandTotal: 90,
           sharedWithMemberIds: ['alice', 'bob', 'charlie'],
           items: [],
-        } as Expense,
+        } as unknown as Expense,
         {
           id: '2',
           paidByMemberId: 'bob',
           grandTotal: 60,
           sharedWithMemberIds: ['alice', 'bob', 'charlie'],
           items: [],
-        } as Expense,
+        } as unknown as Expense,
       ]
 
       // Alice balance: +40, Bob balance: +10 — neither owes the other
@@ -350,7 +350,7 @@ describe('debt calculations', () => {
           grandTotal: 90,
           sharedWithMemberIds: ['alice', 'bob', 'charlie'],
           items: [],
-        } as Expense,
+        } as unknown as Expense,
       ]
 
       // Alice balance: -30, Bob balance: -30 — neither owes the other
@@ -386,7 +386,7 @@ describe('debt calculations', () => {
             { name: 'Free item', price: 0, quantity: 1, sharedByMemberIds: ['alice', 'bob'] },
             { name: 'Paid item', price: 50, quantity: 1, sharedByMemberIds: ['alice', 'bob'] },
           ],
-        } as Expense,
+        } as unknown as Expense,
       ]
 
       expect(calculateMemberOwedAmount(expenses, 'alice')).toBe(25)
@@ -409,7 +409,7 @@ describe('debt calculations', () => {
               sharedByMemberIds: ['alice', 'bob', 'charlie'],
             },
           ],
-        } as Expense,
+        } as unknown as Expense,
       ]
 
       expect(calculateMemberOwedAmount(expenses, 'alice')).toBe(30)
@@ -429,7 +429,7 @@ describe('debt calculations', () => {
           items: [
             { name: 'Item', price: 50, quantity: 1, sharedByMemberIds: ['alice', 'bob'] },
           ],
-        } as Expense,
+        } as unknown as Expense,
       ]
 
       // Each person owes 25 (item-based), not 75 (grandTotal / 2)
@@ -448,7 +448,7 @@ describe('debt calculations', () => {
             { name: 'Item A', price: 60, quantity: 1, sharedByMemberIds: ['alice', 'bob'] },
             { name: 'Item B', price: 40, quantity: 1, sharedByMemberIds: ['alice', 'bob'] },
           ],
-        } as Expense,
+        } as unknown as Expense,
       ]
 
       const totalPaid = calculateMemberPaidAmount(expenses, 'alice') + calculateMemberPaidAmount(expenses, 'bob')
@@ -467,7 +467,7 @@ describe('debt calculations', () => {
           items: [
             { name: 'Item', price: 100, quantity: 1, sharedByMemberIds: ['alice', 'bob'] },
           ],
-        } as Expense,
+        } as unknown as Expense,
       ]
 
       const totalPaid = calculateMemberPaidAmount(expenses, 'alice') + calculateMemberPaidAmount(expenses, 'bob')

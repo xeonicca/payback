@@ -1,11 +1,10 @@
 // composables/useCurrencyToggle.ts
 import type { Trip } from '@/types'
-import type { MaybeRef } from 'vue'
 
 // Global reactive map: tripId -> boolean (true = show home currency)
 const showHomeCurrencyMap = reactive<Record<string, boolean>>({})
 
-export function useCurrencyToggle(tripId: MaybeRef<string>, trip: Ref<Trip | null | undefined>) {
+export function useCurrencyToggle(tripId: MaybeRefOrGetter<string>, trip: Ref<Trip | null | undefined>) {
   const showHomeCurrency = computed({
     get: () => showHomeCurrencyMap[toValue(tripId)] ?? false,
     set: (val: boolean) => { showHomeCurrencyMap[toValue(tripId)] = val },

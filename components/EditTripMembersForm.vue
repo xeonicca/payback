@@ -46,7 +46,7 @@ const hostMember = computed(() => {
 
 // Update form avatar when available emojis change
 watch(availableEmojis, (newAvailable) => {
-  if (newAvailable.length > 0 && !newAvailable.includes(form.values.avatar)) {
+  if (newAvailable.length > 0 && form.values.avatar !== undefined && !newAvailable.includes(form.values.avatar)) {
     form.setFieldValue('avatar', newAvailable[0])
   }
 }, { immediate: true })

@@ -3,9 +3,9 @@ interface TwdCurrency {
 }
 
 export function useExchangeRate(
-  tripCurrency: MaybeRef<string>,
-  defaultCurrency: MaybeRef<string>,
-  fallbackRate: MaybeRef<number>,
+  tripCurrency: MaybeRefOrGetter<string>,
+  defaultCurrency: MaybeRefOrGetter<string>,
+  fallbackRate: MaybeRefOrGetter<number>,
 ) {
   const rate = ref(toValue(fallbackRate))
   const isLoading = ref(false)

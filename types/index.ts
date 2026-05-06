@@ -39,7 +39,7 @@ export interface NewTrip {
   collaboratorCount?: number
   memberCount?: number
   isPublicInviteEnabled?: boolean
-  publicJoinCode?: string
+  publicJoinCode?: string | null
   collaboratorUserIds?: string[]
   ownerDisplayName?: string
   memberEmojis?: string[]
