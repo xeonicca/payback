@@ -152,6 +152,7 @@ const isSubmitting = ref(false)
 const itemsExpanded = ref(false)
 const itemsListRef = ref<HTMLElement | null>(null)
 const sharerModalIndex = ref<number | null>(null)
+const splitDialogIndex = ref<number | null>(null)
 // Plain (non-reactive) array of raw display strings for item prices.
 // Decouples what the user sees from the parsed form value so mid-edit states like "00"
 // are not normalized back to "0". Non-reactive intentionally — re-renders are driven by
@@ -161,6 +162,10 @@ const itemPriceRaw: string[] = []
 const { values, meta, isFieldDirty, setFieldValue, handleSubmit, resetForm } = useForm({
   validationSchema: formSchema,
 })
+
+const splitDialogItem = computed(() =>
+  splitDialogIndex.value !== null ? (values.items?.[splitDialogIndex.value] ?? null) : null,
+)
 
 // Initialize form once expense data loads
 watch(expense, (exp) => {
@@ -397,6 +402,35 @@ function updateItem(index: number, field: keyof ExpenseDetailItem, value: any) {
 
 function updateItemSharing(index: number, memberIds: string[]) {
   setFieldValue(`items[${index}].sharedByMemberIds` as any, memberIds)
+}
+
+function splitItem(originalIndex: number, splitQuantity: number, splitMemberIds: string[]) {
+  const items = values.items || []
+  const original = items[originalIndex]
+  if (!original)
+    return
+  const originalQuantity = original.quantity ?? 1
+  if (!Number.isInteger(splitQuantity) || splitQuantity < 1 || splitQuantity >= originalQuantity)
+    return
+
+  const updatedOriginal: ExpenseDetailItem = {
+    ...original,
+    quantity: originalQuantity - splitQuantity,
+  }
+  const newItem: ExpenseDetailItem = {
+    name: original.name,
+    price: original.price,
+    quantity: splitQuantity,
+    ...(original.translatedName ? { translatedName: original.translatedName } : {}),
+    sharedByMemberIds: [...splitMemberIds],
+  }
+
+  const updatedItems = [...items]
+  updatedItems[originalIndex] = updatedOriginal
+  updatedItems.splice(originalIndex + 1, 0, newItem)
+  setFieldValue('items', updatedItems)
+  itemPriceRaw.splice(originalIndex + 1, 0, String(original.price))
+  splitDialogIndex.value = null
 }
 </script>
 
@@ -710,16 +744,29 @@ function updateItemSharing(index: number, memberIds: string[]) {
                   <h4 class="text-xs font-semibold uppercase tracking-wide text-muted-foreground m-0">
                     #{{ index + 1 }}
                   </h4>
-                  <ui-button
-                    type="button"
-                    size="icon"
-                    variant="ghost"
-                    class="size-11 text-destructive hover:text-destructive"
-                    :aria-label="`刪除項目 ${index + 1}`"
-                    @click="removeItem(index)"
-                  >
-                    <Icon name="lucide:trash-2" :size="16" />
-                  </ui-button>
+                  <div class="flex items-center gap-1">
+                    <ui-button
+                      v-if="(item.quantity ?? 1) > 1"
+                      type="button"
+                      size="icon"
+                      variant="ghost"
+                      class="size-11 text-muted-foreground hover:text-foreground"
+                      :aria-label="`拆分項目 ${index + 1}`"
+                      @click="splitDialogIndex = index"
+                    >
+                      <Icon name="lucide:split" :size="16" />
+                    </ui-button>
+                    <ui-button
+                      type="button"
+                      size="icon"
+                      variant="ghost"
+                      class="size-11 text-destructive hover:text-destructive"
+                      :aria-label="`刪除項目 ${index + 1}`"
+                      @click="removeItem(index)"
+                    >
+                      <Icon name="lucide:trash-2" :size="16" />
+                    </ui-button>
+                  </div>
                 </div>
 
                 <!-- Name: primary, full width -->
@@ -914,6 +961,17 @@ function updateItemSharing(index: number, memberIds: string[]) {
         </ui-dialog-footer>
       </ui-dialog-content>
     </ui-dialog>
+
+    <!-- Split item dialog -->
+    <expense-item-split-dialog
+      :open="splitDialogIndex !== null"
+      :item="splitDialogItem"
+      :item-index="splitDialogIndex"
+      :currency="selectedCurrency"
+      :shareable-members="selectedSharedMembers"
+      @update:open="(open) => { if (!open) splitDialogIndex = null }"
+      @split="splitItem"
+    />
 
     <!-- Sticky bottom action bar -->
     <div class="fixed bottom-0 inset-x-0 bg-background/95 backdrop-blur border-t px-4 pt-4 pb-safe-offset-4 z-20 shadow-[0_-4px_12px_rgba(0,0,0,0.05)]">
