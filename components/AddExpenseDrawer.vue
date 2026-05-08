@@ -228,6 +228,31 @@ function toggleSplitPicker() {
   showPayerPicker.value = false
 }
 
+function scrollAccordionIntoView(name: 'payer' | 'split' | 'items') {
+  nextTick(() => {
+    const elements = document.querySelectorAll<HTMLElement>(`[data-accordion="${name}"]`)
+    for (const el of elements) {
+      if (el.offsetParent !== null) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+        break
+      }
+    }
+  })
+}
+
+watch(showPayerPicker, (val) => {
+  if (val)
+    scrollAccordionIntoView('payer')
+})
+watch(showSplitPicker, (val) => {
+  if (val)
+    scrollAccordionIntoView('split')
+})
+watch(showItemsPicker, (val) => {
+  if (val)
+    scrollAccordionIntoView('items')
+})
+
 // Reset form when opened
 watch(open, (val) => {
   if (val) {
@@ -431,7 +456,7 @@ async function submitManual(formValues: { description?: string, grandTotal?: num
             <ui-separator />
 
             <!-- Payer: compact accordion row -->
-            <div>
+            <div data-accordion="payer">
               <button
                 type="button"
                 class="flex w-full items-center gap-3 py-1.5 rounded-md hover:bg-muted/50 transition-colors"
@@ -469,7 +494,7 @@ async function submitManual(formValues: { description?: string, grandTotal?: num
             </div>
 
             <!-- Splitters: compact accordion row -->
-            <div>
+            <div data-accordion="split">
               <button
                 type="button"
                 class="flex w-full items-center gap-3 py-1.5 rounded-md hover:bg-muted/50 transition-colors"
@@ -612,7 +637,7 @@ async function submitManual(formValues: { description?: string, grandTotal?: num
             </ui-form-field>
 
             <!-- Items accordion -->
-            <div>
+            <div data-accordion="items">
               <button
                 type="button"
                 class="flex w-full items-center gap-3 py-1.5 rounded-md hover:bg-muted/50 transition-colors"
@@ -767,7 +792,7 @@ async function submitManual(formValues: { description?: string, grandTotal?: num
             <ui-separator />
 
             <!-- Payer: compact accordion row -->
-            <div>
+            <div data-accordion="payer">
               <button
                 type="button"
                 class="flex w-full items-center gap-3 py-1.5 rounded-md hover:bg-muted/50 transition-colors"
@@ -805,7 +830,7 @@ async function submitManual(formValues: { description?: string, grandTotal?: num
             </div>
 
             <!-- Splitters: compact accordion row -->
-            <div>
+            <div data-accordion="split">
               <button
                 type="button"
                 class="flex w-full items-center gap-3 py-1.5 rounded-md hover:bg-muted/50 transition-colors"
@@ -947,7 +972,7 @@ async function submitManual(formValues: { description?: string, grandTotal?: num
               <ui-separator />
 
               <!-- Payer: compact accordion row -->
-              <div>
+              <div data-accordion="payer">
                 <button
                   type="button"
                   class="flex w-full items-center gap-3 py-1.5 rounded-md hover:bg-muted/50 transition-colors"
@@ -985,7 +1010,7 @@ async function submitManual(formValues: { description?: string, grandTotal?: num
               </div>
 
               <!-- Splitters: compact accordion row -->
-              <div>
+              <div data-accordion="split">
                 <button
                   type="button"
                   class="flex w-full items-center gap-3 py-1.5 rounded-md hover:bg-muted/50 transition-colors"
@@ -1128,7 +1153,7 @@ async function submitManual(formValues: { description?: string, grandTotal?: num
               </ui-form-field>
 
               <!-- Items accordion -->
-              <div>
+              <div data-accordion="items">
                 <button
                   type="button"
                   class="flex w-full items-center gap-3 py-1.5 rounded-md hover:bg-muted/50 transition-colors"
@@ -1283,7 +1308,7 @@ async function submitManual(formValues: { description?: string, grandTotal?: num
               <ui-separator />
 
               <!-- Payer: compact accordion row -->
-              <div>
+              <div data-accordion="payer">
                 <button
                   type="button"
                   class="flex w-full items-center gap-3 py-1.5 rounded-md hover:bg-muted/50 transition-colors"
@@ -1321,7 +1346,7 @@ async function submitManual(formValues: { description?: string, grandTotal?: num
               </div>
 
               <!-- Splitters: compact accordion row -->
-              <div>
+              <div data-accordion="split">
                 <button
                   type="button"
                   class="flex w-full items-center gap-3 py-1.5 rounded-md hover:bg-muted/50 transition-colors"
