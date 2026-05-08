@@ -413,16 +413,33 @@ function splitItem(originalIndex: number, splitQuantity: number, splitMemberIds:
   if (!Number.isInteger(splitQuantity) || splitQuantity < 1 || splitQuantity >= originalQuantity)
     return
 
+  // Materialize "[] means all expense sharers" so we can subtract split members.
+  const expenseSharers = values.sharedWithMemberIds || []
+  const originalEffective = original.sharedByMemberIds && original.sharedByMemberIds.length > 0
+    ? original.sharedByMemberIds
+    : expenseSharers
+  const splitSet = new Set(splitMemberIds)
+  const remainingShared = originalEffective.filter(id => !splitSet.has(id))
+  // Defensive: refuse if it would leave the original with no sharers — the
+  // dialog already blocks this, but [] would silently fall back to "all".
+  if (remainingShared.length === 0)
+    return
+
+  const expenseSharerSet = new Set(expenseSharers)
+  const isAllExpenseSharers = (ids: string[]) =>
+    ids.length === expenseSharers.length && ids.every(id => expenseSharerSet.has(id))
+
   const updatedOriginal: ExpenseDetailItem = {
     ...original,
     quantity: originalQuantity - splitQuantity,
+    sharedByMemberIds: isAllExpenseSharers(remainingShared) ? [] : remainingShared,
   }
   const newItem: ExpenseDetailItem = {
     name: original.name,
     price: original.price,
     quantity: splitQuantity,
     ...(original.translatedName ? { translatedName: original.translatedName } : {}),
-    sharedByMemberIds: [...splitMemberIds],
+    sharedByMemberIds: isAllExpenseSharers(splitMemberIds) ? [] : [...splitMemberIds],
   }
 
   const updatedItems = [...items]

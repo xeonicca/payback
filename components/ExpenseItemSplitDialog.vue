@@ -27,7 +27,30 @@ const isValidQuantity = computed(() =>
 )
 
 const hasMembers = computed(() => splitMemberIds.value.length > 0)
-const canSplit = computed(() => isValidQuantity.value && hasMembers.value && props.itemIndex !== null)
+
+// Materialize the "[] means all expense sharers" convention so we can correctly
+// detect when the split would empty the original.
+const originalEffectiveSharers = computed(() => {
+  if (!props.item)
+    return [] as string[]
+  return props.item.sharedByMemberIds && props.item.sharedByMemberIds.length > 0
+    ? props.item.sharedByMemberIds
+    : props.shareableMembers.map(m => m.id)
+})
+
+const wouldEmptyOriginal = computed(() => {
+  if (!hasMembers.value || originalEffectiveSharers.value.length === 0)
+    return false
+  const splitSet = new Set(splitMemberIds.value)
+  return originalEffectiveSharers.value.every(id => splitSet.has(id))
+})
+
+const canSplit = computed(() =>
+  isValidQuantity.value
+  && hasMembers.value
+  && !wouldEmptyOriginal.value
+  && props.itemIndex !== null,
+)
 
 const allSelected = computed(() =>
   splitMemberIds.value.length === props.shareableMembers.length && props.shareableMembers.length > 0,
@@ -113,7 +136,10 @@ function handleClose() {
         <div v-if="shareableMembers.length > 0" class="space-y-2">
           <ui-label>新項目分攤成員</ui-label>
           <p class="text-xs text-muted-foreground -mt-1">
-            選擇拆出的新項目由誰分攤
+            選擇拆出的新項目由誰分攤（這些成員將不再分攤原項目）
+          </p>
+          <p v-if="wouldEmptyOriginal" class="text-xs text-destructive -mt-1">
+            拆出後原項目將沒有分攤成員，請取消勾選至少一位成員
           </p>
           <div class="space-y-1 rounded-xl border p-1">
             <div
