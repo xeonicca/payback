@@ -33,26 +33,23 @@ watch(() => props.item, (item) => {
   priceRaw.value = String(item.price)
   quantity.value = item.quantity ?? 1
   translatedName.value = item.translatedName ?? ''
-  sharedByMemberIds.value = [...(item.sharedByMemberIds ?? [])]
+  // Materialize the "[] means all" convention into an explicit list so the
+  // checkbox UI and toggle handler operate on the same source of truth.
+  // handleSave normalizes back to [] when every member is selected.
+  sharedByMemberIds.value = item.sharedByMemberIds && item.sharedByMemberIds.length > 0
+    ? [...item.sharedByMemberIds]
+    : props.shareableMembers.map(m => m.id)
 }, { immediate: true })
-
-// When sharedByMemberIds is [], all members share (same convention as edit.vue)
-const effectiveSharedIds = computed(() =>
-  sharedByMemberIds.value.length === 0
-    ? props.shareableMembers.map(m => m.id)
-    : sharedByMemberIds.value,
-)
 
 const allSelected = computed(() =>
   sharedByMemberIds.value.length === props.shareableMembers.length && props.shareableMembers.length > 0,
 )
 
 function toggleMember(memberId: string) {
-  const current = effectiveSharedIds.value
-  const newIds = current.includes(memberId)
+  const current = sharedByMemberIds.value
+  sharedByMemberIds.value = current.includes(memberId)
     ? current.filter(id => id !== memberId)
     : [...current, memberId]
-  sharedByMemberIds.value = newIds
 }
 
 function toggleAll() {
@@ -154,11 +151,11 @@ function handleSave() {
               v-for="member in shareableMembers"
               :key="member.id"
               class="flex items-center gap-3 p-2.5 rounded-lg border cursor-pointer transition-colors hover:bg-slate-50"
-              :class="effectiveSharedIds.includes(member.id) && sharedByMemberIds.length > 0 ? 'border-indigo-200 bg-indigo-50/50' : 'border-transparent'"
+              :class="sharedByMemberIds.includes(member.id) ? 'border-indigo-200 bg-indigo-50/50' : 'border-transparent'"
               @click="toggleMember(member.id)"
             >
               <ui-checkbox
-                :model-value="effectiveSharedIds.includes(member.id) && sharedByMemberIds.length > 0"
+                :model-value="sharedByMemberIds.includes(member.id)"
                 @click.stop
                 @update:model-value="toggleMember(member.id)"
               />
