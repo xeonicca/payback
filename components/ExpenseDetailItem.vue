@@ -80,7 +80,7 @@ const sharedByMemberAvatars = computed(() => {
 })
 
 const googleSearchUrl = computed(() => {
-  const query = (props.item.translatedName || props.item.name || '').trim()
+  const query = (props.item.name || '').trim()
   if (!query)
     return null
   return `https://www.google.com/search?q=${encodeURIComponent(query)}`
