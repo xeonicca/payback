@@ -15,19 +15,24 @@ const emit = defineEmits<{
   (e: 'confirm', percentage: number): void
 }>()
 
-const percentageOptions = [7, 8, 9, 10]
-const selectedPercentage = ref<number | null>(null)
+const presetOptions = [5, 7, 8, 10]
+const percentageRaw = ref('')
 
 watch(() => props.open, (open) => {
   if (open) {
-    selectedPercentage.value = null
+    percentageRaw.value = ''
   }
 })
 
+const percentage = computed(() => {
+  const n = Number.parseFloat(percentageRaw.value)
+  return Number.isFinite(n) && n > 0 ? n : null
+})
+
 const preview = computed(() => {
-  if (selectedPercentage.value === null || !props.currentItems.length)
+  if (percentage.value === null || !props.currentItems.length)
     return null
-  return applyTaxDeduction(props.currentItems, selectedPercentage.value)
+  return applyTaxDeduction(props.currentItems, percentage.value)
 })
 
 const reduction = computed(() => {
@@ -40,10 +45,14 @@ function handleOpenChange(val: boolean) {
   emit('update:open', val)
 }
 
+function selectPreset(pct: number) {
+  percentageRaw.value = String(pct)
+}
+
 function handleConfirm() {
-  if (selectedPercentage.value === null)
+  if (percentage.value === null)
     return
-  emit('confirm', selectedPercentage.value)
+  emit('confirm', percentage.value)
 }
 </script>
 
@@ -63,22 +72,42 @@ function handleConfirm() {
           此支出沒有明細項目，無法套用消費稅扣除。請先新增明細項目。
         </div>
 
-        <!-- Percentage buttons -->
-        <div v-else>
-          <ui-label class="text-sm font-medium text-foreground">
-            稅率
-          </ui-label>
-          <div class="grid grid-cols-4 gap-2 mt-2">
-            <ui-button
-              v-for="pct in percentageOptions"
-              :key="pct"
-              type="button"
-              :variant="selectedPercentage === pct ? 'default' : 'outline'"
-              :disabled="isSaving"
-              @click="selectedPercentage = pct"
-            >
-              {{ pct }}%
-            </ui-button>
+        <!-- Percentage buttons + custom input -->
+        <div v-else class="space-y-3">
+          <div>
+            <ui-label class="text-sm font-medium text-foreground">
+              稅率
+            </ui-label>
+            <div class="grid grid-cols-4 gap-2 mt-2">
+              <ui-button
+                v-for="pct in presetOptions"
+                :key="pct"
+                type="button"
+                :variant="percentage === pct ? 'default' : 'outline'"
+                :disabled="isSaving"
+                @click="selectPreset(pct)"
+              >
+                {{ pct }}%
+              </ui-button>
+            </div>
+          </div>
+          <div>
+            <ui-label class="text-sm font-medium text-foreground">
+              其他
+            </ui-label>
+            <div class="relative mt-1">
+              <ui-input
+                v-model="percentageRaw"
+                type="text"
+                inputmode="decimal"
+                placeholder="自訂百分比"
+                :disabled="isSaving"
+                class="pr-10 font-mono"
+              />
+              <span class="absolute end-3 inset-y-0 flex items-center text-sm text-muted-foreground pointer-events-none">
+                %
+              </span>
+            </div>
           </div>
         </div>
 
@@ -92,7 +121,7 @@ function handleConfirm() {
             <span class="font-mono text-foreground">{{ currency }} {{ currentGrandTotal.toFixed(2) }}</span>
           </div>
           <div class="flex items-center justify-between text-sm">
-            <span class="text-muted-foreground">扣除 {{ selectedPercentage }}%</span>
+            <span class="text-muted-foreground">扣除 {{ percentage }}%</span>
             <span class="font-mono text-red-600 dark:text-red-400">- {{ currency }} {{ reduction.toFixed(2) }}</span>
           </div>
           <div class="border-t border-border pt-2 flex items-center justify-between">
@@ -115,7 +144,7 @@ function handleConfirm() {
         <ui-button
           type="button"
           class="flex-1"
-          :disabled="isSaving || selectedPercentage === null || !currentItems.length"
+          :disabled="isSaving || percentage === null || !currentItems.length"
           @click="handleConfirm"
         >
           <Icon v-if="isSaving" name="lucide:loader-2" class="animate-spin mr-2" :size="16" />
