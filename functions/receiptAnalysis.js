@@ -18,8 +18,8 @@ const storage = new Storage()
 
 // Define Zod schemas with enhanced descriptions for better AI extraction
 const expenseItemSchema = z.object({
-  name: z.string().describe('Primary product name of the item. Remove generic prefixes like "FF " or "Lm".'),
-  translatedName: z.string().nullable().describe('The name translated into the target language ONLY. Do NOT include the original name. If already in target language, use original.'),
+  name: z.string().describe('Primary product name of the item, INCLUDING any serial/line number, product code, SKU, or barcode that appears alongside it on the receipt (e.g., "1. ペプシコーラ", "001 Pepsi", "#A201 Pasta"). These identifiers help the user identify and search for the item later — keep them as part of the name.'),
+  translatedName: z.string().nullable().describe('The name translated into the target language ONLY. Do NOT include the original name. If already in target language, use original. Preserve any serial number / product code prefix exactly as in the source name.'),
   quantity: z.number().nullable().describe('Count of items. Default to 1 if not specified.'),
   price: z.number().describe('The price per SINGLE unit. CAUTION: If the receipt says "2 @ 10.00 = 20.00", the price is 10.00, NOT 20.00. Do not include currency symbols.'),
 })
@@ -138,6 +138,14 @@ Analyze the provided receipt image and extract data into the specified JSON stru
    - Parse ambiguity (e.g., 05/04/2024) using the regional format: ${dateFormat}.
    - Output format: YYYY-MM-DD HH:mm.
    - If invalid, return null.
+
+5. **ITEM NAMES (Preserve Identifiers)**:
+   - KEEP any serial number, line/sequence number, product code, SKU, or barcode that appears with the item name on the receipt.
+   - *Example*: "1. ペプシコーラ" → keep as "1. ペプシコーラ", not just "ペプシコーラ".
+   - *Example*: "#A201 Pasta" → keep as "#A201 Pasta".
+   - *Example*: "001 Pepsi 150" → name is "001 Pepsi" (the trailing 150 is the price, not part of the name).
+   - These identifiers make the item easier to look up and search later — do NOT strip them.
+   - Apply the same rule to 'translatedName': preserve the identifier prefix exactly.
 
 Analyze the receipt now.
 `

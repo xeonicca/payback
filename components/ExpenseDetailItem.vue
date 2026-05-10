@@ -78,13 +78,34 @@ const sharedByMemberAvatars = computed(() => {
     return props.shareableMembers.map(member => member.avatarEmoji)
   return props.shareableMembers.filter(member => props.sharedByMemberIds?.includes(member.id)).map(member => member.avatarEmoji)
 })
+
+const googleSearchUrl = computed(() => {
+  const query = (props.item.translatedName || props.item.name || '').trim()
+  if (!query)
+    return null
+  return `https://www.google.com/search?q=${encodeURIComponent(query)}`
+})
 </script>
 
 <template>
   <div class="relative flex flex-wrap items-start justify-between py-3 border-b border-border last:border-b-0">
     <div class="flex-1 min-w-0">
       <div class="flex flex-col items-start gap-1">
-        <span class="font-medium text-sm text-foreground">{{ item.name }}</span>
+        <div class="flex items-center gap-1.5">
+          <span class="font-medium text-sm text-foreground">{{ item.name }}</span>
+          <a
+            v-if="googleSearchUrl"
+            :href="googleSearchUrl"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="text-muted-foreground hover:text-indigo-600 transition-colors inline-flex items-center"
+            :aria-label="`在 Google 搜尋 ${item.name}`"
+            :title="`在 Google 搜尋 ${item.name}`"
+            @click.stop
+          >
+            <Icon name="lucide:search" :size="12" />
+          </a>
+        </div>
         <div class="font-mono text-xs text-muted-foreground">
           <span v-if="item.price !== 0">
             {{ currency }} {{ Math.round(item.price * 100) / 100 }}
