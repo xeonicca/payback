@@ -88,6 +88,9 @@ export interface NewExpense {
   createdByUserId?: string // Tracks who created the expense (for guest edit permissions)
   lastEditedByUserId?: string // Tracks who last edited the expense
   lastEditedAt?: Timestamp | FieldValue
+  originalItems?: Array<ExpenseDetailItem> // Backup of items before tax deduction
+  originalGrandTotal?: number // Backup of grandTotal before tax deduction
+  taxDeductionPercentage?: number // Active tax deduction percentage (presence indicates deduction is applied)
 }
 
 export interface Expense extends NewExpense {

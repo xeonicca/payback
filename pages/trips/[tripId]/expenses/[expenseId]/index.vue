@@ -1,13 +1,14 @@
 <script setup lang="ts">
 import type { Expense, ExpenseDetailItem, Trip } from '@/types'
 import { computedAsync } from '@vueuse/core'
-import { deleteDoc, doc, serverTimestamp, updateDoc } from 'firebase/firestore'
+import { deleteDoc, deleteField, doc, serverTimestamp, updateDoc } from 'firebase/firestore'
 import { getFunctions, httpsCallable } from 'firebase/functions'
 import { getDownloadURL, ref as storageRef } from 'firebase/storage'
 import { toast } from 'vue-sonner'
 import { useDocument, useFirebaseStorage, useFirestore } from 'vuefire'
 import { useTripMembers } from '@/composables/useTripMember'
 import { expenseConverter, tripConverter } from '@/utils/converter'
+import { applyTaxDeduction } from '@/utils/tax'
 
 definePageMeta({
   middleware: ['auth'],
@@ -42,6 +43,14 @@ const isDeleting = ref(false)
 const isReanalyzing = ref(false)
 const editingItemIndex = ref<number | null>(null)
 const isSavingItem = ref(false)
+const showTaxDeductionDialog = ref(false)
+const showRevertTaxDialog = ref(false)
+const isApplyingTax = ref(false)
+const isRevertingTax = ref(false)
+
+const sessionUser = useSessionUser()
+
+const hasTaxDeduction = computed(() => expense.value?.taxDeductionPercentage != null)
 
 const editingItem = computed(() =>
   editingItemIndex.value !== null ? (expense.value?.items?.[editingItemIndex.value] ?? null) : null,
@@ -268,6 +277,61 @@ async function deleteExpense() {
   }
 }
 
+async function applyTaxDeductionToExpense(percentage: number) {
+  if (!expense.value?.items?.length)
+    return
+  try {
+    isApplyingTax.value = true
+    const sourceItems = expense.value.originalItems ?? expense.value.items
+    const sourceGrandTotal = expense.value.originalGrandTotal ?? expense.value.grandTotal
+    const { items, grandTotal } = applyTaxDeduction(sourceItems, percentage)
+    await updateDoc(doc(db, 'trips', tripId as string, 'expenses', expenseId as string), {
+      items,
+      grandTotal,
+      originalItems: sourceItems,
+      originalGrandTotal: sourceGrandTotal,
+      taxDeductionPercentage: percentage,
+      lastEditedByUserId: sessionUser.value?.uid,
+      lastEditedAt: serverTimestamp(),
+    })
+    showTaxDeductionDialog.value = false
+    toast.success(`已扣除 ${percentage}% 消費稅`)
+  }
+  catch (error) {
+    console.error('Error applying tax deduction:', error)
+    toast.error('套用失敗')
+  }
+  finally {
+    isApplyingTax.value = false
+  }
+}
+
+async function revertTaxDeduction() {
+  if (!expense.value?.originalItems || expense.value.originalGrandTotal == null)
+    return
+  try {
+    isRevertingTax.value = true
+    await updateDoc(doc(db, 'trips', tripId as string, 'expenses', expenseId as string), {
+      items: expense.value.originalItems,
+      grandTotal: expense.value.originalGrandTotal,
+      originalItems: deleteField(),
+      originalGrandTotal: deleteField(),
+      taxDeductionPercentage: deleteField(),
+      lastEditedByUserId: sessionUser.value?.uid,
+      lastEditedAt: serverTimestamp(),
+    })
+    showRevertTaxDialog.value = false
+    toast.success('已還原原始金額')
+  }
+  catch (error) {
+    console.error('Error reverting tax deduction:', error)
+    toast.error('還原失敗')
+  }
+  finally {
+    isRevertingTax.value = false
+  }
+}
+
 async function reanalyzeReceipt() {
   if (!expense.value?.receiptImageUrl || expense.value?.isProcessing)
     return
@@ -326,6 +390,14 @@ async function reanalyzeReceipt() {
             <ui-dropdown-menu-item @click="navigateTo(`/trips/${tripId}/expenses/${expenseId}/edit`)">
               <Icon name="lucide:edit-3" :size="14" class="mr-2" />
               編輯
+            </ui-dropdown-menu-item>
+            <ui-dropdown-menu-item v-if="hasTaxDeduction" @click="showRevertTaxDialog = true">
+              <Icon name="lucide:rotate-ccw" :size="14" class="mr-2" />
+              還原消費稅 ({{ expense?.taxDeductionPercentage }}%)
+            </ui-dropdown-menu-item>
+            <ui-dropdown-menu-item v-else :disabled="!expense?.items?.length" @click="showTaxDeductionDialog = true">
+              <Icon name="lucide:percent" :size="14" class="mr-2" />
+              扣除消費稅
             </ui-dropdown-menu-item>
             <ui-dropdown-menu-separator />
             <ui-dropdown-menu-item class="text-destructive" @click="showDeleteDialog = true">
@@ -388,7 +460,10 @@ async function reanalyzeReceipt() {
                 <div class="flex flex-1 items-center justify-between py-2 hover:no-underline">
                   <div class="flex items-center gap-2">
                     <member-avatar :emoji="member.avatarEmoji" size="sm" />
-                    <span class="text-sm font-medium text-foreground">{{ member.name }}</span>
+                    <div class="flex flex-col items-start">
+                      <span class="text-sm font-medium text-foreground">{{ member.name }}</span>
+                      <span class="text-xs text-muted-foreground">分擔 {{ (memberItemBreakdown[member.id] || []).length }} 項</span>
+                    </div>
                   </div>
                   <div class="text-right mr-4">
                     <div v-if="usedHomeCurrency" class="text-sm font-mono text-primary">
@@ -501,6 +576,47 @@ async function reanalyzeReceipt() {
       @update:open="closeItemEditDialog"
       @save="saveItem"
     />
+
+    <!-- Tax Deduction Dialog -->
+    <expense-tax-deduction-dialog
+      v-model:open="showTaxDeductionDialog"
+      :currency="trip?.tripCurrency || ''"
+      :current-grand-total="expense?.grandTotal || 0"
+      :current-items="expense?.items || []"
+      :is-saving="isApplyingTax"
+      @confirm="applyTaxDeductionToExpense"
+    />
+
+    <!-- Revert Tax Deduction Confirmation Dialog -->
+    <ui-alert-dialog v-model:open="showRevertTaxDialog">
+      <ui-alert-dialog-content>
+        <ui-alert-dialog-header>
+          <ui-alert-dialog-title>還原消費稅</ui-alert-dialog-title>
+          <ui-alert-dialog-description>
+            將還原為扣除 {{ expense?.taxDeductionPercentage }}% 消費稅前的原始金額。
+          </ui-alert-dialog-description>
+        </ui-alert-dialog-header>
+        <div class="rounded-lg border bg-muted/40 p-3 space-y-2">
+          <div class="flex items-center justify-between text-sm">
+            <span class="text-muted-foreground">目前金額</span>
+            <span class="font-mono text-foreground">{{ trip?.tripCurrency }} {{ (expense?.grandTotal || 0).toFixed(2) }}</span>
+          </div>
+          <div class="border-t border-border pt-2 flex items-center justify-between">
+            <span class="text-sm font-medium text-foreground">還原後金額</span>
+            <span class="font-mono text-base font-bold text-primary">{{ trip?.tripCurrency }} {{ (expense?.originalGrandTotal || 0).toFixed(2) }}</span>
+          </div>
+        </div>
+        <ui-alert-dialog-footer>
+          <ui-alert-dialog-cancel :disabled="isRevertingTax">
+            取消
+          </ui-alert-dialog-cancel>
+          <ui-button :disabled="isRevertingTax" @click="revertTaxDeduction">
+            <Icon v-if="isRevertingTax" name="lucide:loader-2" class="animate-spin mr-2" :size="16" />
+            {{ isRevertingTax ? '還原中...' : '確認還原' }}
+          </ui-button>
+        </ui-alert-dialog-footer>
+      </ui-alert-dialog-content>
+    </ui-alert-dialog>
 
     <!-- Delete Expense Confirmation Dialog -->
     <ui-alert-dialog v-if="canDeleteThisExpense" v-model:open="showDeleteDialog">
