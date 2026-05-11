@@ -167,29 +167,40 @@ const splitDialogItem = computed(() =>
   splitDialogIndex.value !== null ? (values.items?.[splitDialogIndex.value] ?? null) : null,
 )
 
-// Initialize form once expense data loads
+// Initialize form when expense data loads. Re-sync on later snapshots only if
+// the user hasn't started editing — VueFire emits a cached snapshot first and a
+// fresh server snapshot moments later, and the stale cache must not stick if a
+// recent detail-page edit (e.g. updating an item's sharers) hasn't propagated yet.
 watch(expense, (exp) => {
-  if (exp && !formInitialized.value) {
-    const startingCurrency = exp.inputCurrency ?? trip.value?.tripCurrency ?? ''
-    const startingRate = exp.exchangeRate ?? trip.value?.exchangeRate ?? 1
-    currencyOverride.value = startingCurrency
-    exchangeRateOverride.value = startingRate
-    initialCurrency.value = startingCurrency
-    initialExchangeRate.value = startingRate
-    const initialValues = getInitialValues()
-    initialGrandTotal.value = (initialValues.grandTotal as number) ?? 0
-    resetForm({ values: initialValues })
-    const { hour, minute } = exp.paidAtObject
-    const timeStr = hour && minute
-      ? `${hour.padStart(2, '0')}:${minute.padStart(2, '0')}`
-      : new Date().toTimeString().slice(0, 5)
-    paidAtTime.value = timeStr
-    initialPaidAtTime.value = timeStr
-    const initialPrices = (initialValues.items || []).map(item => String(item.price ?? 0))
-    itemPriceRaw.splice(0, itemPriceRaw.length, ...initialPrices)
-    itemsExpanded.value = (exp.items?.length || 0) > 0
-    formInitialized.value = true
+  if (!exp)
+    return
+  if (formInitialized.value) {
+    const userHasEdits = meta.value.dirty
+      || selectedCurrency.value !== initialCurrency.value
+      || expenseExchangeRate.value !== initialExchangeRate.value
+      || paidAtTime.value !== initialPaidAtTime.value
+    if (userHasEdits)
+      return
   }
+  const startingCurrency = exp.inputCurrency ?? trip.value?.tripCurrency ?? ''
+  const startingRate = exp.exchangeRate ?? trip.value?.exchangeRate ?? 1
+  currencyOverride.value = startingCurrency
+  exchangeRateOverride.value = startingRate
+  initialCurrency.value = startingCurrency
+  initialExchangeRate.value = startingRate
+  const initialValues = getInitialValues()
+  initialGrandTotal.value = (initialValues.grandTotal as number) ?? 0
+  resetForm({ values: initialValues })
+  const { hour, minute } = exp.paidAtObject
+  const timeStr = hour && minute
+    ? `${hour.padStart(2, '0')}:${minute.padStart(2, '0')}`
+    : new Date().toTimeString().slice(0, 5)
+  paidAtTime.value = timeStr
+  initialPaidAtTime.value = timeStr
+  const initialPrices = (initialValues.items || []).map(item => String(item.price ?? 0))
+  itemPriceRaw.splice(0, itemPriceRaw.length, ...initialPrices)
+  itemsExpanded.value = (exp.items?.length || 0) > 0
+  formInitialized.value = true
 }, { immediate: true })
 
 const paidAtDate = computed({
