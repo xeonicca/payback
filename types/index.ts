@@ -91,6 +91,9 @@ export interface NewExpense {
   originalItems?: Array<ExpenseDetailItem> // Backup of items before tax deduction
   originalGrandTotal?: number // Backup of grandTotal before tax deduction
   taxDeductionPercentage?: number // Active tax deduction percentage (presence indicates deduction is applied)
+  discountOriginalItems?: Array<ExpenseDetailItem> // Backup of items before discount
+  discountOriginalGrandTotal?: number // Backup of grandTotal before discount
+  discountPercentage?: number // Active discount percentage (presence indicates discount is applied)
 }
 
 export interface Expense extends NewExpense {

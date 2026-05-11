@@ -99,6 +99,9 @@ export const expenseConverter: FirestoreDataConverter<Expense> = {
       originalItems: data.originalItems,
       originalGrandTotal: data.originalGrandTotal,
       taxDeductionPercentage: data.taxDeductionPercentage,
+      discountOriginalItems: data.discountOriginalItems,
+      discountOriginalGrandTotal: data.discountOriginalGrandTotal,
+      discountPercentage: data.discountPercentage,
     } as Expense
   },
 }
