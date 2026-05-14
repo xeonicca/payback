@@ -15,7 +15,7 @@ const WARNING_CODES = new Set([
   REASON_CODES.CURRENCY_UNEXPECTED,
 ])
 
-function reconcileReceipt(parsedData, _tripCurrency) {
+function reconcileReceipt(parsedData, tripCurrency) {
   const reviewReasons = []
   const items = (parsedData.items || []).map(item => ({ ...item }))
 
@@ -62,6 +62,11 @@ function reconcileReceipt(parsedData, _tripCurrency) {
     if (totalQty !== parsedData.printedItemCount) {
       reviewReasons.push(REASON_CODES.ITEM_COUNT_MISMATCH)
     }
+  }
+
+  // Check 4: currency sanity
+  if (parsedData.currency && parsedData.currency !== tripCurrency) {
+    reviewReasons.push(REASON_CODES.CURRENCY_UNEXPECTED)
   }
 
   const needsReview = reviewReasons.some(r => WARNING_CODES.has(r))

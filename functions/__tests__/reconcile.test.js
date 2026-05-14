@@ -210,3 +210,40 @@ test('Check 3: skipped when printedItemCount is null', () => {
     false,
   )
 })
+
+test('Check 4: flags when detected currency differs from tripCurrency', () => {
+  // IDR Bali receipt on a TWD-default trip
+  const input = {
+    grandTotal: 11300,
+    items: [{ name: 'a', price: 11300, quantity: 1, lineTotal: 11300 }],
+    currency: 'IDR',
+  }
+  const result = reconcileReceipt(input, 'TWD')
+  assert.ok(result.reviewReasons.includes(REASON_CODES.CURRENCY_UNEXPECTED))
+})
+
+test('Check 4: no flag when currencies match', () => {
+  const input = {
+    grandTotal: 11300,
+    items: [{ name: 'a', price: 11300, quantity: 1, lineTotal: 11300 }],
+    currency: 'IDR',
+  }
+  const result = reconcileReceipt(input, 'IDR')
+  assert.equal(
+    result.reviewReasons.includes(REASON_CODES.CURRENCY_UNEXPECTED),
+    false,
+  )
+})
+
+test('Check 4: skipped when currency is null', () => {
+  const input = {
+    grandTotal: 100,
+    items: [{ name: 'a', price: 100, quantity: 1, lineTotal: 100 }],
+    currency: null,
+  }
+  const result = reconcileReceipt(input, 'JPY')
+  assert.equal(
+    result.reviewReasons.includes(REASON_CODES.CURRENCY_UNEXPECTED),
+    false,
+  )
+})
