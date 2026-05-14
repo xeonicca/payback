@@ -56,6 +56,14 @@ function reconcileReceipt(parsedData, _tripCurrency) {
     }
   }
 
+  // Check 3: item count cross-check
+  if (parsedData.printedItemCount != null) {
+    const totalQty = items.reduce((sum, it) => sum + (it.quantity ?? 1), 0)
+    if (totalQty !== parsedData.printedItemCount) {
+      reviewReasons.push(REASON_CODES.ITEM_COUNT_MISMATCH)
+    }
+  }
+
   const needsReview = reviewReasons.some(r => WARNING_CODES.has(r))
   return { ...parsedData, items, needsReview, reviewReasons }
 }

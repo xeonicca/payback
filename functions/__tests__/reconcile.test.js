@@ -147,3 +147,66 @@ test('Check 2: skipped when grandTotal is null', () => {
     false,
   )
 })
+
+test('Check 3: flags item-count mismatch against printedItemCount', () => {
+  const input = {
+    grandTotal: 1000,
+    items: [
+      { name: 'a', price: 500, quantity: 1, lineTotal: 500 },
+      { name: 'b', price: 500, quantity: 1, lineTotal: 500 },
+    ],
+    printedItemCount: 3, // receipt said 3 but we extracted 2
+    currency: 'JPY',
+  }
+  const result = reconcileReceipt(input, 'JPY')
+  assert.ok(result.reviewReasons.includes(REASON_CODES.ITEM_COUNT_MISMATCH))
+  assert.equal(result.needsReview, true)
+})
+
+test('Check 3: passes when printedItemCount equals sum of quantities', () => {
+  const input = {
+    grandTotal: 1000,
+    items: [
+      { name: 'a', price: 500, quantity: 1, lineTotal: 500 },
+      { name: 'b', price: 250, quantity: 2, lineTotal: 500 },
+    ],
+    printedItemCount: 3,
+    currency: 'JPY',
+  }
+  const result = reconcileReceipt(input, 'JPY')
+  assert.equal(
+    result.reviewReasons.includes(REASON_CODES.ITEM_COUNT_MISMATCH),
+    false,
+  )
+})
+
+test('Check 3: null quantity defaults to 1 when summing', () => {
+  const input = {
+    grandTotal: 1000,
+    items: [
+      { name: 'a', price: 500, quantity: null, lineTotal: 500 },
+      { name: 'b', price: 500, quantity: null, lineTotal: 500 },
+    ],
+    printedItemCount: 2,
+    currency: 'JPY',
+  }
+  const result = reconcileReceipt(input, 'JPY')
+  assert.equal(
+    result.reviewReasons.includes(REASON_CODES.ITEM_COUNT_MISMATCH),
+    false,
+  )
+})
+
+test('Check 3: skipped when printedItemCount is null', () => {
+  const input = {
+    grandTotal: 1000,
+    items: [{ name: 'a', price: 500, quantity: 1, lineTotal: 500 }],
+    printedItemCount: null,
+    currency: 'JPY',
+  }
+  const result = reconcileReceipt(input, 'JPY')
+  assert.equal(
+    result.reviewReasons.includes(REASON_CODES.ITEM_COUNT_MISMATCH),
+    false,
+  )
+})
