@@ -91,7 +91,13 @@ const googleSearchUrl = computed(() => {
   <div class="relative flex flex-wrap items-start justify-between py-3 border-b border-border last:border-b-0">
     <div class="flex-1 min-w-0">
       <div class="flex flex-col items-start gap-1">
-        <div class="flex items-center gap-1.5">
+        <div class="flex items-center gap-1.5 flex-wrap">
+          <span
+            v-if="item.itemNumber"
+            class="font-mono text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded"
+          >
+            {{ item.itemNumber }}
+          </span>
           <span class="font-medium text-sm text-foreground">{{ item.name }}</span>
           <a
             v-if="googleSearchUrl"
