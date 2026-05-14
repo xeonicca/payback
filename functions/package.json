@@ -12,7 +12,7 @@
     "start": "npm run shell",
     "deploy": "firebase deploy --only functions",
     "logs": "firebase functions:log",
-    "test": "node --test __tests__/*.test.js"
+    "test": "node --test"
   },
   "dependencies": {
     "@google-cloud/storage": "^7.16.0",
