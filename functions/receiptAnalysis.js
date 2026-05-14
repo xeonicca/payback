@@ -312,7 +312,11 @@ function prepareFirestoreUpdateData(parsedDataFromAI, tripCurrency, receiptImage
   const paidAtTimestamp = convertToTimestamp(parsedDataFromAI.paidAtString, tripCurrency)
 
   // Strip transient fields that should not be written verbatim.
-  const { paidAtString, ...restOfData } = parsedDataFromAI
+  // - paidAtString: replaced by paidAt Timestamp below
+  // - currency: AI-detected currency used by reconcileReceipt for the
+  //   currency_unexpected check; we don't persist it (expenses live in
+  //   tripCurrency; mismatches are surfaced via reviewReasons instead).
+  const { paidAtString, currency: _detectedCurrency, ...restOfData } = parsedDataFromAI
 
   const firestoreUpdateData = {
     ...restOfData,

@@ -81,8 +81,9 @@ function reconcileReceipt(parsedData, tripCurrency) {
     }
   }
 
-  const needsReview = reviewReasons.some(r => WARNING_CODES.has(r))
-  return { ...parsedData, items, needsReview, reviewReasons }
+  const dedupedReasons = [...new Set(reviewReasons)]
+  const needsReview = dedupedReasons.some(r => WARNING_CODES.has(r))
+  return { ...parsedData, items, needsReview, reviewReasons: dedupedReasons }
 }
 
 module.exports = { reconcileReceipt, REASON_CODES, WARNING_CODES }
