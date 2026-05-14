@@ -1,6 +1,7 @@
 const { Storage } = require('@google-cloud/storage')
 const { GoogleGenAI } = require('@google/genai')
 const dayjs = require('dayjs')
+const { reconcileReceipt } = require('./reconcile')
 const customParseFormat = require('dayjs/plugin/customParseFormat')
 const timezone = require('dayjs/plugin/timezone')
 const utc = require('dayjs/plugin/utc')
@@ -135,41 +136,80 @@ function generatePrompt(receiptCurrency, outputLocale) {
 Analyze the provided receipt image and extract data into the specified JSON structure.
 
 ### CONTEXT
-- Receipt Region Currency: ${receiptCurrency}
+- Receipt Region Hint: ${receiptCurrency} (informational only — NOT authoritative)
 - Expected Date Format: ${dateFormat}
 - Target Output Language: ${language}
 
-### STRICT EXTRACTION RULES:
+### RULES
 
-1. **TRANSLATION**:
-   - For 'description' and 'translatedName', return text **strictly in ${language}**.
-   - **FORBIDDEN**: Do not format as "Original (Translation)" or "Translation / Original".
-   - If the text is already in ${language}, return it as is.
+1. **MULTI-LINE ITEM NAMES**
+   Receipt items often span two physical lines: the product name on line 1, then a continuation (size, weight, pack count, flavor) on line 2 followed by the price. Treat both lines as ONE item; concatenate them with a single space into 'name'. The 'price', 'quantity', and 'lineTotal' come from the LAST line of the group.
+   Example: \`青のり入川えびせ\\n  んべい  2  1100  2200\` → name '青のり入川えびせんべい', qty 2, price 1100, lineTotal 2200.
 
-2. **PRICING LOGIC (Unit Price vs Line Total)**:
-   - The 'price' field in 'items' represents the **UNIT PRICE** (price for 1 item).
-   - Check the math: (price * quantity) should equal the line total printed on the receipt.
-   - *Example*: If a line says "Beer x 2 ... 10.00", and the total is 10.00, then price is 5.00 and quantity is 2.
-   - *Example*: If a line says "Beer ... 5.00" and "Qty 2", and line total is 10.00, price is 5.00.
-   - **WARNING**: Do not mistakenly extract the line total as the unit price.
+2. **ITEM IDENTIFIERS → 'itemNumber'**
+   If the receipt prints any identifier next to an item — line/serial number ('1.', '001'), product code, SKU, or full barcode (JAN/EAN/UPC, e.g. '4524541000672') — extract it into 'itemNumber' and EXCLUDE it from 'name'. 'name' should contain only the human product name. If no identifier is printed, 'itemNumber' is null.
+   Examples:
+   - '1. ペプシコーラ' → itemNumber '1', name 'ペプシコーラ'
+   - '#A201 Pasta' → itemNumber 'A201', name 'Pasta'
+   - '4524541000672 青のり入川えびせんべい' → itemNumber '4524541000672', name '青のり入川えびせんべい'
 
-3. **DESCRIPTION**:
-   - Create a short summary (e.g., "7-Eleven, snacks and drinks" or "Uber, taxi ride").
-   - Do not list every single item name.
-   - Language: ${language} ONLY.
+3. **PRICING LOGIC — UNIT PRICE vs LINE TOTAL**
+   - 'price' is the UNIT price (price for ONE item).
+   - 'lineTotal' is the line-total amount printed (rightmost amount on the line).
+   - Check: price * quantity should equal lineTotal.
+   - If qty 1 and only one amount is printed, lineTotal === price.
 
-4. **DATES**:
-   - Parse ambiguity (e.g., 05/04/2024) using the regional format: ${dateFormat}.
-   - Output format: YYYY-MM-DD HH:mm.
-   - If invalid, return null.
+4. **NON-ITEM LINES — DO NOT PUT IN items[]**
+   Do NOT include in items[]: subtotal/小計, tax/税/VAT/GST/消費税, service charge/Phí dịch vụ/服務費, tip/gratuity, discount/voucher/promotion, change due, points/loyalty, store header/footer messages, free promotional items printed at 0. Tax → 'taxAmount'. Service → 'serviceCharge'. Discount/voucher → 'discount' (positive number). Tip → 'tip'. Subtotal → 'subtotal'. Everything else: omit.
 
-5. **ITEM NAMES (Preserve Identifiers)**:
-   - KEEP any serial number, line/sequence number, product code, SKU, or barcode that appears with the item name on the receipt.
-   - *Example*: "1. ペプシコーラ" → keep as "1. ペプシコーラ", not just "ペプシコーラ".
-   - *Example*: "#A201 Pasta" → keep as "#A201 Pasta".
-   - *Example*: "001 Pepsi 150" → name is "001 Pepsi" (the trailing 150 is the price, not part of the name).
-   - These identifiers make the item easier to look up and search later — do NOT strip them.
-   - Apply the same rule to 'translatedName': preserve the identifier prefix exactly.
+5. **printedItemCount**
+   If the receipt prints a total item count line (点数, 合計点数, Qty Total, Items: N), extract it as printedItemCount. Otherwise null. Do NOT invent this from items.length.
+
+6. **CURRENCY — DETECT FROM RECEIPT**
+   Determine 'currency' from the receipt itself (symbols ¥/$/€/Rp/₫, codes near totals, locale formatting). The Receipt Region Hint above is what we expect but NOT authoritative — override it if the receipt clearly shows a different currency.
+
+7. **TRANSLATION**
+   For 'description' and 'translatedName', return text strictly in ${language}. NEVER use a barcode, JAN/EAN/UPC, SKU, or numeric product ID as a translation — those go in itemNumber. If you cannot produce a meaningful translation, repeat the original name exactly. Do not output bilingual "Original (Translation)" pairs.
+
+8. **DATES**
+   Parse ambiguous dates (e.g. 05/04/2024) using the regional format: ${dateFormat}. Output in YYYY-MM-DD HH:mm. Null if invalid or absent.
+
+9. **DESCRIPTION**
+   One short sentence in ${language} summarizing the receipt (e.g. "7-Eleven, snacks and drinks"). Do not list every item.
+
+### EXAMPLE (illustrative — adapt to the actual receipt)
+
+Imagine a Japanese supermarket receipt printing:
+\`\`\`
+お会計レシート
+1. ペプシコーラ        150
+2. 青のり入川えびせ
+     んべい      2   1100   2200
+小計         2350
+消費税(10%)   235
+合計         2585
+点数: 3
+\`\`\`
+
+Expected JSON:
+\`\`\`
+{
+  "grandTotal": 2585,
+  "subtotal": 2350,
+  "taxAmount": 235,
+  "serviceCharge": null,
+  "discount": null,
+  "tip": null,
+  "printedItemCount": 3,
+  "paidAtString": null,
+  "currency": "JPY",
+  "items": [
+    { "itemNumber": "1", "name": "ペプシコーラ", "translatedName": "...", "quantity": 1, "price": 150, "lineTotal": 150 },
+    { "itemNumber": "2", "name": "青のり入川えびせんべい", "translatedName": "...", "quantity": 2, "price": 1100, "lineTotal": 2200 }
+  ],
+  "description": "..."
+}
+\`\`\`
 
 Analyze the receipt now.
 `
@@ -221,7 +261,7 @@ function sanitizeItemPrices(parsedData) {
  * @param {string} contentType - Image MIME type
  * @param {string} tripCurrency - The trip destination currency
  * @param {string} defaultCurrency - The user's default currency
- * @returns {Promise<object>} Parsed receipt data from AI
+ * @returns {Promise<{grandTotal: number|null, subtotal: number|null, taxAmount: number|null, serviceCharge: number|null, discount: number|null, tip: number|null, printedItemCount: number|null, paidAtString: string|null, currency: string, items: Array, description: string|null, needsReview: boolean, reviewReasons: string[]}>} Reconciled receipt data with needsReview flag and reviewReasons array
  */
 async function analyzeReceiptWithAI(imageBase64, contentType, tripCurrency, defaultCurrency) {
   const imagePart = {
@@ -233,7 +273,7 @@ async function analyzeReceiptWithAI(imageBase64, contentType, tripCurrency, defa
 
   logger.log('Sending request to Gemini API with structured schema...')
   const result = await ai.models.generateContent({
-    model: 'gemini-2.0-flash',
+    model: 'gemini-2.5-flash',
     contents: [
       { text: generatePrompt(tripCurrency, defaultCurrency) },
       imagePart,
@@ -241,13 +281,15 @@ async function analyzeReceiptWithAI(imageBase64, contentType, tripCurrency, defa
     config: {
       responseMimeType: 'application/json',
       responseJsonSchema: zodToJsonSchema(receiptSchema),
+      thinkingConfig: { thinkingBudget: -1 },
     },
   })
 
   const parsedData = JSON.parse(result.text)
 
-  // Apply price sanitization to catch AI extraction mistakes
-  return sanitizeItemPrices(parsedData)
+  // Run server-side reconciliation: math checks, auto-correct unit-price slot,
+  // accumulate reviewReasons + needsReview.
+  return reconcileReceipt(parsedData, tripCurrency)
 }
 
 /**
