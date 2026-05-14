@@ -68,8 +68,9 @@ All fields are `nullable` — model returns `null` if not printed.
 | `price` | unchanged (unit price) | |
 | `quantity` | unchanged | |
 | `lineTotal` | **NEW**: `number \| null` | The line-total printed on the receipt for this item. Lets us verify `price * quantity ≈ lineTotal` per item, not just whole-receipt. |
-| `name` | description rewritten to explicitly handle line wrapping (see Section 2) | |
-| `translatedName` | description rewritten to forbid barcodes (see Section 2) | |
+| `itemNumber` | **NEW**: `string \| null` | Receipt-printed identifier next to the item: serial/line number (`1.`, `001`), product code, SKU, JAN/EAN/UPC barcode (`#A201`, `4524541000672`). Stored separately so `name` stays a clean searchable product name and so the UI can render the identifier as a small secondary line. |
+| `name` | description rewritten: (a) handle line wrapping; (b) **no longer carries the identifier prefix** — that moves to `itemNumber`. | The current "keep identifiers in name" rule muddies search and translation (we already saw barcodes leak into `translatedName`). |
+| `translatedName` | description rewritten to forbid barcodes/codes/IDs (see Section 2). No longer expected to preserve the identifier prefix. | |
 
 We deliberately do **not** add a per-item confidence field — it adds complexity for marginal benefit, and our reconciliation flags + the existing edit UI cover the same ground.
 
@@ -120,8 +121,11 @@ The context line is renamed `Receipt Region Hint:` to defuse the anchoring effec
 **6. `lineTotal` instruction.**
 > "For each item, also output `lineTotal`: the line-total printed on the receipt for that item (the rightmost amount on the line, equal to `price * quantity`). If only one amount is printed and quantity is 1, `lineTotal === price`."
 
-**7. Worked example.**
-A single-paragraph "here's what a receipt looks like and the JSON we want" example. One example, not a bilingual pair — Gemini's structured-output adheres better to in-context examples than to abstract rules.
+**7. `itemNumber` instruction.**
+> "If the receipt prints any identifier alongside the item — a line/serial number (`1.`, `001`), product code, SKU, or full barcode (JAN/EAN/UPC, e.g. `4524541000672`) — extract it into `itemNumber` and EXCLUDE it from `name`. `name` should contain only the human product name. If no identifier is printed, `itemNumber` is `null`. Examples: `1. ペプシコーラ` → `itemNumber: '1'`, `name: 'ペプシコーラ'`. `#A201 Pasta` → `itemNumber: 'A201'`, `name: 'Pasta'`. `4524541000672 青のり入川えびせんべい` → `itemNumber: '4524541000672'`, `name: '青のり入川えびせんべい'`."
+
+**8. Worked example.**
+A single-paragraph "here's what a receipt looks like and the JSON we want" example, including at least one item with an `itemNumber` and one with a multi-line wrapped name. One example, not a bilingual pair — Gemini's structured-output adheres better to in-context examples than to abstract rules.
 
 ### Prompt size budget
 
@@ -179,6 +183,10 @@ Reason-code → message map (Traditional Chinese, since users are Taiwanese):
 
 Banner shows only when at least one warning code is present. Info codes are recorded in `reviewReasons` for debugging/telemetry but don't trigger the banner or set `needsReview`.
 
+### `itemNumber` rendering
+
+Wherever an item row is rendered (`components/ExpenseDetailItem.vue` and the items list on `pages/trips/[tripId]/expenses/[expenseId]/index.vue` / `edit.vue`), when `item.itemNumber` is non-null and non-empty, display it as a small muted prefix or label adjacent to the item name — e.g., `<span class="text-xs text-muted-foreground font-mono mr-2">{{ item.itemNumber }}</span>`. Exact placement follows existing layout; the point is the identifier is visible but visually secondary. No `itemNumber`-related reconciliation check is added.
+
 ---
 
 ## Section 4 — Model Upgrade
@@ -198,7 +206,7 @@ Receipt upload (Firebase Storage)
   → onReceiptUploaded trigger
     → getImageAsBase64
     → analyzeReceiptWithAI (gemini-2.5-flash + thinking)
-      → returns expanded schema (items + subtotal + tax + service + discount + tip + printedItemCount)
+      → returns expanded schema (items[name,itemNumber,price,quantity,lineTotal] + subtotal + tax + service + discount + tip + printedItemCount)
     → reconcileReceipt(parsedData, tripCurrency)
       → runs 5 checks, accumulates reviewReasons
       → applies item_unit_price_corrected fix in place
