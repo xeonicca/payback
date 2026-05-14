@@ -70,3 +70,80 @@ test('Check 1: skips items with null lineTotal', () => {
   const result = reconcileReceipt(input, 'JPY')
   assert.deepEqual(result.reviewReasons, [])
 })
+
+test('Check 2: flags grand-total mismatch beyond 2% tolerance', () => {
+  // Real-world: Apurva Kempinski case. grandTotal 726000 but items sum to 1.6M.
+  const input = {
+    grandTotal: 726000,
+    items: [
+      { name: 'Bali Mt.', price: 480000, quantity: 3, lineTotal: 1440000 },
+      { name: 'Espresso', price: 120000, quantity: 1, lineTotal: 120000 },
+    ],
+    serviceCharge: 60000,
+    taxAmount: 66000,
+    currency: 'IDR',
+  }
+  const result = reconcileReceipt(input, 'IDR')
+  assert.ok(result.reviewReasons.includes(REASON_CODES.GRAND_TOTAL_MISMATCH))
+  assert.equal(result.needsReview, true)
+})
+
+test('Check 2: accepts grand total when math reconciles with tax + service - discount + tip', () => {
+  const input = {
+    grandTotal: 1100,
+    items: [{ name: 'x', price: 500, quantity: 2, lineTotal: 1000 }],
+    taxAmount: 100,
+    serviceCharge: 0,
+    discount: 0,
+    tip: 0,
+    currency: 'JPY',
+  }
+  const result = reconcileReceipt(input, 'JPY')
+  assert.equal(
+    result.reviewReasons.includes(REASON_CODES.GRAND_TOTAL_MISMATCH),
+    false,
+  )
+})
+
+test('Check 2: discount is subtracted', () => {
+  // sum 1000 - discount 100 = 900
+  const input = {
+    grandTotal: 900,
+    items: [{ name: 'x', price: 500, quantity: 2, lineTotal: 1000 }],
+    discount: 100,
+    currency: 'JPY',
+  }
+  const result = reconcileReceipt(input, 'JPY')
+  assert.equal(
+    result.reviewReasons.includes(REASON_CODES.GRAND_TOTAL_MISMATCH),
+    false,
+  )
+})
+
+test('Check 2: tolerance is max(1, 2% of grandTotal)', () => {
+  // grandTotal 50 USD — tolerance 1 (not 1.0)
+  const input = {
+    grandTotal: 50,
+    items: [{ name: 'x', price: 49.5, quantity: 1, lineTotal: 49.5 }],
+    currency: 'USD',
+  }
+  const result = reconcileReceipt(input, 'USD')
+  assert.equal(
+    result.reviewReasons.includes(REASON_CODES.GRAND_TOTAL_MISMATCH),
+    false,
+    '0.5 diff within 1-unit floor',
+  )
+})
+
+test('Check 2: skipped when grandTotal is null', () => {
+  const input = {
+    grandTotal: null,
+    items: [{ name: 'x', price: 500, quantity: 1, lineTotal: 500 }],
+    currency: 'JPY',
+  }
+  const result = reconcileReceipt(input, 'JPY')
+  assert.equal(
+    result.reviewReasons.includes(REASON_CODES.GRAND_TOTAL_MISMATCH),
+    false,
+  )
+})

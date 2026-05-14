@@ -39,6 +39,23 @@ function reconcileReceipt(parsedData, _tripCurrency) {
     }
   }
 
+  // Check 2: whole-receipt math
+  if (parsedData.grandTotal != null) {
+    const itemsTotal = items.reduce((sum, it) => {
+      const lt = it.lineTotal ?? (it.price * (it.quantity ?? 1))
+      return sum + lt
+    }, 0)
+    const expected = itemsTotal
+      + (parsedData.taxAmount ?? 0)
+      + (parsedData.serviceCharge ?? 0)
+      + (parsedData.tip ?? 0)
+      - (parsedData.discount ?? 0)
+    const tolerance = Math.max(1, 0.02 * Math.abs(parsedData.grandTotal))
+    if (Math.abs(expected - parsedData.grandTotal) > tolerance) {
+      reviewReasons.push(REASON_CODES.GRAND_TOTAL_MISMATCH)
+    }
+  }
+
   const needsReview = reviewReasons.some(r => WARNING_CODES.has(r))
   return { ...parsedData, items, needsReview, reviewReasons }
 }
