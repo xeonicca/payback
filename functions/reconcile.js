@@ -39,19 +39,26 @@ function reconcileReceipt(parsedData, tripCurrency) {
     }
   }
 
-  // Check 2: whole-receipt math
+  // Check 2: whole-receipt math.
+  // Accept either tax mode:
+  //   exclusive (外税):  itemsTotal + tax + service + tip - discount = grandTotal
+  //   inclusive (内税):  itemsTotal +       service + tip - discount = grandTotal
+  //                     (tax already baked into item prices; printed for info only)
+  // Only flag if neither mode reconciles within tolerance.
   if (parsedData.grandTotal != null) {
     const itemsTotal = items.reduce((sum, it) => {
       const lt = it.lineTotal ?? (it.price * (it.quantity ?? 1))
       return sum + lt
     }, 0)
-    const expected = itemsTotal
-      + (parsedData.taxAmount ?? 0)
+    const tax = parsedData.taxAmount ?? 0
+    const baseExpected = itemsTotal
       + (parsedData.serviceCharge ?? 0)
       + (parsedData.tip ?? 0)
       - (parsedData.discount ?? 0)
     const tolerance = Math.max(1, 0.02 * Math.abs(parsedData.grandTotal))
-    if (Math.abs(expected - parsedData.grandTotal) > tolerance) {
+    const reconcilesExclusive = Math.abs((baseExpected + tax) - parsedData.grandTotal) <= tolerance
+    const reconcilesInclusive = tax > 0 && Math.abs(baseExpected - parsedData.grandTotal) <= tolerance
+    if (!reconcilesExclusive && !reconcilesInclusive) {
       reviewReasons.push(REASON_CODES.GRAND_TOTAL_MISMATCH)
     }
   }

@@ -148,6 +148,31 @@ test('Check 2: skipped when grandTotal is null', () => {
   )
 })
 
+test('Check 2: accepts tax-inclusive (内税) prices — itemsSum equals grandTotal, tax printed for info', () => {
+  // Real-world: おゝず赤煉瓦館 (Japanese receipt with 内税 / tax-inclusive prices).
+  // Items already include the 1137 consumption tax — adding tax on top would
+  // double-count. grandTotal === subtotal === itemsSum is the signal.
+  const input = {
+    grandTotal: 12510,
+    subtotal: 12510,
+    taxAmount: 1137,
+    items: [
+      { name: 'a', price: 480, quantity: 2, lineTotal: 960 },
+      { name: 'b', price: 1650, quantity: 1, lineTotal: 1650 },
+      { name: 'c', price: 770, quantity: 5, lineTotal: 3850 },
+      { name: 'd', price: 4400, quantity: 1, lineTotal: 4400 },
+      { name: 'e', price: 1650, quantity: 1, lineTotal: 1650 },
+    ],
+    currency: 'JPY',
+  }
+  const result = reconcileReceipt(input, 'JPY')
+  assert.equal(
+    result.reviewReasons.includes(REASON_CODES.GRAND_TOTAL_MISMATCH),
+    false,
+    'tax-inclusive math should not flag',
+  )
+})
+
 test('Check 3: flags item-count mismatch against printedItemCount', () => {
   const input = {
     grandTotal: 1000,
