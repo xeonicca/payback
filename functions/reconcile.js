@@ -18,6 +18,27 @@ const WARNING_CODES = new Set([
 function reconcileReceipt(parsedData, _tripCurrency) {
   const reviewReasons = []
   const items = (parsedData.items || []).map(item => ({ ...item }))
+
+  // Check 1: per-item line-total consistency
+  for (const item of items) {
+    if (item.lineTotal == null) continue
+    const qty = item.quantity ?? 1
+    const computed = item.price * qty
+    const tolerance = Math.max(0.01, 0.02 * Math.abs(item.lineTotal))
+
+    // Pattern A: unit-price slot contains the line total (qty > 1 and price ≈ lineTotal)
+    if (qty > 1 && Math.abs(item.price - item.lineTotal) <= 0.01 * Math.abs(item.lineTotal)) {
+      item.price = Math.round((item.lineTotal / qty) * 100) / 100
+      reviewReasons.push(REASON_CODES.ITEM_UNIT_PRICE_CORRECTED)
+      continue
+    }
+
+    // Pattern B: genuine mismatch
+    if (Math.abs(computed - item.lineTotal) > tolerance) {
+      reviewReasons.push(REASON_CODES.ITEM_LINE_TOTAL_MISMATCH)
+    }
+  }
+
   const needsReview = reviewReasons.some(r => WARNING_CODES.has(r))
   return { ...parsedData, items, needsReview, reviewReasons }
 }
