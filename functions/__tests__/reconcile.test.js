@@ -247,3 +247,49 @@ test('Check 4: skipped when currency is null', () => {
     false,
   )
 })
+
+test('Check 5: flags when items do not sum to subtotal', () => {
+  const input = {
+    grandTotal: 1100,
+    subtotal: 1000,
+    taxAmount: 100,
+    items: [
+      { name: 'a', price: 300, quantity: 1, lineTotal: 300 }, // missing 700 somewhere
+    ],
+    currency: 'JPY',
+  }
+  const result = reconcileReceipt(input, 'JPY')
+  assert.ok(result.reviewReasons.includes(REASON_CODES.SUBTOTAL_MISMATCH))
+})
+
+test('Check 5: passes when items sum to subtotal', () => {
+  const input = {
+    grandTotal: 1100,
+    subtotal: 1000,
+    taxAmount: 100,
+    items: [
+      { name: 'a', price: 600, quantity: 1, lineTotal: 600 },
+      { name: 'b', price: 400, quantity: 1, lineTotal: 400 },
+    ],
+    currency: 'JPY',
+  }
+  const result = reconcileReceipt(input, 'JPY')
+  assert.equal(
+    result.reviewReasons.includes(REASON_CODES.SUBTOTAL_MISMATCH),
+    false,
+  )
+})
+
+test('Check 5: skipped when subtotal is null', () => {
+  const input = {
+    grandTotal: 1100,
+    subtotal: null,
+    items: [{ name: 'a', price: 1100, quantity: 1, lineTotal: 1100 }],
+    currency: 'JPY',
+  }
+  const result = reconcileReceipt(input, 'JPY')
+  assert.equal(
+    result.reviewReasons.includes(REASON_CODES.SUBTOTAL_MISMATCH),
+    false,
+  )
+})

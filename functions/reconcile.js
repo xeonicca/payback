@@ -69,6 +69,18 @@ function reconcileReceipt(parsedData, tripCurrency) {
     reviewReasons.push(REASON_CODES.CURRENCY_UNEXPECTED)
   }
 
+  // Check 5: subtotal sanity
+  if (parsedData.subtotal != null) {
+    const itemsTotal = items.reduce((sum, it) => {
+      const lt = it.lineTotal ?? (it.price * (it.quantity ?? 1))
+      return sum + lt
+    }, 0)
+    const tolerance = Math.max(1, 0.02 * Math.abs(parsedData.subtotal))
+    if (Math.abs(itemsTotal - parsedData.subtotal) > tolerance) {
+      reviewReasons.push(REASON_CODES.SUBTOTAL_MISMATCH)
+    }
+  }
+
   const needsReview = reviewReasons.some(r => WARNING_CODES.has(r))
   return { ...parsedData, items, needsReview, reviewReasons }
 }
