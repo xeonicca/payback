@@ -229,33 +229,6 @@ async function getImageAsBase64(bucketName, filePath) {
 }
 
 /**
- * Sanitize item prices to fix common AI extraction mistakes
- * Catches cases where AI extracts line total instead of unit price
- * @param {object} parsedData - Parsed receipt data from AI
- * @returns {object} Sanitized receipt data
- */
-function sanitizeItemPrices(parsedData) {
-  if (!parsedData.items || parsedData.items.length === 0) {
-    return parsedData
-  }
-
-  parsedData.items = parsedData.items.map((item) => {
-    // If Price > Grand Total (and Grand Total exists), it's definitely wrong
-    // This catches cases where AI grabbed line total instead of unit price
-    if (parsedData.grandTotal && item.price > parsedData.grandTotal) {
-      if (item.quantity && item.quantity > 1) {
-        const newPrice = item.price / item.quantity
-        logger.info(`Correcting Unit Price logic: Changed ${item.price} to ${newPrice} based on quantity ${item.quantity}`)
-        item.price = Number.parseFloat(newPrice.toFixed(2))
-      }
-    }
-    return item
-  })
-
-  return parsedData
-}
-
-/**
  * Analyze receipt image using Gemini AI
  * @param {string} imageBase64 - Base64 encoded image data
  * @param {string} contentType - Image MIME type
@@ -390,7 +363,6 @@ module.exports = {
   generatePrompt,
   getImageAsBase64,
   analyzeReceiptWithAI,
-  sanitizeItemPrices,
   convertToTimestamp,
   prepareFirestoreUpdateData,
   getContentTypeFromPath,
