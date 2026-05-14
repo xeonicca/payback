@@ -70,6 +70,8 @@ export interface ExpenseDetailItem {
   quantity?: number
   translatedName?: string
   sharedByMemberIds?: string[]
+  itemNumber?: string | null
+  lineTotal?: number | null
 }
 export interface NewExpense {
   description: string
@@ -94,6 +96,14 @@ export interface NewExpense {
   discountOriginalItems?: Array<ExpenseDetailItem> // Backup of items before discount
   discountOriginalGrandTotal?: number // Backup of grandTotal before discount
   discountPercentage?: number // Active discount percentage (presence indicates discount is applied)
+  subtotal?: number | null
+  taxAmount?: number | null
+  serviceCharge?: number | null
+  discount?: number | null
+  tip?: number | null
+  printedItemCount?: number | null
+  needsReview?: boolean
+  reviewReasons?: string[]
 }
 
 export interface Expense extends NewExpense {
