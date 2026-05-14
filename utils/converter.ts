@@ -102,6 +102,14 @@ export const expenseConverter: FirestoreDataConverter<Expense> = {
       discountOriginalItems: data.discountOriginalItems,
       discountOriginalGrandTotal: data.discountOriginalGrandTotal,
       discountPercentage: data.discountPercentage,
+      subtotal: data.subtotal ?? null,
+      taxAmount: data.taxAmount ?? null,
+      serviceCharge: data.serviceCharge ?? null,
+      discount: data.discount ?? null,
+      tip: data.tip ?? null,
+      printedItemCount: data.printedItemCount ?? null,
+      needsReview: data.needsReview ?? false,
+      reviewReasons: data.reviewReasons ?? [],
     } as Expense
   },
 }
