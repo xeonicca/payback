@@ -16,20 +16,44 @@ dayjs.extend(customParseFormat)
 
 const storage = new Storage()
 
-// Define Zod schemas with enhanced descriptions for better AI extraction
+const SUPPORTED_CURRENCIES = [
+  'JPY', 'USD', 'EUR', 'GBP', 'AUD', 'CAD', 'CNY', 'KRW', 'SGD',
+  'HKD', 'TWD', 'VND', 'MYR', 'THB', 'IDR', 'PHP', 'NZD', 'INR',
+]
+
 const expenseItemSchema = z.object({
-  name: z.string().describe('Primary product name of the item, INCLUDING any serial/line number, product code, SKU, or barcode that appears alongside it on the receipt (e.g., "1. ペプシコーラ", "001 Pepsi", "#A201 Pasta"). These identifiers help the user identify and search for the item later — keep them as part of the name.'),
-  translatedName: z.string().nullable().describe('The name translated into the target language ONLY. Do NOT include the original name. If already in target language, use original. Preserve any serial number / product code prefix exactly as in the source name.'),
-  quantity: z.number().nullable().describe('Count of items. Default to 1 if not specified.'),
-  price: z.number().describe('The price per SINGLE unit. CAUTION: If the receipt says "2 @ 10.00 = 20.00", the price is 10.00, NOT 20.00. Do not include currency symbols.'),
+  name: z.string().describe(
+    'The clean human product name only. If the receipt name wraps across two physical lines (e.g. a Japanese name continuing on a second indented line before the price), concatenate both lines with a single space into one name. Do NOT include any line/serial number, product code, SKU, or barcode that appears alongside the name — those go in itemNumber.',
+  ),
+  itemNumber: z.string().nullable().describe(
+    'Any receipt-printed identifier next to the item: line/serial number (e.g. "1", "001"), product code (e.g. "A201"), SKU, or JAN/EAN/UPC barcode (e.g. "4524541000672"). Strip leading punctuation like "#" or trailing "." Return null if no identifier is printed for this item.',
+  ),
+  translatedName: z.string().nullable().describe(
+    'The name translated into the target output language ONLY. NEVER use a barcode, JAN/EAN/UPC code, SKU, or numeric product ID as a translation — those belong in itemNumber. If you cannot meaningfully translate (e.g. a proprietary or untranslatable product name), repeat the original name exactly. Do NOT include the original name alongside the translation.',
+  ),
+  quantity: z.number().nullable().describe('Count of items on this line. Default to 1 if not specified.'),
+  price: z.number().describe(
+    'The price per SINGLE unit. CAUTION: if the receipt shows "2 @ 10.00 = 20.00", the price is 10.00, NOT 20.00. Do not include currency symbols.',
+  ),
+  lineTotal: z.number().nullable().describe(
+    'The line-total amount printed on the receipt for this item (the rightmost amount on the line). Should equal price * quantity. If only one amount is printed and quantity is 1, lineTotal equals price.',
+  ),
 })
 
 const receiptSchema = z.object({
-  grandTotal: z.number().nullable().describe('The final total amount paid including tax.'),
-  paidAtString: z.string().nullable().describe('Date and time of purchase in YYYY-MM-DD HH:mm format.'),
-  currency: z.string().describe('Currency code (e.g., JPY, USD, TWD).'),
-  items: z.array(expenseItemSchema).describe('List of items purchased.'),
-  description: z.string().nullable().describe('Concise 1-sentence summary in the TARGET LANGUAGE ONLY. Do not provide bilingual output (e.g., avoid "Original (Translation)").'),
+  grandTotal: z.number().nullable().describe('The final total amount paid including tax. Null if not printed.'),
+  subtotal: z.number().nullable().describe('Pre-tax/service amount printed on the receipt (e.g. 小計, Subtotal). Null if not printed.'),
+  taxAmount: z.number().nullable().describe('Sum of all tax lines on the receipt (内税, 外税, 消費税, VAT, GST, Tax). Null if not printed. Stored as a positive number.'),
+  serviceCharge: z.number().nullable().describe('Service-charge line if printed (e.g. Phí dịch vụ, Service Charge, 服務費). Null if not printed.'),
+  discount: z.number().nullable().describe('Total of discounts / vouchers / promotions deducted from the bill, as a POSITIVE number. Null if no discount.'),
+  tip: z.number().nullable().describe('Gratuity / tip if printed. Null if not printed.'),
+  printedItemCount: z.number().nullable().describe('The total-item-count printed on the receipt (e.g. 点数, 合計点数, Qty Total, Items: N). This is the receipt\'s own count — do not invent it from items.length. Null if not printed.'),
+  paidAtString: z.string().nullable().describe('Date and time of purchase in YYYY-MM-DD HH:mm format. Null if not present.'),
+  currency: z.enum(SUPPORTED_CURRENCIES).describe(
+    'Currency code detected FROM the receipt itself (symbols ¥/$/€/Rp/₫, codes near totals, formatting). The Receipt Region Hint provided in the prompt is what we expect but NOT authoritative — override it if the receipt clearly shows a different currency. Pick the closest of the supported codes.',
+  ),
+  items: z.array(expenseItemSchema).describe('Real purchased items only. Do NOT include subtotals, tax lines, service charges, tips, discounts, vouchers, change due, loyalty points, free promotional items printed at 0, or store header/footer messages.'),
+  description: z.string().nullable().describe('Concise 1-sentence summary in the TARGET output language only. Do not list every item. Do not provide bilingual output.'),
 })
 
 // Configure Google Gen AI
@@ -326,4 +350,5 @@ module.exports = {
   dateFormatMap,
   receiptSchema,
   expenseItemSchema,
+  SUPPORTED_CURRENCIES,
 }
