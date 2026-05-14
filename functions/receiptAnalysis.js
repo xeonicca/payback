@@ -338,13 +338,20 @@ function convertToTimestamp(paidAtString, tripCurrency) {
 function prepareFirestoreUpdateData(parsedDataFromAI, tripCurrency, receiptImageUrl = null) {
   const paidAtTimestamp = convertToTimestamp(parsedDataFromAI.paidAtString, tripCurrency)
 
+  // Strip transient fields that should not be written verbatim.
   const { paidAtString, ...restOfData } = parsedDataFromAI
+
   const firestoreUpdateData = {
     ...restOfData,
     isProcessing: false,
     processedAt: admin.firestore.FieldValue.serverTimestamp(),
     processingError: null,
   }
+
+  // needsReview + reviewReasons are produced by reconcileReceipt and travel
+  // through restOfData unchanged. Guarantee they're present even on empty paths.
+  if (firestoreUpdateData.needsReview == null) firestoreUpdateData.needsReview = false
+  if (!Array.isArray(firestoreUpdateData.reviewReasons)) firestoreUpdateData.reviewReasons = []
 
   if (receiptImageUrl !== null) {
     firestoreUpdateData.receiptImageUrl = receiptImageUrl
