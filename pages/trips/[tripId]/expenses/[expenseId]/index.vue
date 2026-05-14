@@ -582,6 +582,10 @@ async function reanalyzeReceipt() {
 
       <!-- Right: Item details + receipt -->
       <div class="space-y-4">
+        <expense-review-banner
+          v-if="expense?.needsReview && expense?.reviewReasons?.length"
+          :reasons="expense.reviewReasons"
+        />
         <div v-if="expense?.items?.length" class="bg-card rounded-xl border p-4 space-y-4">
           <div class="text-sm text-muted-foreground">
             購買明細

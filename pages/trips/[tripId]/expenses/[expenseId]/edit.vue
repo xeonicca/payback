@@ -729,6 +729,10 @@ function splitItem(originalIndex: number, splitQuantity: number, splitMemberIds:
 
         <!-- Right column: Items (collapsible on mobile; moves to top on mobile when items exist) -->
         <div class="bg-card rounded-xl border p-5 space-y-4 h-fit" :class="{ 'order-first lg:order-none': hasItems }">
+          <expense-review-banner
+            v-if="expense?.needsReview && expense?.reviewReasons?.length"
+            :reasons="expense.reviewReasons"
+          />
           <button
             type="button"
             class="w-full flex items-center justify-between"
