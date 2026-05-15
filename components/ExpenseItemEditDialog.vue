@@ -14,9 +14,16 @@ const emit = defineEmits<{
   (e: 'update:open', val: boolean): void
   (e: 'save', index: number, item: ExpenseDetailItem): void
   (e: 'add', item: ExpenseDetailItem): void
+  (e: 'delete', index: number): void
 }>()
 
 const isAddMode = computed(() => props.itemIndex === null)
+
+function handleDelete() {
+  if (props.itemIndex === null)
+    return
+  emit('delete', props.itemIndex)
+}
 
 const name = ref('')
 const priceRaw = ref('')
@@ -182,11 +189,23 @@ function handleSave() {
         </div>
       </div>
 
-      <ui-dialog-footer class="flex-row gap-2">
+      <ui-dialog-footer class="flex-row items-center gap-2">
+        <ui-button
+          v-if="!isAddMode"
+          type="button"
+          variant="ghost"
+          size="sm"
+          class="text-destructive hover:text-destructive hover:bg-destructive/10"
+          :disabled="isSaving"
+          @click="handleDelete"
+        >
+          <Icon name="lucide:trash-2" :size="14" class="mr-1" />
+          刪除
+        </ui-button>
+        <div class="flex-1" />
         <ui-button
           type="button"
           variant="outline"
-          class="flex-1"
           :disabled="isSaving"
           @click="handleClose"
         >
@@ -194,7 +213,6 @@ function handleSave() {
         </ui-button>
         <ui-button
           type="button"
-          class="flex-1"
           :disabled="isSaving || !name.trim()"
           @click="handleSave"
         >

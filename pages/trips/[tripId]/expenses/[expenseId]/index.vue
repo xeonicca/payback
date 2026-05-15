@@ -136,6 +136,36 @@ async function saveSharers(sharedWithMemberIds: string[]) {
   }
 }
 
+async function deleteItem(index: number) {
+  if (!expense.value)
+    return
+  try {
+    isSavingItem.value = true
+    const items = [...(expense.value.items ?? [])]
+    items.splice(index, 1)
+    const update: Record<string, unknown> = {
+      items,
+      lastEditedByUserId: sessionUser.value?.uid,
+      lastEditedAt: serverTimestamp(),
+    }
+    // Only recalc grandTotal when items remain — keep the existing total when
+    // removing the last item, matching the edit page's behavior.
+    if (items.length > 0) {
+      update.grandTotal = Math.round(items.reduce((sum, item) => sum + item.price * (item.quantity ?? 1), 0) * 100) / 100
+    }
+    await updateDoc(doc(db, 'trips', tripId as string, 'expenses', expenseId as string), update)
+    editingItemIndex.value = null
+    toast.success('已刪除項目')
+  }
+  catch (error) {
+    console.error('Error deleting item:', error)
+    toast.error('刪除失敗')
+  }
+  finally {
+    isSavingItem.value = false
+  }
+}
+
 async function addItem(newItem: ExpenseDetailItem) {
   if (!expense.value)
     return
@@ -865,6 +895,7 @@ async function reanalyzeReceipt() {
       @update:open="(open) => { if (!open && !isSavingItem) closeItemEditDialog() }"
       @save="saveItem"
       @add="addItem"
+      @delete="deleteItem"
     />
 
     <!-- Split Item Dialog -->
