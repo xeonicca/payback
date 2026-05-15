@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { Expense, ExpenseDetailItem, Trip } from '@/types'
 import { computedAsync } from '@vueuse/core'
-import { deleteDoc, deleteField, doc, serverTimestamp, updateDoc } from 'firebase/firestore'
+import { deleteDoc, deleteField, doc, serverTimestamp, Timestamp, updateDoc } from 'firebase/firestore'
 import { getFunctions, httpsCallable } from 'firebase/functions'
 import { getDownloadURL, ref as storageRef } from 'firebase/storage'
 import { toast } from 'vue-sonner'
@@ -81,6 +81,8 @@ async function saveBasics(payload: {
   grandTotal: number | null
   inputCurrency: string
   exchangeRate: number
+  paidAt: Date
+  paidByMemberId: string
 }) {
   if (!expense.value)
     return
@@ -90,6 +92,8 @@ async function saveBasics(payload: {
       description: payload.description,
       inputCurrency: payload.inputCurrency,
       exchangeRate: payload.exchangeRate,
+      paidAt: Timestamp.fromDate(payload.paidAt),
+      paidByMemberId: payload.paidByMemberId,
       lastEditedByUserId: sessionUser.value?.uid,
       lastEditedAt: serverTimestamp(),
     }
@@ -793,11 +797,12 @@ async function reanalyzeReceipt() {
       </div>
     </div>
 
-    <!-- Edit Basics Dialog (description + amount + currency + rate) -->
+    <!-- Edit Basics Dialog (description, amount, currency, rate, date, payer) -->
     <expense-basics-edit-dialog
       :open="isEditingBasics"
       :expense="expense"
       :trip="trip"
+      :trip-members="tripMembers || []"
       :is-saving="isSavingBasics"
       @update:open="(open) => { if (!open && !isSavingBasics) isEditingBasics = false }"
       @save="saveBasics"

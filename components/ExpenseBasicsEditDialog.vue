@@ -1,11 +1,15 @@
 <script setup lang="ts">
-import type { Expense, Trip } from '@/types'
+import type { Expense, Trip, TripMember } from '@/types'
+import { DateFormatter, getLocalTimeZone, parseDate } from '@internationalized/date'
+import { toDate } from 'reka-ui/date'
 import { useExchangeRate } from '@/composables/useExchangeRate'
+import { cn } from '@/lib/utils'
 
 const props = defineProps<{
   open: boolean
   expense: Expense | null
   trip: Trip | null
+  tripMembers: TripMember[]
   isSaving?: boolean
 }>()
 
@@ -16,14 +20,30 @@ const emit = defineEmits<{
     grandTotal: number | null
     inputCurrency: string
     exchangeRate: number
+    paidAt: Date
+    paidByMemberId: string
   }): void
 }>()
+
+const timezone = getLocalTimeZone()
+const df = new DateFormatter('zh-TW', { dateStyle: 'long' })
 
 const description = ref('')
 const grandTotalRaw = ref('')
 const selectedCurrency = ref('')
 const exchangeRate = ref(1)
 const previousExchangeRate = ref<number | null>(null)
+const paidAtDateString = ref('')
+const paidAtTime = ref('')
+const paidByMemberId = ref('')
+const paidAtPlaceholder = ref()
+
+const paidAtDate = computed({
+  get: () => paidAtDateString.value
+    ? parseDate(paidAtDateString.value)
+    : parseDate(new Date().toISOString().split('T')[0]),
+  set: val => val,
+})
 
 const hasItems = computed(() => (props.expense?.items?.length ?? 0) > 0)
 const hasDifferentCurrencies = computed(() => props.trip?.tripCurrency !== props.trip?.defaultCurrency)
@@ -78,6 +98,17 @@ watch(() => props.open, (open) => {
   selectedCurrency.value = exp.inputCurrency ?? trip.tripCurrency
   exchangeRate.value = exp.exchangeRate ?? trip.exchangeRate ?? 1
   previousExchangeRate.value = null
+  paidByMemberId.value = exp.paidByMemberId
+
+  // Reconstruct the calendar/time inputs from the structured paidAt fields so
+  // we don't have to reach into the Timestamp instance.
+  const { year, month, day, hour, minute } = exp.paidAtObject
+  paidAtDateString.value = year && month && day
+    ? `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`
+    : new Date().toISOString().split('T')[0]
+  paidAtTime.value = hour && minute
+    ? `${hour.padStart(2, '0')}:${minute.padStart(2, '0')}`
+    : new Date().toTimeString().slice(0, 5)
 
   // Display amount in the same currency the user originally entered, so
   // hopping into the dialog doesn't surprise them with a converted number.
@@ -96,6 +127,10 @@ const canSave = computed(() => {
     return false
   if (!(exchangeRate.value > 0))
     return false
+  if (!paidByMemberId.value)
+    return false
+  if (!paidAtDateString.value)
+    return false
   return true
 })
 
@@ -109,11 +144,23 @@ function handleSave() {
       ? Math.round((grandTotal.value / exchangeRate.value) * 100) / 100
       : grandTotal.value
 
+  const selectedDate = parseDate(paidAtDateString.value).toDate(timezone)
+  if (paidAtTime.value) {
+    const [h, m] = paidAtTime.value.split(':').map(Number)
+    selectedDate.setHours(h, m, 0, 0)
+  }
+  else {
+    const now = new Date()
+    selectedDate.setHours(now.getHours(), now.getMinutes(), 0, 0)
+  }
+
   emit('save', {
     description: description.value.trim(),
     grandTotal: tripCurrencyTotal,
     inputCurrency: selectedCurrency.value,
     exchangeRate: exchangeRate.value,
+    paidAt: selectedDate,
+    paidByMemberId: paidByMemberId.value,
   })
 }
 
@@ -220,6 +267,64 @@ function handleClose() {
             />
             <span class="text-xs text-muted-foreground">{{ trip.defaultCurrency }}</span>
           </div>
+        </div>
+
+        <!-- Date + time -->
+        <div>
+          <ui-label class="text-sm font-medium text-foreground">
+            日期與時間
+          </ui-label>
+          <div class="flex gap-2 mt-1">
+            <ui-popover>
+              <ui-popover-trigger as-child>
+                <ui-button
+                  type="button"
+                  variant="outline"
+                  :class="cn('flex-1 ps-3 text-start font-normal', !paidAtDateString && 'text-muted-foreground')"
+                >
+                  <span>{{ paidAtDate ? df.format(toDate(paidAtDate)) : '選擇日期' }}</span>
+                  <Icon name="lucide:calendar" class="ms-auto h-4 w-4 opacity-50" />
+                </ui-button>
+              </ui-popover-trigger>
+              <ui-popover-content class="w-auto p-0">
+                <ui-calendar
+                  v-model:placeholder="paidAtPlaceholder"
+                  v-model="paidAtDate"
+                  calendar-label="支出日期"
+                  initial-focus
+                  @update:model-value="(v) => {
+                    paidAtDateString = v ? v.toString() : ''
+                  }"
+                />
+              </ui-popover-content>
+            </ui-popover>
+            <ui-input
+              v-model="paidAtTime"
+              type="time"
+              class="w-32 shrink-0"
+              aria-label="時間"
+            />
+          </div>
+        </div>
+
+        <!-- Payer -->
+        <div v-if="tripMembers.length > 0">
+          <ui-label class="text-sm font-medium text-foreground">
+            付款人
+          </ui-label>
+          <ui-radio-group v-model="paidByMemberId" class="flex flex-col gap-2 mt-1">
+            <div
+              v-for="member in tripMembers"
+              :key="member.id"
+              class="flex items-center gap-2"
+            >
+              <ui-radio-group-item :id="`payer-${member.id}`" :value="member.id" />
+              <ui-label :for="`payer-${member.id}`" class="font-normal flex items-center gap-1 cursor-pointer">
+                <member-avatar :emoji="member.avatarEmoji" size="sm" />
+                <span class="text-sm">{{ member.name }}</span>
+              </ui-label>
+            </div>
+          </ui-radio-group>
         </div>
       </div>
 
