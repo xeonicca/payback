@@ -147,24 +147,32 @@ function formatSecondary(amount: number) {
               </p>
             </div>
 
-            <!-- Paid / Owed breakdown -->
+            <!-- Paid / Spent breakdown -->
             <div class="grid grid-cols-2 gap-3">
-              <div class="bg-muted/50 rounded-lg p-3">
-                <p class="text-xs text-muted-foreground mb-0.5">
+              <nuxt-link
+                :to="`/trips/${tripId}/my-paid`"
+                class="bg-muted/50 hover:bg-muted rounded-lg p-3 transition-colors group"
+              >
+                <p class="text-xs text-muted-foreground mb-0.5 flex items-center justify-between">
                   已支付
+                  <Icon name="lucide:chevron-right" :size="12" class="text-muted-foreground/60 group-hover:text-muted-foreground transition-colors" />
                 </p>
                 <p class="font-mono font-semibold text-foreground text-sm">
                   {{ primaryCurrency }} {{ toPrimary(memberBalances[currentUserMember.id].paid).toFixed(2) }}
                 </p>
-              </div>
-              <div class="bg-muted/50 rounded-lg p-3">
-                <p class="text-xs text-muted-foreground mb-0.5">
-                  應分攤
+              </nuxt-link>
+              <nuxt-link
+                :to="`/trips/${tripId}/my-spent`"
+                class="bg-muted/50 hover:bg-muted rounded-lg p-3 transition-colors group"
+              >
+                <p class="text-xs text-muted-foreground mb-0.5 flex items-center justify-between">
+                  我花了
+                  <Icon name="lucide:chevron-right" :size="12" class="text-muted-foreground/60 group-hover:text-muted-foreground transition-colors" />
                 </p>
                 <p class="font-mono font-semibold text-foreground text-sm">
                   {{ primaryCurrency }} {{ toPrimary(memberBalances[currentUserMember.id].owed).toFixed(2) }}
                 </p>
-              </div>
+              </nuxt-link>
             </div>
 
             <!-- Settlement suggestions for current user -->
@@ -261,7 +269,7 @@ function formatSecondary(amount: number) {
                       </ui-badge>
                     </div>
 
-                    <div class="grid grid-cols-2 gap-2 text-xs">
+                    <div class="grid grid-cols-3 gap-2 text-xs">
                       <div class="bg-muted/50 rounded-lg p-2">
                         <p class="text-muted-foreground mb-0.5">
                           已支付
@@ -271,6 +279,17 @@ function formatSecondary(amount: number) {
                         </p>
                         <p v-if="hasDualCurrency" class="text-muted-foreground font-mono mt-0.5">
                           ≈ {{ secondaryCurrency }} {{ toSecondary(memberBalances[member.id]?.paid ?? 0).toFixed(2) }}
+                        </p>
+                      </div>
+                      <div class="bg-muted/50 rounded-lg p-2">
+                        <p class="text-muted-foreground mb-0.5">
+                          已花費
+                        </p>
+                        <p class="font-mono font-semibold text-foreground">
+                          {{ primaryCurrency }} {{ toPrimary(memberBalances[member.id]?.owed ?? 0).toFixed(2) }}
+                        </p>
+                        <p v-if="hasDualCurrency" class="text-muted-foreground font-mono mt-0.5">
+                          ≈ {{ secondaryCurrency }} {{ toSecondary(memberBalances[member.id]?.owed ?? 0).toFixed(2) }}
                         </p>
                       </div>
                       <div class="bg-muted/50 rounded-lg p-2">
