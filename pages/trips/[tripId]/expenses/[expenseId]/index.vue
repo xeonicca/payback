@@ -47,6 +47,8 @@ const isSavingItem = ref(false)
 const isAddingItem = ref(false)
 const splittingItemIndex = ref<number | null>(null)
 const isSplittingItem = ref(false)
+const isEditingBasics = ref(false)
+const isSavingBasics = ref(false)
 const showTaxDeductionDialog = ref(false)
 const showRevertTaxDialog = ref(false)
 const isApplyingTax = ref(false)
@@ -72,6 +74,38 @@ const splittingItem = computed(() =>
 function closeItemEditDialog() {
   editingItemIndex.value = null
   isAddingItem.value = false
+}
+
+async function saveBasics(payload: {
+  description: string
+  grandTotal: number | null
+  inputCurrency: string
+  exchangeRate: number
+}) {
+  if (!expense.value)
+    return
+  try {
+    isSavingBasics.value = true
+    const update: Record<string, unknown> = {
+      description: payload.description,
+      inputCurrency: payload.inputCurrency,
+      exchangeRate: payload.exchangeRate,
+      lastEditedByUserId: sessionUser.value?.uid,
+      lastEditedAt: serverTimestamp(),
+    }
+    if (payload.grandTotal !== null)
+      update.grandTotal = payload.grandTotal
+    await updateDoc(doc(db, 'trips', tripId as string, 'expenses', expenseId as string), update)
+    isEditingBasics.value = false
+    toast.success('已更新支出')
+  }
+  catch (error) {
+    console.error('Error updating expense basics:', error)
+    toast.error('更新失敗')
+  }
+  finally {
+    isSavingBasics.value = false
+  }
 }
 
 async function addItem(newItem: ExpenseDetailItem) {
@@ -572,25 +606,37 @@ async function reanalyzeReceipt() {
     </div>
 
     <!-- Amount + description -->
-    <div class="mb-4">
-      <h1 class="text-2xl font-bold font-mono">
-        <template v-if="usedHomeCurrency">
-          <span class="text-primary">{{ trip?.defaultCurrency }} {{ convertToDefaultCurrency.toFixed(2) }}</span>
-        </template>
-        <template v-else>
-          <span class="text-primary">{{ primaryCurrency }} {{ toPrimary(expense?.grandTotal || 0, expense?.exchangeRate).toFixed(2) }}</span>
-          <span v-if="hasDualCurrency" class="text-sm text-muted-foreground font-normal inline-flex items-center gap-1 ml-1">
-            ≈ {{ secondaryCurrency }} {{ toSecondary(expense?.grandTotal || 0, expense?.exchangeRate).toFixed(2) }}
-          </span>
-        </template>
-      </h1>
-      <p class="text-sm text-foreground mt-1">
-        {{ expense?.description }}
-      </p>
-      <p class="text-xs text-muted-foreground mt-0.5">
-        {{ expense?.paidAtString }}
-        <span v-if="createdByName"> · {{ createdByName }} 新增</span>
-      </p>
+    <div class="mb-4 flex items-start justify-between gap-3">
+      <div class="min-w-0 flex-1">
+        <h1 class="text-2xl font-bold font-mono">
+          <template v-if="usedHomeCurrency">
+            <span class="text-primary">{{ trip?.defaultCurrency }} {{ convertToDefaultCurrency.toFixed(2) }}</span>
+          </template>
+          <template v-else>
+            <span class="text-primary">{{ primaryCurrency }} {{ toPrimary(expense?.grandTotal || 0, expense?.exchangeRate).toFixed(2) }}</span>
+            <span v-if="hasDualCurrency" class="text-sm text-muted-foreground font-normal inline-flex items-center gap-1 ml-1">
+              ≈ {{ secondaryCurrency }} {{ toSecondary(expense?.grandTotal || 0, expense?.exchangeRate).toFixed(2) }}
+            </span>
+          </template>
+        </h1>
+        <p class="text-sm text-foreground mt-1">
+          {{ expense?.description }}
+        </p>
+        <p class="text-xs text-muted-foreground mt-0.5">
+          {{ expense?.paidAtString }}
+          <span v-if="createdByName"> · {{ createdByName }} 新增</span>
+        </p>
+      </div>
+      <ui-button
+        v-if="canEditThisExpense && !trip?.archived"
+        variant="ghost"
+        size="icon"
+        class="size-8 rounded-full bg-indigo-100 text-indigo-500 hover:bg-indigo-200 hover:text-indigo-700 shrink-0"
+        aria-label="編輯基本資訊"
+        @click="isEditingBasics = true"
+      >
+        <Icon name="mdi:pencil" :size="14" />
+      </ui-button>
     </div>
 
     <!-- Desktop: two-column / Mobile: single column -->
@@ -746,6 +792,16 @@ async function reanalyzeReceipt() {
         </div>
       </div>
     </div>
+
+    <!-- Edit Basics Dialog (description + amount + currency + rate) -->
+    <expense-basics-edit-dialog
+      :open="isEditingBasics"
+      :expense="expense"
+      :trip="trip"
+      :is-saving="isSavingBasics"
+      @update:open="(open) => { if (!open && !isSavingBasics) isEditingBasics = false }"
+      @save="saveBasics"
+    />
 
     <!-- Quick Edit / Add Item Dialog -->
     <expense-item-edit-dialog
