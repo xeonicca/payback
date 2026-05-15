@@ -19,9 +19,18 @@ const emit = defineEmits<{
 
 const isAddMode = computed(() => props.itemIndex === null)
 
-function handleDelete() {
+const showDeleteConfirm = ref(false)
+
+function handleDeleteClick() {
   if (props.itemIndex === null)
     return
+  showDeleteConfirm.value = true
+}
+
+function confirmDelete() {
+  if (props.itemIndex === null)
+    return
+  showDeleteConfirm.value = false
   emit('delete', props.itemIndex)
 }
 
@@ -194,18 +203,18 @@ function handleSave() {
           v-if="!isAddMode"
           type="button"
           variant="ghost"
-          size="sm"
-          class="text-destructive hover:text-destructive hover:bg-destructive/10"
+          size="icon"
+          class="shrink-0 text-destructive hover:text-destructive hover:bg-destructive/10"
           :disabled="isSaving"
-          @click="handleDelete"
+          aria-label="刪除"
+          @click="handleDeleteClick"
         >
-          <Icon name="lucide:trash-2" :size="14" class="mr-1" />
-          刪除
+          <Icon name="lucide:trash-2" :size="16" />
         </ui-button>
-        <div class="flex-1" />
         <ui-button
           type="button"
           variant="outline"
+          class="flex-1"
           :disabled="isSaving"
           @click="handleClose"
         >
@@ -213,6 +222,7 @@ function handleSave() {
         </ui-button>
         <ui-button
           type="button"
+          class="flex-1"
           :disabled="isSaving || !name.trim()"
           @click="handleSave"
         >
@@ -222,4 +232,14 @@ function handleSave() {
       </ui-dialog-footer>
     </ui-dialog-content>
   </ui-dialog>
+
+  <confirmation-dialog
+    v-model:open="showDeleteConfirm"
+    title="確定要刪除此項目？"
+    :description="item?.name ? `「${item.name}」將從明細中移除。` : '此項目將從明細中移除。'"
+    confirm-label="確定刪除"
+    confirm-variant="destructive"
+    :is-loading="isSaving"
+    @confirm="confirmDelete"
+  />
 </template>
