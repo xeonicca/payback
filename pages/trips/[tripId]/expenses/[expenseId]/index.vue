@@ -633,10 +633,6 @@ async function reanalyzeReceipt() {
             </ui-button>
           </ui-dropdown-menu-trigger>
           <ui-dropdown-menu-content align="end">
-            <ui-dropdown-menu-item @click="navigateTo(`/trips/${tripId}/expenses/${expenseId}/edit`)">
-              <Icon name="lucide:edit-3" :size="14" class="mr-2" />
-              編輯
-            </ui-dropdown-menu-item>
             <ui-dropdown-menu-item v-if="hasTaxDeduction" @click="showRevertTaxDialog = true">
               <Icon name="lucide:rotate-ccw" :size="14" class="mr-2" />
               還原消費稅 ({{ expense?.taxDeductionPercentage }}%)
