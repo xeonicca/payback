@@ -83,16 +83,30 @@ function destroyPanzoom() {
   stage.value?.removeEventListener('pointerup', onPointerUp)
 }
 
+function fitImageToStage() {
+  if (!image.value || !stage.value)
+    return
+  const { width: sw, height: sh } = stage.value.getBoundingClientRect()
+  const nw = image.value.naturalWidth
+  const nh = image.value.naturalHeight
+  if (!nw || !nh || !sw || !sh)
+    return
+  const fit = Math.min(sw / nw, sh / nh)
+  image.value.style.width = `${nw * fit}px`
+  image.value.style.height = `${nh * fit}px`
+}
+
 function initPanzoom() {
   if (!image.value || !stage.value)
     return
   if (panzoom)
     destroyPanzoom()
 
+  fitImageToStage()
+
   panzoom = createPanzoom(image.value, {
     maxScale: 8,
     minScale: 1,
-    contain: 'outside',
     step: 0.3,
     animate: !prefersReducedMotion,
     cursor: 'grab',
