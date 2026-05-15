@@ -59,6 +59,7 @@ const showDiscountDialog = ref(false)
 const showRevertDiscountDialog = ref(false)
 const isApplyingDiscount = ref(false)
 const isRevertingDiscount = ref(false)
+const isReceiptViewerOpen = ref(false)
 
 const sessionUser = useSessionUser()
 
@@ -854,7 +855,19 @@ async function reanalyzeReceipt() {
               處理中...
             </div>
           </div>
-          <img :src="receiptImageUrl" alt="收據圖片" loading="lazy" class="w-full max-h-96 object-contain rounded-lg">
+          <button
+            type="button"
+            aria-label="放大檢視收據"
+            class="block w-full cursor-zoom-in rounded-lg overflow-hidden focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+            @click="isReceiptViewerOpen = true"
+          >
+            <img
+              :src="receiptImageUrl"
+              alt="收據圖片"
+              loading="lazy"
+              class="w-full max-h-96 object-contain rounded-lg"
+            >
+          </button>
         </div>
       </div>
     </div>
@@ -1007,5 +1020,11 @@ async function reanalyzeReceipt() {
         </ui-alert-dialog-footer>
       </ui-alert-dialog-content>
     </ui-alert-dialog>
+
+    <receipt-viewer
+      v-if="receiptImageUrl"
+      v-model:open="isReceiptViewerOpen"
+      :src="receiptImageUrl"
+    />
   </template>
 </template>
