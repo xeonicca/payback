@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import type { PanzoomObject } from '@panzoom/panzoom'
-import createPanzoom from '@panzoom/panzoom'
 
 const props = withDefaults(defineProps<{
   open: boolean
@@ -96,13 +95,18 @@ function fitImageToStage() {
   image.value.style.height = `${nh * fit}px`
 }
 
-function initPanzoom() {
+async function initPanzoom() {
   if (!image.value || !stage.value)
     return
   if (panzoom)
     destroyPanzoom()
 
   fitImageToStage()
+
+  const { default: createPanzoom } = await import('@panzoom/panzoom')
+
+  if (!image.value || !stage.value)
+    return
 
   panzoom = createPanzoom(image.value, {
     maxScale: 8,
