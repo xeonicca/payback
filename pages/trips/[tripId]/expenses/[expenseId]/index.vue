@@ -49,6 +49,8 @@ const splittingItemIndex = ref<number | null>(null)
 const isSplittingItem = ref(false)
 const isEditingBasics = ref(false)
 const isSavingBasics = ref(false)
+const isEditingSharers = ref(false)
+const isSavingSharers = ref(false)
 const showTaxDeductionDialog = ref(false)
 const showRevertTaxDialog = ref(false)
 const isApplyingTax = ref(false)
@@ -109,6 +111,28 @@ async function saveBasics(payload: {
   }
   finally {
     isSavingBasics.value = false
+  }
+}
+
+async function saveSharers(sharedWithMemberIds: string[]) {
+  if (!expense.value)
+    return
+  try {
+    isSavingSharers.value = true
+    await updateDoc(doc(db, 'trips', tripId as string, 'expenses', expenseId as string), {
+      sharedWithMemberIds,
+      lastEditedByUserId: sessionUser.value?.uid,
+      lastEditedAt: serverTimestamp(),
+    })
+    isEditingSharers.value = false
+    toast.success('已更新分攤成員')
+  }
+  catch (error) {
+    console.error('Error updating sharers:', error)
+    toast.error('更新失敗')
+  }
+  finally {
+    isSavingSharers.value = false
   }
 }
 
@@ -658,8 +682,20 @@ async function reanalyzeReceipt() {
         </div>
         <ui-separator />
         <div v-if="Object.keys(sharedTotalByMember).length > 0" class="space-y-2">
-          <div class="text-sm text-muted-foreground">
-            成員分攤明細
+          <div class="flex items-center justify-between">
+            <div class="text-sm text-muted-foreground">
+              成員分攤明細
+            </div>
+            <ui-button
+              v-if="canEditThisExpense && !trip?.archived"
+              variant="outline"
+              size="sm"
+              class="h-7 px-2 text-xs"
+              @click="isEditingSharers = true"
+            >
+              <Icon name="mdi:pencil" :size="12" class="mr-1" />
+              編輯成員
+            </ui-button>
           </div>
           <ui-accordion type="multiple" class="space-y-2">
             <ui-accordion-item
@@ -806,6 +842,16 @@ async function reanalyzeReceipt() {
       :is-saving="isSavingBasics"
       @update:open="(open) => { if (!open && !isSavingBasics) isEditingBasics = false }"
       @save="saveBasics"
+    />
+
+    <!-- Edit Sharers Dialog -->
+    <expense-sharers-edit-dialog
+      :open="isEditingSharers"
+      :trip-members="tripMembers || []"
+      :shared-with-member-ids="expense?.sharedWithMemberIds || []"
+      :is-saving="isSavingSharers"
+      @update:open="(open) => { if (!open && !isSavingSharers) isEditingSharers = false }"
+      @save="saveSharers"
     />
 
     <!-- Quick Edit / Add Item Dialog -->
