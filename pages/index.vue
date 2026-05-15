@@ -8,8 +8,10 @@ const searchTerm = ref('')
 const db = useFirestore()
 const sessionUser = useSessionUser()
 
-// Fetch trips client-side only using useAsyncData
-const { data: myTrips, error: tripsError, pending: tripsPending } = await useAsyncData(
+// Fetch trips client-side only. Use `null` as the default so the loading
+// state is identical on server and on the first client render (avoids a
+// hydration mismatch where server shows empty-state and client shows spinner).
+const { data: myTrips, error: tripsError } = useAsyncData(
   'my-trips',
   async () => {
     if (!sessionUser.value?.uid)
@@ -25,10 +27,13 @@ const { data: myTrips, error: tripsError, pending: tripsPending } = await useAsy
     return snapshot.docs.map(doc => doc.data())
   },
   {
-    server: false, // Client-side only
-    lazy: true, // Non-blocking
+    server: false,
+    lazy: true,
+    default: () => null,
   },
 )
+
+const tripsPending = computed(() => myTrips.value === null)
 
 // Watch for errors and log them
 watch(tripsError, (error) => {
