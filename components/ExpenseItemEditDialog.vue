@@ -13,7 +13,10 @@ const props = defineProps<{
 const emit = defineEmits<{
   (e: 'update:open', val: boolean): void
   (e: 'save', index: number, item: ExpenseDetailItem): void
+  (e: 'add', item: ExpenseDetailItem): void
 }>()
+
+const isAddMode = computed(() => props.itemIndex === null)
 
 const name = ref('')
 const priceRaw = ref('')
@@ -26,19 +29,28 @@ const price = computed(() => {
   return isNaN(n) ? 0 : n
 })
 
-watch(() => props.item, (item) => {
-  if (!item)
+watch(() => props.open, (open) => {
+  if (!open)
     return
-  name.value = item.name
-  priceRaw.value = String(item.price)
-  quantity.value = item.quantity ?? 1
-  translatedName.value = item.translatedName ?? ''
   // Materialize the "[] means all" convention into an explicit list so the
   // checkbox UI and toggle handler operate on the same source of truth.
   // handleSave normalizes back to [] when every member is selected.
-  sharedByMemberIds.value = item.sharedByMemberIds && item.sharedByMemberIds.length > 0
-    ? [...item.sharedByMemberIds]
-    : props.shareableMembers.map(m => m.id)
+  if (props.item) {
+    name.value = props.item.name
+    priceRaw.value = String(props.item.price)
+    quantity.value = props.item.quantity ?? 1
+    translatedName.value = props.item.translatedName ?? ''
+    sharedByMemberIds.value = props.item.sharedByMemberIds && props.item.sharedByMemberIds.length > 0
+      ? [...props.item.sharedByMemberIds]
+      : props.shareableMembers.map(m => m.id)
+  }
+  else {
+    name.value = ''
+    priceRaw.value = ''
+    quantity.value = 1
+    translatedName.value = ''
+    sharedByMemberIds.value = props.shareableMembers.map(m => m.id)
+  }
 }, { immediate: true })
 
 const allSelected = computed(() =>
@@ -65,17 +77,21 @@ function handleClose() {
 }
 
 function handleSave() {
-  if (props.itemIndex === null)
-    return
   const ids = sharedByMemberIds.value
   const normalizedIds = ids.length === props.shareableMembers.length ? [] : ids
-  emit('save', props.itemIndex, {
+  const payload: ExpenseDetailItem = {
     name: name.value,
     price: price.value,
     quantity: quantity.value,
     ...(translatedName.value ? { translatedName: translatedName.value } : {}),
     sharedByMemberIds: normalizedIds,
-  })
+  }
+  if (isAddMode.value) {
+    emit('add', payload)
+  }
+  else {
+    emit('save', props.itemIndex as number, payload)
+  }
 }
 </script>
 
@@ -83,7 +99,7 @@ function handleSave() {
   <ui-dialog :open="open" @update:open="handleOpenChange">
     <ui-dialog-content class="max-w-md" @open-auto-focus.prevent>
       <ui-dialog-header>
-        <ui-dialog-title>編輯明細項目</ui-dialog-title>
+        <ui-dialog-title>{{ isAddMode ? '新增明細項目' : '編輯明細項目' }}</ui-dialog-title>
       </ui-dialog-header>
 
       <div class="space-y-4 py-2">
@@ -183,7 +199,7 @@ function handleSave() {
           @click="handleSave"
         >
           <Icon v-if="isSaving" name="lucide:loader-2" class="animate-spin mr-2" :size="16" />
-          {{ isSaving ? '儲存中...' : '儲存' }}
+          {{ isSaving ? '儲存中...' : (isAddMode ? '新增' : '儲存') }}
         </ui-button>
       </ui-dialog-footer>
     </ui-dialog-content>

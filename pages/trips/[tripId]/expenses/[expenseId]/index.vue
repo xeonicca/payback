@@ -44,6 +44,9 @@ const isDeleting = ref(false)
 const isReanalyzing = ref(false)
 const editingItemIndex = ref<number | null>(null)
 const isSavingItem = ref(false)
+const isAddingItem = ref(false)
+const splittingItemIndex = ref<number | null>(null)
+const isSplittingItem = ref(false)
 const showTaxDeductionDialog = ref(false)
 const showRevertTaxDialog = ref(false)
 const isApplyingTax = ref(false)
@@ -62,8 +65,98 @@ const editingItem = computed(() =>
   editingItemIndex.value !== null ? (expense.value?.items?.[editingItemIndex.value] ?? null) : null,
 )
 
+const splittingItem = computed(() =>
+  splittingItemIndex.value !== null ? (expense.value?.items?.[splittingItemIndex.value] ?? null) : null,
+)
+
 function closeItemEditDialog() {
   editingItemIndex.value = null
+  isAddingItem.value = false
+}
+
+async function addItem(newItem: ExpenseDetailItem) {
+  if (!expense.value)
+    return
+  try {
+    isSavingItem.value = true
+    const items = [...(expense.value.items ?? []), newItem]
+    const grandTotal = Math.round(items.reduce((sum, item) => sum + item.price * (item.quantity ?? 1), 0) * 100) / 100
+    await updateDoc(doc(db, 'trips', tripId as string, 'expenses', expenseId as string), {
+      items,
+      grandTotal,
+      lastEditedByUserId: sessionUser.value?.uid,
+      lastEditedAt: serverTimestamp(),
+    })
+    isAddingItem.value = false
+    toast.success('已新增項目')
+  }
+  catch (error) {
+    console.error('Error adding item:', error)
+    toast.error('新增失敗')
+  }
+  finally {
+    isSavingItem.value = false
+  }
+}
+
+async function splitItem(originalIndex: number, splitQuantity: number, splitMemberIds: string[]) {
+  if (!expense.value)
+    return
+  const items = expense.value.items ?? []
+  const original = items[originalIndex]
+  if (!original)
+    return
+  const originalQuantity = original.quantity ?? 1
+  if (!Number.isInteger(splitQuantity) || splitQuantity < 1 || splitQuantity >= originalQuantity)
+    return
+
+  const expenseSharers = expense.value.sharedWithMemberIds ?? []
+  const originalEffective = original.sharedByMemberIds && original.sharedByMemberIds.length > 0
+    ? original.sharedByMemberIds
+    : expenseSharers
+  const splitSet = new Set(splitMemberIds)
+  const remainingShared = originalEffective.filter(id => !splitSet.has(id))
+  if (remainingShared.length === 0)
+    return
+
+  const expenseSharerSet = new Set(expenseSharers)
+  const isAllExpenseSharers = (ids: string[]) =>
+    ids.length === expenseSharers.length && ids.every(id => expenseSharerSet.has(id))
+
+  const updatedOriginal: ExpenseDetailItem = {
+    ...original,
+    quantity: originalQuantity - splitQuantity,
+    sharedByMemberIds: isAllExpenseSharers(remainingShared) ? [] : remainingShared,
+  }
+  const newItem: ExpenseDetailItem = {
+    name: original.name,
+    price: original.price,
+    quantity: splitQuantity,
+    ...(original.translatedName ? { translatedName: original.translatedName } : {}),
+    sharedByMemberIds: isAllExpenseSharers(splitMemberIds) ? [] : [...splitMemberIds],
+  }
+
+  const updatedItems = [...items]
+  updatedItems[originalIndex] = updatedOriginal
+  updatedItems.splice(originalIndex + 1, 0, newItem)
+
+  try {
+    isSplittingItem.value = true
+    await updateDoc(doc(db, 'trips', tripId as string, 'expenses', expenseId as string), {
+      items: updatedItems,
+      lastEditedByUserId: sessionUser.value?.uid,
+      lastEditedAt: serverTimestamp(),
+    })
+    splittingItemIndex.value = null
+    toast.success('已拆分項目')
+  }
+  catch (error) {
+    console.error('Error splitting item:', error)
+    toast.error('拆分失敗')
+  }
+  finally {
+    isSplittingItem.value = false
+  }
 }
 
 async function saveItem(index: number, updated: ExpenseDetailItem) {
@@ -586,11 +679,23 @@ async function reanalyzeReceipt() {
           v-if="expense?.needsReview && expense?.reviewReasons?.length"
           :reasons="expense.reviewReasons"
         />
-        <div v-if="expense?.items?.length" class="bg-card rounded-xl border p-4 space-y-4">
-          <div class="text-sm text-muted-foreground">
-            購買明細
+        <div v-if="expense?.items?.length || (canEditThisExpense && !trip?.archived)" class="bg-card rounded-xl border p-4 space-y-4">
+          <div class="flex items-center justify-between">
+            <div class="text-sm text-muted-foreground">
+              購買明細
+            </div>
+            <ui-button
+              v-if="canEditThisExpense && !trip?.archived"
+              variant="outline"
+              size="sm"
+              class="h-7 px-2 text-xs"
+              @click="isAddingItem = true"
+            >
+              <Icon name="lucide:plus" :size="14" class="mr-1" />
+              新增項目
+            </ui-button>
           </div>
-          <div class="space-y-1">
+          <div v-if="expense?.items?.length" class="space-y-1">
             <expense-detail-item
               v-for="(item, index) in expense.items"
               :key="item.name"
@@ -604,8 +709,12 @@ async function reanalyzeReceipt() {
               :shareable-members="sharedWithMembers"
               :shared-by-member-ids="item.sharedByMemberIds"
               @edit="editingItemIndex = index"
+              @split="splittingItemIndex = index"
             />
           </div>
+          <p v-else class="text-center py-4 text-xs text-muted-foreground">
+            尚未有購買明細
+          </p>
         </div>
 
         <div v-if="receiptImageUrl" class="bg-card rounded-xl border p-4 space-y-2">
@@ -638,16 +747,28 @@ async function reanalyzeReceipt() {
       </div>
     </div>
 
-    <!-- Quick Edit Item Dialog -->
+    <!-- Quick Edit / Add Item Dialog -->
     <expense-item-edit-dialog
-      :open="editingItemIndex !== null"
+      :open="editingItemIndex !== null || isAddingItem"
       :item="editingItem"
       :item-index="editingItemIndex"
       :currency="trip?.tripCurrency || ''"
       :shareable-members="sharedWithMembers || []"
       :is-saving="isSavingItem"
-      @update:open="closeItemEditDialog"
+      @update:open="(open) => { if (!open && !isSavingItem) closeItemEditDialog() }"
       @save="saveItem"
+      @add="addItem"
+    />
+
+    <!-- Split Item Dialog -->
+    <expense-item-split-dialog
+      :open="splittingItemIndex !== null"
+      :item="splittingItem"
+      :item-index="splittingItemIndex"
+      :currency="trip?.tripCurrency || ''"
+      :shareable-members="sharedWithMembers || []"
+      @update:open="(open) => { if (!open && !isSplittingItem) splittingItemIndex = null }"
+      @split="splitItem"
     />
 
     <!-- Tax Deduction Dialog -->

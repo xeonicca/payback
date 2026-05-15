@@ -33,7 +33,10 @@ const props = withDefaults(defineProps<Props>(), {
 const emit = defineEmits<{
   (e: 'update:sharedByMemberIds', memberIds: string[]): void
   (e: 'edit'): void
+  (e: 'split'): void
 }>()
+
+const canSplit = computed(() => (props.item.quantity ?? 1) > 1)
 
 // When sharedByMemberIds is empty/undefined, all members are selected
 // When it has values, only those specific members are selected
@@ -137,15 +140,30 @@ const googleSearchUrl = computed(() => {
         {{ defaultCurrency }} {{ convertedPrice }}
       </div>
     </div>
-    <ui-button
+    <div
       v-if="canEdit && !editMode"
-      variant="ghost"
-      size="icon"
-      class="absolute bottom-3 right-0 size-6 rounded-full bg-indigo-100 text-indigo-500 hover:bg-indigo-200 hover:text-indigo-700"
-      @click.stop="emit('edit')"
+      class="absolute bottom-3 right-0 flex items-center gap-1"
     >
-      <Icon name="mdi:pencil" :size="13" />
-    </ui-button>
+      <ui-button
+        v-if="canSplit"
+        variant="ghost"
+        size="icon"
+        class="size-6 rounded-full bg-indigo-100 text-indigo-500 hover:bg-indigo-200 hover:text-indigo-700"
+        :aria-label="`拆分 ${item.name}`"
+        @click.stop="emit('split')"
+      >
+        <Icon name="lucide:split" :size="13" />
+      </ui-button>
+      <ui-button
+        variant="ghost"
+        size="icon"
+        class="size-6 rounded-full bg-indigo-100 text-indigo-500 hover:bg-indigo-200 hover:text-indigo-700"
+        :aria-label="`編輯 ${item.name}`"
+        @click.stop="emit('edit')"
+      >
+        <Icon name="mdi:pencil" :size="13" />
+      </ui-button>
+    </div>
 
     <!-- Member selection section when in edit mode -->
     <div v-if="editMode && tripMembers.length > 0" class="mt-3 w-full space-y-2 bg-muted rounded-lg p-2">
