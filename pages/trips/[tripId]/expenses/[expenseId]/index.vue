@@ -858,7 +858,7 @@ async function reanalyzeReceipt() {
           <button
             type="button"
             aria-label="放大檢視收據"
-            class="block w-full cursor-zoom-in rounded-lg overflow-hidden focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+            class="block w-full cursor-zoom-in rounded-lg overflow-hidden focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:ring-offset-2"
             @click="isReceiptViewerOpen = true"
           >
             <img
