@@ -271,46 +271,52 @@ function formatSecondary(amount: number) {
                       </ui-badge>
                     </div>
 
-                    <div class="grid grid-cols-3 gap-2 text-xs">
-                      <div class="bg-muted/50 rounded-lg p-2">
-                        <p class="text-muted-foreground mb-0.5">
+                    <div class="bg-muted/50 rounded-lg divide-y divide-border/60 text-xs">
+                      <div class="flex items-start justify-between gap-3 px-3 py-2">
+                        <p class="text-muted-foreground shrink-0">
                           已支付
                         </p>
-                        <p class="font-mono font-semibold text-foreground">
-                          {{ primaryCurrency }} {{ toPrimary(memberBalances[member.id]?.paid ?? 0).toFixed(2) }}
-                        </p>
-                        <p v-if="hasDualCurrency" class="text-muted-foreground font-mono mt-0.5">
-                          ≈ {{ secondaryCurrency }} {{ toSecondary(memberBalances[member.id]?.paid ?? 0).toFixed(2) }}
-                        </p>
+                        <div class="text-right">
+                          <p class="font-mono font-semibold text-foreground whitespace-nowrap">
+                            {{ primaryCurrency }} {{ toPrimary(memberBalances[member.id]?.paid ?? 0).toFixed(2) }}
+                          </p>
+                          <p v-if="hasDualCurrency" class="text-muted-foreground font-mono mt-0.5 whitespace-nowrap">
+                            ≈ {{ secondaryCurrency }} {{ toSecondary(memberBalances[member.id]?.paid ?? 0).toFixed(2) }}
+                          </p>
+                        </div>
                       </div>
-                      <div class="bg-muted/50 rounded-lg p-2">
-                        <p class="text-muted-foreground mb-0.5">
+                      <div class="flex items-start justify-between gap-3 px-3 py-2">
+                        <p class="text-muted-foreground shrink-0">
                           已花費
                         </p>
-                        <p class="font-mono font-semibold text-foreground">
-                          {{ primaryCurrency }} {{ toPrimary(memberBalances[member.id]?.owed ?? 0).toFixed(2) }}
-                        </p>
-                        <p v-if="hasDualCurrency" class="text-muted-foreground font-mono mt-0.5">
-                          ≈ {{ secondaryCurrency }} {{ toSecondary(memberBalances[member.id]?.owed ?? 0).toFixed(2) }}
-                        </p>
+                        <div class="text-right">
+                          <p class="font-mono font-semibold text-foreground whitespace-nowrap">
+                            {{ primaryCurrency }} {{ toPrimary(memberBalances[member.id]?.owed ?? 0).toFixed(2) }}
+                          </p>
+                          <p v-if="hasDualCurrency" class="text-muted-foreground font-mono mt-0.5 whitespace-nowrap">
+                            ≈ {{ secondaryCurrency }} {{ toSecondary(memberBalances[member.id]?.owed ?? 0).toFixed(2) }}
+                          </p>
+                        </div>
                       </div>
-                      <div class="bg-muted/50 rounded-lg p-2">
-                        <p class="text-muted-foreground mb-0.5">
+                      <div class="flex items-start justify-between gap-3 px-3 py-2">
+                        <p class="text-muted-foreground shrink-0">
                           結算金額
                         </p>
-                        <p
-                          :class="{
-                            'text-green-600 dark:text-green-400': (memberBalances[member.id]?.balance ?? 0) > 0.01,
-                            'text-red-600 dark:text-red-400': (memberBalances[member.id]?.balance ?? 0) < -0.01,
-                            'text-muted-foreground': Math.abs(memberBalances[member.id]?.balance ?? 0) <= 0.01,
-                          }"
-                          class="font-mono font-semibold"
-                        >
-                          {{ (memberBalances[member.id]?.balance ?? 0) > 0.01 ? '+' : (memberBalances[member.id]?.balance ?? 0) < -0.01 ? '-' : '' }}{{ primaryCurrency }} {{ formatAmount(memberBalances[member.id]?.balance ?? 0) }}
-                        </p>
-                        <p v-if="hasDualCurrency" class="text-muted-foreground font-mono mt-0.5">
-                          ≈ {{ secondaryCurrency }} {{ formatSecondary(memberBalances[member.id]?.balance ?? 0) }}
-                        </p>
+                        <div class="text-right">
+                          <p
+                            :class="{
+                              'text-green-600 dark:text-green-400': (memberBalances[member.id]?.balance ?? 0) > 0.01,
+                              'text-red-600 dark:text-red-400': (memberBalances[member.id]?.balance ?? 0) < -0.01,
+                              'text-muted-foreground': Math.abs(memberBalances[member.id]?.balance ?? 0) <= 0.01,
+                            }"
+                            class="font-mono font-semibold whitespace-nowrap"
+                          >
+                            {{ (memberBalances[member.id]?.balance ?? 0) > 0.01 ? '+' : (memberBalances[member.id]?.balance ?? 0) < -0.01 ? '-' : '' }}{{ primaryCurrency }} {{ formatAmount(memberBalances[member.id]?.balance ?? 0) }}
+                          </p>
+                          <p v-if="hasDualCurrency" class="text-muted-foreground font-mono mt-0.5 whitespace-nowrap">
+                            ≈ {{ secondaryCurrency }} {{ formatSecondary(memberBalances[member.id]?.balance ?? 0) }}
+                          </p>
+                        </div>
                       </div>
                     </div>
                   </div>
