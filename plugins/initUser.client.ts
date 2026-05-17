@@ -1,8 +1,12 @@
+import { dlog, dlogEnv } from '~/utils/debugLog'
+
 export default defineNuxtPlugin(async () => {
+  dlog('initUser:start', dlogEnv())
   const { checkUser, setSession } = useLogin()
   const sessionUser = useSessionUser()
 
   const data = await checkUser()
+  dlog('initUser:checkUser:done', { hasUser: !!data, uid: data?.uid })
 
   if (data) {
     sessionUser.value = data
@@ -14,15 +18,18 @@ export default defineNuxtPlugin(async () => {
     try {
       const { getCurrentUser } = await import('vuefire')
       const user = await getCurrentUser()
+      dlog('initUser:recover:getCurrentUser', { hasUser: !!user, uid: user?.uid })
       if (user) {
         await setSession(user)
       }
     }
-    catch {
+    catch (e) {
+      dlog('initUser:recover:error', e)
       // Recovery failed — user will need to log in again
     }
   }
 
+  dlog('initUser:done', { hasSession: !!sessionUser.value })
   // Return object so Nuxt waits for this plugin before running route middleware
   return {}
 })

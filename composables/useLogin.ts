@@ -18,6 +18,7 @@ import {
   signOut,
 } from 'firebase/auth'
 import { getCurrentUser, useFirebaseAuth } from 'vuefire'
+import { dlog } from '~/utils/debugLog'
 import { useSessionUser } from './useSessionUser'
 
 interface ReturnUser {
@@ -42,40 +43,56 @@ export default function useLogin() {
   const { logEvent } = useAnalytics()
 
   const setSession = async (user: User) => {
+    dlog('setSession:start', { uid: user.uid, isAnonymous: user.isAnonymous })
     const token = await getIdToken(user, true)
+    dlog('setSession:tokenLen', { len: token.length })
     await $fetch('/api/__session', {
       method: 'POST',
       body: { token },
     })
+    dlog('setSession:cookieSet')
     const { user: appUser } = await $fetch<{ user: AppUser }>('/api/auth/me')
+    dlog('setSession:me', { hasUser: !!appUser, uid: appUser?.uid })
     sessionUser.value = appUser
     logEvent('login', { method: 'google' })
+    dlog('setSession:done')
   }
 
   const redirectToGoogleLogin = async () => {
-    if (!auth || !provider)
+    if (!auth || !provider) {
+      dlog('redirect:abort', { hasAuth: !!auth, hasProvider: !!provider })
       return
+    }
+    dlog('redirect:setPersistence')
     await setPersistence(auth, inMemoryPersistence)
     try {
+      dlog('redirect:signInWithRedirect:call')
       await signInWithRedirect(auth, provider)
+      dlog('redirect:signInWithRedirect:returned')
     }
     catch (e: unknown) {
       authError.value = e as AuthError
+      dlog('redirect:error', e)
       console.error(e)
     }
   }
 
   const loginWithGoogle = async () => {
-    if (!auth || !provider)
+    dlog('loginWithGoogle:start', { mode: import.meta.env.MODE })
+    if (!auth || !provider) {
+      dlog('loginWithGoogle:abort', { hasAuth: !!auth, hasProvider: !!provider })
       return null
+    }
 
     if (import.meta.env.MODE === 'development') {
       try {
         const result = await signInWithPopup(auth, provider)
+        dlog('loginWithGoogle:popup:done', { uid: result.user.uid })
         await setSession(result.user)
       }
       catch (e: unknown) {
         authError.value = e as AuthError
+        dlog('loginWithGoogle:popup:error', e)
         console.error(e)
       }
     }
@@ -87,24 +104,35 @@ export default function useLogin() {
   }
 
   const checkRedirectResult = async () => {
+    dlog('checkRedirect:start', { mode: import.meta.env.MODE, hasAuth: !!auth })
     if (!auth)
       return null
 
     if (import.meta.env.MODE === 'development') {
       try {
         const user = await getCurrentUser()
+        dlog('checkRedirect:dev:getCurrentUser', { hasUser: !!user, uid: user?.uid })
         if (user)
           await setSession(user)
       }
       catch (e: unknown) {
         // Stale cached Firebase user — clear it so it doesn't block fresh logins
+        dlog('checkRedirect:dev:error', e)
         console.warn('Failed to restore session from cached user, signing out', e)
         await signOut(auth!)
       }
       return sessionUser.value
     }
     try {
+      dlog('checkRedirect:getRedirectResult:call')
       const result = await getRedirectResult(auth)
+      dlog('checkRedirect:getRedirectResult:done', {
+        hasResult: !!result,
+        hasUser: !!result?.user,
+        uid: result?.user?.uid,
+        providerId: result?.providerId,
+        currentUserUid: auth.currentUser?.uid ?? null,
+      })
       if (result?.user) {
         await setSession(result.user)
       }
@@ -113,6 +141,7 @@ export default function useLogin() {
     }
     catch (e: unknown) {
       authError.value = e as AuthError
+      dlog('checkRedirect:error', e)
       console.error(e)
       return null
     }
