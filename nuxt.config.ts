@@ -2,6 +2,7 @@ import tailwindcss from '@tailwindcss/vite'
 
 export default defineNuxtConfig({
   compatibilityDate: '2025-05-15',
+  ssr: false,
   srcDir: '.',
   devtools: { enabled: false },
   modules: [
@@ -114,7 +115,7 @@ export default defineNuxtConfig({
     },
     workbox: {
       globPatterns: ['**/*.{js,css,html,png,svg,ico}'],
-      navigateFallback: '/offline.html',
+      navigateFallback: '/',
       navigateFallbackDenylist: [/^\/api/],
       cleanupOutdatedCaches: true,
       runtimeCaching: [
