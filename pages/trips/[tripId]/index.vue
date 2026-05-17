@@ -14,6 +14,8 @@ const { tripMembers, hostMember, currentUserMember } = useTripMembers(tripId as 
 const { enabledExpenses: recentExpenses } = useTripExpenses(tripId as string, 5)
 const { canAddExpenses } = useTripCollaborators(tripId as string)
 
+useTripExpenseToasts(tripId as string)
+
 const { getMemberPaidAmount, getMemberOwedAmount } = useTripBalances(tripId as string)
 
 const { showHomeCurrency, hasDualCurrency, primaryCurrency, secondaryCurrency, toPrimary, toSecondary } = useCurrencyToggle(tripId as string, trip)
