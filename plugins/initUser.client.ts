@@ -8,19 +8,18 @@ export default defineNuxtPlugin(async () => {
     sessionUser.value = data
   }
   else {
-    // Session cookie missing — try to recover from persisted anonymous Firebase user
-    // This handles the case where a guest closed the in-app browser (LINE/WhatsApp)
-    // and reopened the link later. browserLocalPersistence keeps the anonymous user
-    // in IndexedDB even after the session cookie expires.
+    // Session cookie missing or expired — try to recover from the Firebase refresh
+    // token in IndexedDB. Covers both guests who reopened a LINE/WhatsApp WebView
+    // and Google users returning after the 14-day session cookie elapsed.
     try {
       const { getCurrentUser } = await import('vuefire')
       const user = await getCurrentUser()
-      if (user?.isAnonymous) {
+      if (user) {
         await setSession(user)
       }
     }
     catch {
-      // Recovery failed — guest will need to rejoin
+      // Recovery failed — user will need to log in again
     }
   }
 
