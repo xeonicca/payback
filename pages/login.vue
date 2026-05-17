@@ -42,7 +42,8 @@ onMounted(async () => {
   <div class="pt-[20vh] flex min-h-svh flex-col gap-6 bg-gradient-to-b from-slate-700 to-slate-300 p-6 md:p-10">
     <div class="flex w-full flex-col gap-6 items-center">
       <NuxtImg src="/logo-transparent.png" alt="logo" class="w-40 h-40" />
-      <LoginForm />
+      <loading-spinner v-if="isLoading" size="lg" class="text-slate-200" />
+      <LoginForm v-else />
     </div>
   </div>
 </template>
