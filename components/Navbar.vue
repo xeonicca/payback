@@ -108,6 +108,11 @@ async function handleLogout() {
       <ul class="flex place-items-center space-x-4">
         <li class="flex items-center">
           <ClientOnly>
+            <connection-status-pill />
+          </ClientOnly>
+        </li>
+        <li class="flex items-center">
+          <ClientOnly>
             <template v-if="sessionUser">
               <ui-dropdown-menu>
                 <ui-dropdown-menu-trigger as-child>
