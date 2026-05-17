@@ -119,6 +119,7 @@ export interface Expense extends NewExpense {
   createdAtString: string
   lastEditedAtString?: string
   receiptImageUrl?: string
+  hasPendingWrites?: boolean
 }
 
 export interface Currency {

@@ -110,6 +110,7 @@ export const expenseConverter: FirestoreDataConverter<Expense> = {
       printedItemCount: data.printedItemCount ?? null,
       needsReview: data.needsReview ?? false,
       reviewReasons: data.reviewReasons ?? [],
+      hasPendingWrites: snapshot.metadata.hasPendingWrites,
     } as Expense
   },
 }
