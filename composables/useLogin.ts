@@ -47,18 +47,30 @@ export default function useLogin() {
     const token = await getIdToken(user, true)
     dlog('setSession:tokenLen', { len: token.length })
     let sessionStatus: number | null = null
+    let sessionHeaders: Record<string, string> | null = null
+    let sessionType: string | null = null
+    let sessionFromSW: boolean | null = null
     try {
-      const res = await $fetch.raw('/api/__session', {
+      // Use raw fetch so we can read status + headers, bypass SW with cache: 'no-store'
+      const res = await fetch('/api/__session', {
         method: 'POST',
-        body: { token },
+        body: JSON.stringify({ token }),
         credentials: 'include',
+        headers: { 'content-type': 'application/json' },
+        cache: 'no-store',
       })
       sessionStatus = res.status
+      sessionType = res.type
+      sessionFromSW = (res as Response & { fromServiceWorker?: boolean }).fromServiceWorker ?? null
+      sessionHeaders = {}
+      res.headers.forEach((v, k) => {
+        sessionHeaders![k] = v
+      })
     }
     catch (e) {
       dlog('setSession:cookieFetch:error', e)
     }
-    dlog('setSession:cookieSet', { status: sessionStatus })
+    dlog('setSession:cookieSet', { status: sessionStatus, type: sessionType, fromSW: sessionFromSW, headers: sessionHeaders })
 
     try {
       const dbg = await $fetch('/api/__debug-session', { credentials: 'include' })
