@@ -1,7 +1,9 @@
 import { AUTH_COOKIE_NAME } from 'vuefire/server'
 import { getFirebaseAdminAuth } from '../utils/session'
 
-// Firebase session cookies max out at 2 weeks; pick 5 days to match vuefire's default
+// nuxt-vuefire only auto-registers /api/__session when ssr:true. We run ssr:false,
+// so we own this endpoint — without it the POST falls through to the SPA index.html
+// (200 OK, no Set-Cookie) and login silently fails.
 const SESSION_COOKIE_MAX_AGE_SECONDS = 60 * 60 * 24 * 5
 const ID_TOKEN_MAX_AGE_SECONDS = 5 * 60
 
