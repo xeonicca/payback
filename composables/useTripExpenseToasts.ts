@@ -50,11 +50,11 @@ export function formatExpenseToast(
   membersMap: Record<string, MemberLike> | undefined,
   currency?: string,
 ): string {
-  const memberName = membersMap?.[expense.paidByMemberId]?.name ?? 'Someone'
-  const description = expense.description ?? 'a new expense'
+  const memberName = membersMap?.[expense.paidByMemberId]?.name ?? '某人'
+  const description = expense.description ?? '一筆新支出'
   const amount = expense.grandTotal ?? 0
   const currencyPart = currency ? `${currency} ` : ''
-  return `${memberName} added ${description} — ${currencyPart}${amount}`
+  return `${memberName} 新增了「${description}」— ${currencyPart}${amount}`
 }
 
 export function useTripExpenseToasts(tripId: string) {

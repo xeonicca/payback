@@ -71,6 +71,7 @@ describe('formatExpenseToast', () => {
     expect(msg).toContain('Sarah')
     expect(msg).toContain('Dinner')
     expect(msg).toContain('1200')
+    expect(msg).toContain('新增了')
   })
 
   it('includes the currency code when provided', () => {
@@ -82,16 +83,16 @@ describe('formatExpenseToast', () => {
 
   it('omits the currency prefix when not provided', () => {
     const msg = formatExpenseToast(expense(), members)
-    expect(msg).not.toMatch(/^\s*[A-Z]{3}\s/)
+    expect(msg).not.toMatch(/[A-Z]{3} 1200/)
   })
 
-  it('falls back to "Someone" when member is unknown', () => {
+  it('falls back to "某人" when member is unknown', () => {
     const msg = formatExpenseToast(expense({ paidByMemberId: 'm-unknown' }), members)
-    expect(msg).toContain('Someone')
+    expect(msg).toContain('某人')
   })
 
-  it('falls back to "a new expense" when description is missing', () => {
+  it('falls back to "一筆新支出" when description is missing', () => {
     const msg = formatExpenseToast(expense({ description: undefined }), members)
-    expect(msg).toContain('a new expense')
+    expect(msg).toContain('一筆新支出')
   })
 })
