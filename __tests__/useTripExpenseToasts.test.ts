@@ -13,6 +13,10 @@ function expense(overrides: Partial<any> = {}) {
   }
 }
 
+function ts(ms: number) {
+  return { toMillis: () => ms }
+}
+
 describe('shouldFireToastForExpense', () => {
   it('returns true for a fresh expense from another member', () => {
     expect(shouldFireToastForExpense(expense(), 'm-me', new Set())).toBe(true)
@@ -38,6 +42,23 @@ describe('shouldFireToastForExpense', () => {
   it('still fires when currentUserMemberId is undefined (guest viewer)', () => {
     expect(shouldFireToastForExpense(expense(), undefined, new Set())).toBe(true)
   })
+
+  it('returns false when expense createdAt is older than the cutoff', () => {
+    const cutoff = 1_000_000
+    const old = expense({ createdAt: ts(cutoff - 1) })
+    expect(shouldFireToastForExpense(old, 'm-me', new Set(), cutoff)).toBe(false)
+  })
+
+  it('returns true when expense createdAt is newer than the cutoff', () => {
+    const cutoff = 1_000_000
+    const fresh = expense({ createdAt: ts(cutoff + 1) })
+    expect(shouldFireToastForExpense(fresh, 'm-me', new Set(), cutoff)).toBe(true)
+  })
+
+  it('returns true when cutoff is provided but expense has no createdAt timestamp', () => {
+    // Own pending writes carry a FieldValue sentinel (no toMillis); other guards still apply.
+    expect(shouldFireToastForExpense(expense(), 'm-me', new Set(), 1_000_000)).toBe(true)
+  })
 })
 
 describe('formatExpenseToast', () => {
@@ -50,6 +71,18 @@ describe('formatExpenseToast', () => {
     expect(msg).toContain('Sarah')
     expect(msg).toContain('Dinner')
     expect(msg).toContain('1200')
+  })
+
+  it('includes the currency code when provided', () => {
+    const msg = formatExpenseToast(expense(), members, 'JPY')
+    expect(msg).toContain('JPY')
+    expect(msg).toContain('1200')
+    expect(msg).toMatch(/JPY 1200/)
+  })
+
+  it('omits the currency prefix when not provided', () => {
+    const msg = formatExpenseToast(expense(), members)
+    expect(msg).not.toMatch(/^\s*[A-Z]{3}\s/)
   })
 
   it('falls back to "Someone" when member is unknown', () => {
