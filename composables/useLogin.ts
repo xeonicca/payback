@@ -46,12 +46,31 @@ export default function useLogin() {
     dlog('setSession:start', { uid: user.uid, isAnonymous: user.isAnonymous })
     const token = await getIdToken(user, true)
     dlog('setSession:tokenLen', { len: token.length })
-    await $fetch('/api/__session', {
-      method: 'POST',
-      body: { token },
+    let sessionStatus: number | null = null
+    try {
+      const res = await $fetch.raw('/api/__session', {
+        method: 'POST',
+        body: { token },
+        credentials: 'include',
+      })
+      sessionStatus = res.status
+    }
+    catch (e) {
+      dlog('setSession:cookieFetch:error', e)
+    }
+    dlog('setSession:cookieSet', { status: sessionStatus })
+
+    try {
+      const dbg = await $fetch('/api/__debug-session', { credentials: 'include' })
+      dlog('setSession:debug', dbg)
+    }
+    catch (e) {
+      dlog('setSession:debug:error', e)
+    }
+
+    const { user: appUser } = await $fetch<{ user: AppUser }>('/api/auth/me', {
+      credentials: 'include',
     })
-    dlog('setSession:cookieSet')
-    const { user: appUser } = await $fetch<{ user: AppUser }>('/api/auth/me')
     dlog('setSession:me', { hasUser: !!appUser, uid: appUser?.uid })
     sessionUser.value = appUser
     logEvent('login', { method: 'google' })
