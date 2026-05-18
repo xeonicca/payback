@@ -1,5 +1,22 @@
 const KEY = '__dlog'
-const MAX = 12000
+const MAX = 40000
+const SID_KEY = '__dlog_sid'
+
+function getSid(): string {
+  if (typeof window === 'undefined')
+    return '-'
+  try {
+    let sid = window.sessionStorage.getItem(SID_KEY)
+    if (!sid) {
+      sid = Math.random().toString(36).slice(2, 8)
+      window.sessionStorage.setItem(SID_KEY, sid)
+    }
+    return sid
+  }
+  catch {
+    return '-'
+  }
+}
 
 function safeStringify(value: unknown): string {
   try {
@@ -17,8 +34,8 @@ function safeStringify(value: unknown): string {
 export function dlog(msg: string, data?: unknown) {
   if (typeof window === 'undefined')
     return
-  const time = new Date().toISOString().slice(11, 23)
-  const entry = `${time} ${msg}${data === undefined ? '' : ` ${safeStringify(data)}`}`
+  const time = new Date().toISOString()
+  const entry = `${time.slice(11, 23)} ${msg}${data === undefined ? '' : ` ${safeStringify(data)}`}`
   try {
     const prev = window.localStorage.getItem(KEY) ?? ''
     const next = (prev ? `${prev}\n${entry}` : entry).slice(-MAX)
@@ -29,6 +46,19 @@ export function dlog(msg: string, data?: unknown) {
   }
   // eslint-disable-next-line no-console
   console.log('[dlog]', entry)
+  // Fire-and-forget ship to server so logs survive truncation/copy-paste
+  try {
+    const body = JSON.stringify({ ts: time, sid: getSid(), msg, data })
+    if (navigator.sendBeacon) {
+      navigator.sendBeacon('/api/__dlog', new Blob([body], { type: 'application/json' }))
+    }
+    else {
+      void fetch('/api/__dlog', { method: 'POST', body, headers: { 'content-type': 'application/json' }, keepalive: true })
+    }
+  }
+  catch {
+    // network unavailable — local copy still in localStorage
+  }
 }
 
 export function dlogRead(): string {
