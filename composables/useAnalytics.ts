@@ -1,5 +1,6 @@
 import type { Analytics } from 'firebase/analytics'
 import type { AppUser } from '@/types'
+import type { AnalyticsEventName, LogEventArgs } from '@/types/analytics'
 import { logEvent as firebaseLogEvent, getAnalytics, isSupported, setUserId, setUserProperties } from 'firebase/analytics'
 
 let analytics: Analytics | null = null
@@ -17,13 +18,15 @@ async function getAnalyticsInstance(): Promise<Analytics | null> {
 }
 
 export function useAnalytics() {
-  async function logEvent(eventName: string, params?: Record<string, any>) {
+  async function logEvent<K extends AnalyticsEventName>(eventName: K, ...args: LogEventArgs<K>) {
     if (import.meta.server)
       return
 
     const instance = await getAnalyticsInstance()
     if (instance) {
-      firebaseLogEvent(instance, eventName, params)
+      // Cast: Firebase's CustomEventName type rejects GA reserved names
+      // (page_view, login, ...) which we deliberately use.
+      firebaseLogEvent(instance, eventName as string, args[0] as Record<string, any>)
     }
   }
 
