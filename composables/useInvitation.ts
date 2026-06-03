@@ -7,6 +7,7 @@ interface CreateInvitationParams {
   tripId: string
   expiresInDays?: number
   maxUses?: number | null
+  type?: 'personal' | 'guest'
 }
 
 interface CreateInvitationResponse {

@@ -165,10 +165,13 @@ async function handleLogin() {
 </script>
 
 <template>
-  <div class="min-h-svh bg-slate-200 flex items-center justify-center p-6">
-    <div class="w-full max-w-md">
+  <div class="min-h-svh bg-gradient-to-b from-slate-100 to-slate-200 flex items-center justify-center p-6 relative overflow-hidden">
+    <!-- Soft decorative background glow -->
+    <div class="pointer-events-none absolute -top-40 left-1/2 h-[32rem] w-[32rem] -translate-x-1/2 rounded-full bg-indigo-200/40 blur-3xl" />
+
+    <div class="w-full max-w-md relative">
       <!-- Loading State -->
-      <div v-if="isLoading || isCheckingRedirect" class="bg-white rounded-2xl shadow-lg border border-gray-100 p-10">
+      <div v-if="isLoading || isCheckingRedirect" class="animate-card-in bg-white rounded-2xl shadow-lg border border-gray-100 p-10">
         <div class="flex flex-col items-center justify-center space-y-4">
           <loading-spinner size="lg" />
           <p class="text-sm text-muted-foreground m-0">
@@ -178,7 +181,7 @@ async function handleLogin() {
       </div>
 
       <!-- Invitation Not Found -->
-      <div v-else-if="!invitation" class="bg-white rounded-2xl shadow-lg border border-gray-100 p-10">
+      <div v-else-if="!invitation" class="animate-card-in bg-white rounded-2xl shadow-lg border border-gray-100 p-10">
         <div class="flex flex-col items-center justify-center space-y-5 text-center">
           <div class="w-20 h-20 bg-red-50 rounded-full flex items-center justify-center">
             <Icon name="lucide:link-2-off" class="w-9 h-9 text-red-500" />
@@ -198,7 +201,7 @@ async function handleLogin() {
       </div>
 
       <!-- Expired Invitation -->
-      <div v-else-if="isExpired" class="bg-white rounded-2xl shadow-lg border border-gray-100 p-10">
+      <div v-else-if="isExpired" class="animate-card-in bg-white rounded-2xl shadow-lg border border-gray-100 p-10">
         <div class="flex flex-col items-center justify-center space-y-5 text-center">
           <div class="w-20 h-20 bg-amber-50 rounded-full flex items-center justify-center">
             <Icon name="lucide:timer-off" class="w-9 h-9 text-amber-500" />
@@ -221,7 +224,7 @@ async function handleLogin() {
       </div>
 
       <!-- Revoked Invitation -->
-      <div v-else-if="isRevoked" class="bg-white rounded-2xl shadow-lg border border-gray-100 p-10">
+      <div v-else-if="isRevoked" class="animate-card-in bg-white rounded-2xl shadow-lg border border-gray-100 p-10">
         <div class="flex flex-col items-center justify-center space-y-5 text-center">
           <div class="w-20 h-20 bg-red-50 rounded-full flex items-center justify-center">
             <Icon name="lucide:ban" class="w-9 h-9 text-red-500" />
@@ -241,7 +244,7 @@ async function handleLogin() {
       </div>
 
       <!-- Already Used -->
-      <div v-else-if="isAlreadyUsed" class="bg-white rounded-2xl shadow-lg border border-gray-100 p-10">
+      <div v-else-if="isAlreadyUsed" class="animate-card-in bg-white rounded-2xl shadow-lg border border-gray-100 p-10">
         <div class="flex flex-col items-center justify-center space-y-5 text-center">
           <div class="w-20 h-20 bg-green-50 rounded-full flex items-center justify-center">
             <Icon name="lucide:check-circle-2" size="44" class="text-green-500" />
@@ -262,7 +265,7 @@ async function handleLogin() {
       </div>
 
       <!-- Valid Invitation -->
-      <div v-else class="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden">
+      <div v-else class="animate-card-in bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden">
         <!-- Trip Info Header -->
         <div class="bg-slate-50 px-6 pt-10 pb-6 text-center border-b border-gray-100">
           <p class="text-sm text-muted-foreground m-0 mb-3">
@@ -319,18 +322,18 @@ async function handleLogin() {
                 <button
                   v-for="member in availableMembers"
                   :key="member.id"
-                  class="w-full flex items-center gap-3 p-3.5 rounded-xl border-2 transition-all duration-300 text-left outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+                  class="w-full flex items-center gap-3 p-3.5 rounded-xl border-2 transition-all duration-200 text-left outline-none focus-visible:ring-2 focus-visible:ring-ring/50 active:scale-[0.98]"
                   :class="selectedMemberId === member.id
-                    ? 'border-indigo-500 bg-indigo-50 shadow-sm shadow-indigo-100'
-                    : 'border-gray-100 hover:border-gray-200 bg-white'"
+                    ? 'border-indigo-500 bg-indigo-50 shadow-sm shadow-indigo-100 -translate-y-0.5'
+                    : 'border-gray-100 hover:border-gray-200 bg-white hover:-translate-y-px'"
                   @click="selectMember(member.id)"
                 >
                   <member-avatar :emoji="member.avatarEmoji" size="lg" />
                   <span class="flex-1 font-medium text-foreground">{{ member.name }}</span>
                   <div
-                    class="w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors duration-200"
+                    class="w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all duration-200"
                     :class="selectedMemberId === member.id
-                      ? 'border-indigo-600 bg-indigo-600'
+                      ? 'border-indigo-600 bg-indigo-600 scale-110'
                       : 'border-gray-300'"
                   >
                     <Icon
@@ -351,20 +354,21 @@ async function handleLogin() {
 
               <!-- Join as new member -->
               <button
-                class="w-full flex items-center gap-3 p-3.5 rounded-xl border-2 transition-all duration-300 text-left outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+                class="w-full flex items-center gap-3 p-3.5 rounded-xl border-2 transition-all duration-200 text-left outline-none focus-visible:ring-2 focus-visible:ring-ring/50 active:scale-[0.98]"
                 :class="joinAsNew
-                  ? 'border-indigo-500 bg-indigo-50 shadow-sm shadow-indigo-100'
-                  : 'border-gray-100 hover:border-gray-200 bg-white'"
+                  ? 'border-indigo-500 bg-indigo-50 shadow-sm shadow-indigo-100 -translate-y-0.5'
+                  : 'border-gray-100 hover:border-gray-200 bg-white hover:-translate-y-px'"
                 @click="selectJoinAsNew"
               >
-                <div class="size-10 bg-gray-100 rounded-full flex items-center justify-center">
-                  <Icon name="lucide:user-plus" class="w-4 h-4 text-gray-500" />
+                <div class="size-10 rounded-full flex items-center justify-center transition-all duration-200 text-xl" :class="joinAsNew && newMemberEmoji ? 'bg-indigo-50' : 'bg-gray-100'">
+                  <span v-if="joinAsNew && newMemberEmoji">{{ newMemberEmoji }}</span>
+                  <Icon v-else name="lucide:user-plus" class="w-4 h-4 text-gray-500" />
                 </div>
                 <span class="flex-1 font-medium text-foreground">以新成員加入</span>
                 <div
-                  class="w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors duration-200"
+                  class="w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all duration-200"
                   :class="joinAsNew
-                    ? 'border-indigo-600 bg-indigo-600'
+                    ? 'border-indigo-600 bg-indigo-600 scale-110'
                     : 'border-gray-300'"
                 >
                   <Icon
@@ -376,32 +380,34 @@ async function handleLogin() {
               </button>
 
               <!-- New member form -->
-              <div v-if="joinAsNew" class="space-y-4 rounded-xl bg-gray-50 p-4">
-                <div>
-                  <label class="text-sm font-medium text-gray-700 mb-1.5 block">你的名稱</label>
-                  <ui-input
-                    v-model="newMemberName"
-                    type="text"
-                    placeholder="例：小明"
-                  />
-                </div>
-                <div>
-                  <label class="text-sm font-medium text-gray-700 mb-1.5 block">選擇頭像</label>
-                  <div class="flex flex-wrap gap-2">
-                    <button
-                      v-for="emoji in availableEmojis"
-                      :key="emoji"
-                      class="w-11 h-11 rounded-lg border-2 flex items-center justify-center text-xl transition-all duration-300 outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
-                      :class="newMemberEmoji === emoji
-                        ? 'border-indigo-500 bg-indigo-50 scale-110'
-                        : 'border-gray-200 hover:border-gray-300'"
-                      @click="newMemberEmoji = emoji"
-                    >
-                      {{ emoji }}
-                    </button>
+              <Transition name="expand">
+                <div v-if="joinAsNew" class="space-y-4 rounded-xl bg-gray-50 p-4">
+                  <div>
+                    <label class="text-sm font-medium text-gray-700 mb-1.5 block">你的名稱</label>
+                    <ui-input
+                      v-model="newMemberName"
+                      type="text"
+                      placeholder="例：小明"
+                    />
+                  </div>
+                  <div>
+                    <label class="text-sm font-medium text-gray-700 mb-1.5 block">選擇頭像</label>
+                    <div class="flex flex-wrap gap-2">
+                      <button
+                        v-for="emoji in availableEmojis"
+                        :key="emoji"
+                        class="w-11 h-11 rounded-lg border-2 flex items-center justify-center text-xl transition-all duration-200 outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+                        :class="newMemberEmoji === emoji
+                          ? 'border-indigo-500 bg-indigo-50 scale-125 shadow-md shadow-indigo-200/60'
+                          : 'border-gray-200 hover:border-gray-300 hover:scale-110'"
+                        @click="newMemberEmoji = emoji"
+                      >
+                        {{ emoji }}
+                      </button>
+                    </div>
                   </div>
                 </div>
-              </div>
+              </Transition>
             </div>
 
             <!-- Accept Button -->
@@ -427,3 +433,32 @@ async function handleLogin() {
     </div>
   </div>
 </template>
+
+<style scoped>
+@keyframes card-in {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-card-in {
+  animation: card-in 0.45s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.expand-enter-active {
+  transition: opacity 0.25s ease-out, transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.expand-leave-active {
+  transition: opacity 0.15s ease-in, transform 0.15s ease-in;
+}
+.expand-enter-from,
+.expand-leave-to {
+  opacity: 0;
+  transform: translateY(-6px);
+}
+</style>

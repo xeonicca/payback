@@ -35,6 +35,7 @@ const sortOptions = [
 ]
 
 const trip = useDocument<Trip>(doc(db, 'trips', tripId as string).withConverter(tripConverter))
+const { showHomeCurrency, primaryCurrency, secondaryCurrency } = useCurrencyToggle(tripId as string, trip)
 const { tripExpenses, enabledExpenses } = useTripExpenses(tripId as string)
 const { tripMembers } = useTripMembers(tripId as string)
 
@@ -162,6 +163,9 @@ const displayedExpenses = computed(() => {
         :expense="expense"
         :trip-members="tripMembers"
         :trip="trip!"
+        :show-home-currency="showHomeCurrency"
+        :primary-currency="primaryCurrency"
+        :secondary-currency="secondaryCurrency"
       />
     </div>
 

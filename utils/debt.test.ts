@@ -5,6 +5,7 @@ import {
   calculateMemberBalance,
   calculateMemberOwedAmount,
   calculateMemberPaidAmount,
+  calculateSettlements,
 } from './debt'
 
 describe('debt calculations', () => {
@@ -16,7 +17,7 @@ describe('debt calculations', () => {
           paidByMemberId: 'alice',
           grandTotal: 100,
           sharedWithMemberIds: ['alice', 'bob'],
-        } as Expense,
+        } as unknown as Expense,
       ]
 
       expect(calculateMemberPaidAmount(expenses, 'bob')).toBe(0)
@@ -29,7 +30,7 @@ describe('debt calculations', () => {
           paidByMemberId: 'alice',
           grandTotal: 100,
           sharedWithMemberIds: ['alice', 'bob'],
-        } as Expense,
+        } as unknown as Expense,
       ]
 
       expect(calculateMemberPaidAmount(expenses, 'alice')).toBe(100)
@@ -42,19 +43,19 @@ describe('debt calculations', () => {
           paidByMemberId: 'alice',
           grandTotal: 100,
           sharedWithMemberIds: ['alice', 'bob'],
-        } as Expense,
+        } as unknown as Expense,
         {
           id: '2',
           paidByMemberId: 'alice',
           grandTotal: 50,
           sharedWithMemberIds: ['alice', 'bob'],
-        } as Expense,
+        } as unknown as Expense,
         {
           id: '3',
           paidByMemberId: 'bob',
           grandTotal: 75,
           sharedWithMemberIds: ['alice', 'bob'],
-        } as Expense,
+        } as unknown as Expense,
       ]
 
       expect(calculateMemberPaidAmount(expenses, 'alice')).toBe(150)
@@ -69,7 +70,7 @@ describe('debt calculations', () => {
           paidByMemberId: 'alice',
           grandTotal: 100,
           sharedWithMemberIds: ['alice', 'bob'],
-        } as Expense,
+        } as unknown as Expense,
       ]
 
       expect(calculateMemberOwedAmount(expenses, 'charlie')).toBe(0)
@@ -83,7 +84,7 @@ describe('debt calculations', () => {
           grandTotal: 100,
           sharedWithMemberIds: ['alice', 'bob'],
           items: [],
-        } as Expense,
+        } as unknown as Expense,
       ]
 
       expect(calculateMemberOwedAmount(expenses, 'alice')).toBe(50)
@@ -98,7 +99,7 @@ describe('debt calculations', () => {
           grandTotal: 150,
           sharedWithMemberIds: ['alice', 'bob', 'charlie'],
           items: [],
-        } as Expense,
+        } as unknown as Expense,
       ]
 
       expect(calculateMemberOwedAmount(expenses, 'alice')).toBe(50)
@@ -127,7 +128,7 @@ describe('debt calculations', () => {
               sharedByMemberIds: [], // Empty means all expense members share
             },
           ],
-        } as Expense,
+        } as unknown as Expense,
       ]
 
       // Alice: 60/2 (pizza) + 40/3 (drinks) = 30 + 13.33 = 43.33
@@ -153,7 +154,7 @@ describe('debt calculations', () => {
               sharedByMemberIds: ['alice', 'bob'],
             },
           ],
-        } as Expense,
+        } as unknown as Expense,
       ]
 
       // Each person: 20/2 = 10
@@ -171,7 +172,7 @@ describe('debt calculations', () => {
           grandTotal: 100,
           sharedWithMemberIds: ['alice', 'bob'],
           items: [],
-        } as Expense,
+        } as unknown as Expense,
       ]
 
       // Alice paid 100 but only owes 50, so balance is +50
@@ -186,7 +187,7 @@ describe('debt calculations', () => {
           grandTotal: 100,
           sharedWithMemberIds: ['alice', 'bob'],
           items: [],
-        } as Expense,
+        } as unknown as Expense,
       ]
 
       // Bob paid 0 but owes 50, so balance is -50
@@ -201,14 +202,14 @@ describe('debt calculations', () => {
           grandTotal: 100,
           sharedWithMemberIds: ['alice', 'bob'],
           items: [],
-        } as Expense,
+        } as unknown as Expense,
         {
           id: '2',
           paidByMemberId: 'bob',
           grandTotal: 100,
           sharedWithMemberIds: ['alice', 'bob'],
           items: [],
-        } as Expense,
+        } as unknown as Expense,
       ]
 
       // Alice paid 100, owes 100, balance = 0
@@ -227,14 +228,14 @@ describe('debt calculations', () => {
           grandTotal: 100,
           sharedWithMemberIds: ['alice', 'bob'],
           items: [],
-        } as Expense,
+        } as unknown as Expense,
         {
           id: '2',
           paidByMemberId: 'bob',
           grandTotal: 100,
           sharedWithMemberIds: ['alice', 'bob'],
           items: [],
-        } as Expense,
+        } as unknown as Expense,
       ]
 
       expect(calculateDebtAmount(expenses, 'alice', 'bob')).toBe(0)
@@ -248,7 +249,7 @@ describe('debt calculations', () => {
           grandTotal: 100,
           sharedWithMemberIds: ['alice', 'bob'],
           items: [],
-        } as Expense,
+        } as unknown as Expense,
       ]
 
       // Alice balance: +50, Bob balance: -50
@@ -264,7 +265,7 @@ describe('debt calculations', () => {
           grandTotal: 100,
           sharedWithMemberIds: ['alice', 'bob'],
           items: [],
-        } as Expense,
+        } as unknown as Expense,
       ]
 
       // Bob balance: -50, Alice balance: +50
@@ -280,7 +281,7 @@ describe('debt calculations', () => {
           grandTotal: 150,
           sharedWithMemberIds: ['alice', 'bob', 'charlie'],
           items: [],
-        } as Expense,
+        } as unknown as Expense,
       ]
 
       // Alice: paid 150, owes 50, balance = +100
@@ -298,14 +299,14 @@ describe('debt calculations', () => {
           grandTotal: 90,
           sharedWithMemberIds: ['alice', 'bob', 'charlie'],
           items: [],
-        } as Expense,
+        } as unknown as Expense,
         {
           id: '2',
           paidByMemberId: 'bob',
           grandTotal: 60,
           sharedWithMemberIds: ['alice', 'bob', 'charlie'],
           items: [],
-        } as Expense,
+        } as unknown as Expense,
       ]
 
       // Total: 150, each owes 50
@@ -316,6 +317,275 @@ describe('debt calculations', () => {
       expect(calculateDebtAmount(expenses, 'alice', 'charlie')).toBe(40)
       expect(calculateDebtAmount(expenses, 'bob', 'charlie')).toBe(10)
       expect(calculateDebtAmount(expenses, 'charlie', 'alice')).toBe(-40)
+    })
+
+    it('should return 0 when both members have positive balance', () => {
+      const expenses: Expense[] = [
+        {
+          id: '1',
+          paidByMemberId: 'alice',
+          grandTotal: 90,
+          sharedWithMemberIds: ['alice', 'bob', 'charlie'],
+          items: [],
+        } as unknown as Expense,
+        {
+          id: '2',
+          paidByMemberId: 'bob',
+          grandTotal: 60,
+          sharedWithMemberIds: ['alice', 'bob', 'charlie'],
+          items: [],
+        } as unknown as Expense,
+      ]
+
+      // Alice balance: +40, Bob balance: +10 — neither owes the other
+      expect(calculateDebtAmount(expenses, 'alice', 'bob')).toBe(0)
+      expect(calculateDebtAmount(expenses, 'bob', 'alice')).toBe(0)
+    })
+
+    it('should return 0 when both members have negative balance', () => {
+      const expenses: Expense[] = [
+        {
+          id: '1',
+          paidByMemberId: 'charlie',
+          grandTotal: 90,
+          sharedWithMemberIds: ['alice', 'bob', 'charlie'],
+          items: [],
+        } as unknown as Expense,
+      ]
+
+      // Alice balance: -30, Bob balance: -30 — neither owes the other
+      expect(calculateDebtAmount(expenses, 'alice', 'bob')).toBe(0)
+    })
+
+    it('should return 0 for empty expenses', () => {
+      expect(calculateDebtAmount([], 'alice', 'bob')).toBe(0)
+    })
+  })
+
+  describe('edge cases', () => {
+    it('calculateMemberPaidAmount returns 0 for empty expenses', () => {
+      expect(calculateMemberPaidAmount([], 'alice')).toBe(0)
+    })
+
+    it('calculateMemberOwedAmount returns 0 for empty expenses', () => {
+      expect(calculateMemberOwedAmount([], 'alice')).toBe(0)
+    })
+
+    it('calculateMemberBalance returns 0 for empty expenses', () => {
+      expect(calculateMemberBalance([], 'alice')).toBe(0)
+    })
+
+    it('items with zero price do not contribute to owed amount', () => {
+      const expenses: Expense[] = [
+        {
+          id: '1',
+          paidByMemberId: 'alice',
+          grandTotal: 50,
+          sharedWithMemberIds: ['alice', 'bob'],
+          items: [
+            { name: 'Free item', price: 0, quantity: 1, sharedByMemberIds: ['alice', 'bob'] },
+            { name: 'Paid item', price: 50, quantity: 1, sharedByMemberIds: ['alice', 'bob'] },
+          ],
+        } as unknown as Expense,
+      ]
+
+      expect(calculateMemberOwedAmount(expenses, 'alice')).toBe(25)
+      expect(calculateMemberOwedAmount(expenses, 'bob')).toBe(25)
+    })
+
+    it('item sharedByMemberIds members not in sharedWithMemberIds are excluded', () => {
+      const expenses: Expense[] = [
+        {
+          id: '1',
+          paidByMemberId: 'alice',
+          grandTotal: 60,
+          sharedWithMemberIds: ['alice', 'bob'],
+          items: [
+            {
+              name: 'Item',
+              price: 60,
+              quantity: 1,
+              // charlie is listed but is not in sharedWithMemberIds — should be ignored
+              sharedByMemberIds: ['alice', 'bob', 'charlie'],
+            },
+          ],
+        } as unknown as Expense,
+      ]
+
+      expect(calculateMemberOwedAmount(expenses, 'alice')).toBe(30)
+      expect(calculateMemberOwedAmount(expenses, 'bob')).toBe(30)
+      expect(calculateMemberOwedAmount(expenses, 'charlie')).toBe(0)
+    })
+  })
+
+  describe('grandTotal vs item sum relationship', () => {
+    it('owed amount uses item prices not grandTotal when items exist', () => {
+      const expenses: Expense[] = [
+        {
+          id: '1',
+          paidByMemberId: 'alice',
+          grandTotal: 150, // intentionally higher than item sum
+          sharedWithMemberIds: ['alice', 'bob'],
+          items: [
+            { name: 'Item', price: 50, quantity: 1, sharedByMemberIds: ['alice', 'bob'] },
+          ],
+        } as unknown as Expense,
+      ]
+
+      // Each person owes 25 (item-based), not 75 (grandTotal / 2)
+      expect(calculateMemberOwedAmount(expenses, 'alice')).toBe(25)
+      expect(calculateMemberOwedAmount(expenses, 'bob')).toBe(25)
+    })
+
+    it('system is balanced when grandTotal equals item sum', () => {
+      const expenses: Expense[] = [
+        {
+          id: '1',
+          paidByMemberId: 'alice',
+          grandTotal: 100,
+          sharedWithMemberIds: ['alice', 'bob'],
+          items: [
+            { name: 'Item A', price: 60, quantity: 1, sharedByMemberIds: ['alice', 'bob'] },
+            { name: 'Item B', price: 40, quantity: 1, sharedByMemberIds: ['alice', 'bob'] },
+          ],
+        } as unknown as Expense,
+      ]
+
+      const totalPaid = calculateMemberPaidAmount(expenses, 'alice') + calculateMemberPaidAmount(expenses, 'bob')
+      const totalOwed = calculateMemberOwedAmount(expenses, 'alice') + calculateMemberOwedAmount(expenses, 'bob')
+
+      expect(totalPaid).toBeCloseTo(totalOwed)
+    })
+
+    it('system is unbalanced when grandTotal differs from item sum', () => {
+      const expenses: Expense[] = [
+        {
+          id: '1',
+          paidByMemberId: 'alice',
+          grandTotal: 150,
+          sharedWithMemberIds: ['alice', 'bob'],
+          items: [
+            { name: 'Item', price: 100, quantity: 1, sharedByMemberIds: ['alice', 'bob'] },
+          ],
+        } as unknown as Expense,
+      ]
+
+      const totalPaid = calculateMemberPaidAmount(expenses, 'alice') + calculateMemberPaidAmount(expenses, 'bob')
+      const totalOwed = calculateMemberOwedAmount(expenses, 'alice') + calculateMemberOwedAmount(expenses, 'bob')
+
+      // paid uses grandTotal (150), owed uses item sum (100) — UI must keep these in sync
+      expect(totalPaid).toBe(150)
+      expect(totalOwed).toBe(100)
+      expect(totalPaid).not.toBeCloseTo(totalOwed)
+    })
+  })
+
+  describe('calculateSettlements', () => {
+    it('returns empty array when no members', () => {
+      expect(calculateSettlements([])).toEqual([])
+    })
+
+    it('returns empty array when all balances are zero', () => {
+      expect(calculateSettlements([
+        { id: 'alice', balance: 0 },
+        { id: 'bob', balance: 0 },
+      ])).toEqual([])
+    })
+
+    it('returns empty array when all balances are within rounding threshold', () => {
+      expect(calculateSettlements([
+        { id: 'alice', balance: 0.005 },
+        { id: 'bob', balance: -0.005 },
+      ])).toEqual([])
+    })
+
+    it('single debtor pays single creditor', () => {
+      const result = calculateSettlements([
+        { id: 'alice', balance: 50 },
+        { id: 'bob', balance: -50 },
+      ])
+      expect(result).toEqual([{ fromId: 'bob', toId: 'alice', amount: 50 }])
+    })
+
+    it('two debtors each pay a single creditor cleanly', () => {
+      const result = calculateSettlements([
+        { id: 'alice', balance: 100 },
+        { id: 'bob', balance: -60 },
+        { id: 'charlie', balance: -40 },
+      ])
+      expect(result).toHaveLength(2)
+      expect(result).toContainEqual({ fromId: 'bob', toId: 'alice', amount: 60 })
+      expect(result).toContainEqual({ fromId: 'charlie', toId: 'alice', amount: 40 })
+    })
+
+    it('members with equal debt both pay the same creditor cleanly', () => {
+      // alice and bob each owe 30 to charlie
+      const result = calculateSettlements([
+        { id: 'alice', balance: -30 },
+        { id: 'bob', balance: -30 },
+        { id: 'charlie', balance: 60 },
+      ])
+      expect(result).toHaveLength(2)
+      expect(result.every(s => s.toId === 'charlie')).toBe(true)
+      expect(result.find(s => s.fromId === 'alice')?.amount).toBe(30)
+      expect(result.find(s => s.fromId === 'bob')?.amount).toBe(30)
+    })
+
+    it('splits land on the largest debtor when perfect partition is impossible', () => {
+      // debtors: A(-30), B(-30), C(-40), D(-50) — no subset sums to either creditor amount
+      // creditors: X(+42), Y(+108)
+      // smallest-first: A and B fill up cleanly; split falls on D (largest)
+      const result = calculateSettlements([
+        { id: 'A', balance: -30 },
+        { id: 'B', balance: -30 },
+        { id: 'C', balance: -40 },
+        { id: 'D', balance: -50 },
+        { id: 'X', balance: 42 },
+        { id: 'Y', balance: 108 },
+      ])
+
+      const aPayments = result.filter(s => s.fromId === 'A')
+      const bPayments = result.filter(s => s.fromId === 'B')
+      const dPayments = result.filter(s => s.fromId === 'D')
+
+      // A and B (equal, smallest) each make exactly one payment
+      expect(aPayments).toHaveLength(1)
+      expect(bPayments).toHaveLength(1)
+
+      // D (largest) absorbs the unavoidable split
+      expect(dPayments).toHaveLength(2)
+      expect(dPayments.reduce((sum, s) => sum + s.amount, 0)).toBeCloseTo(50)
+
+      // totals balance out
+      const totalPaid = result.reduce((sum, s) => sum + s.amount, 0)
+      expect(totalPaid).toBeCloseTo(150)
+    })
+
+    it('total amount paid in settlements equals total debt', () => {
+      const members = [
+        { id: 'alice', balance: 70 },
+        { id: 'bob', balance: 30 },
+        { id: 'charlie', balance: -40 },
+        { id: 'dave', balance: -60 },
+      ]
+      const result = calculateSettlements(members)
+      const totalPaid = result.reduce((sum, s) => sum + s.amount, 0)
+      expect(totalPaid).toBeCloseTo(100)
+    })
+
+    it('each debtor pays the full amount they owe across all their settlements', () => {
+      const members = [
+        { id: 'alice', balance: 150 },
+        { id: 'bob', balance: -80 },
+        { id: 'charlie', balance: -70 },
+      ]
+      const result = calculateSettlements(members)
+
+      const bobTotal = result.filter(s => s.fromId === 'bob').reduce((sum, s) => sum + s.amount, 0)
+      const charlieTotal = result.filter(s => s.fromId === 'charlie').reduce((sum, s) => sum + s.amount, 0)
+
+      expect(bobTotal).toBeCloseTo(80)
+      expect(charlieTotal).toBeCloseTo(70)
     })
   })
 })

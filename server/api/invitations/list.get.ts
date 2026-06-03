@@ -1,3 +1,4 @@
+import { formatDate } from '~/utils/date'
 import { getFirebaseAdminFirestore, getUserFromSession } from '~/server/utils/session'
 
 export default defineEventHandler(async (event) => {
@@ -53,12 +54,20 @@ export default defineEventHandler(async (event) => {
 
     const invitations = invitationsSnapshot.docs.map((doc) => {
       const data = doc.data()
+      const expiresAtDate = data.expiresAt?.toDate()
+      const createdAtDate = data.createdAt?.toDate()
+      const usedAtDate = data.usedAt?.toDate()
       return {
         id: doc.id,
         ...data,
-        expiresAt: data.expiresAt?.toDate().toISOString(),
-        createdAt: data.createdAt?.toDate().toISOString(),
-        usedAt: data.usedAt?.toDate().toISOString(),
+        expiresAt: expiresAtDate?.toISOString(),
+        expiresAtString: formatDate(expiresAtDate),
+        createdAt: createdAtDate?.toISOString(),
+        createdAtString: formatDate(createdAtDate),
+        usedAt: usedAtDate?.toISOString(),
+        usedAtString: usedAtDate ? formatDate(usedAtDate) : undefined,
+        maxUses: data.maxUses ?? 1,
+        usedCount: data.usedCount ?? 0,
       }
     })
 

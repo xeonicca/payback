@@ -9,6 +9,7 @@ export interface AppUser {
   displayName: string | null
   photoURL: string | null
   uid: string
+  isAnonymous: boolean
 }
 
 export interface NewTripMember {
@@ -38,7 +39,7 @@ export interface NewTrip {
   collaboratorCount?: number
   memberCount?: number
   isPublicInviteEnabled?: boolean
-  publicJoinCode?: string
+  publicJoinCode?: string | null
   collaboratorUserIds?: string[]
   ownerDisplayName?: string
   memberEmojis?: string[]
@@ -69,6 +70,8 @@ export interface ExpenseDetailItem {
   quantity?: number
   translatedName?: string
   sharedByMemberIds?: string[]
+  itemNumber?: string | null
+  lineTotal?: number | null
 }
 export interface NewExpense {
   description: string
@@ -83,6 +86,24 @@ export interface NewExpense {
   enabled: boolean // New field with default value true
   items?: Array<ExpenseDetailItem>
   inputCurrency?: string // The currency used when entering this expense
+  exchangeRate?: number // Exchange rate from trip currency to home currency at time of expense
+  createdByUserId?: string // Tracks who created the expense (for guest edit permissions)
+  lastEditedByUserId?: string // Tracks who last edited the expense
+  lastEditedAt?: Timestamp | FieldValue
+  originalItems?: Array<ExpenseDetailItem> // Backup of items before tax deduction
+  originalGrandTotal?: number // Backup of grandTotal before tax deduction
+  taxDeductionPercentage?: number // Active tax deduction percentage (presence indicates deduction is applied)
+  discountOriginalItems?: Array<ExpenseDetailItem> // Backup of items before discount
+  discountOriginalGrandTotal?: number // Backup of grandTotal before discount
+  discountPercentage?: number // Active discount percentage (presence indicates discount is applied)
+  subtotal?: number | null
+  taxAmount?: number | null
+  serviceCharge?: number | null
+  discount?: number | null
+  tip?: number | null
+  printedItemCount?: number | null
+  needsReview?: boolean
+  reviewReasons?: string[]
 }
 
 export interface Expense extends NewExpense {
@@ -96,7 +117,9 @@ export interface Expense extends NewExpense {
     minute: string
   }
   createdAtString: string
+  lastEditedAtString?: string
   receiptImageUrl?: string
+  hasPendingWrites?: boolean
 }
 
 export interface Currency {
@@ -109,7 +132,7 @@ export interface NewTripCollaborator {
   email: string | null
   displayName: string | null
   photoURL: string | null
-  role: 'owner' | 'editor'
+  role: 'owner' | 'editor' | 'guest'
   joinedAt: Timestamp | FieldValue
   invitedBy?: string
 }
@@ -132,6 +155,7 @@ export interface NewInvitation {
   usedByUserIds: string[]
   usedByUserId?: string
   usedAt?: Timestamp | FieldValue
+  type?: 'personal' | 'guest'
 }
 
 export interface Invitation extends NewInvitation {

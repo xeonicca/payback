@@ -5,7 +5,11 @@ if (process.env.NODE_ENV === 'development') {
   admin.initializeApp()
 }
 else {
-  const serviceAccount = JSON.parse(process.env.GOOGLE_APPLICATION_CREDENTIALS)
+  const credentials = process.env.GOOGLE_APPLICATION_CREDENTIALS
+  if (!credentials) {
+    throw new Error('GOOGLE_APPLICATION_CREDENTIALS env var is not set')
+  }
+  const serviceAccount = JSON.parse(credentials)
   admin.initializeApp({
     credential: admin.credential.cert(serviceAccount),
   })

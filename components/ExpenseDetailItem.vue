@@ -5,6 +5,7 @@ interface Props {
   item: ExpenseDetailItem
   currency: string
   editMode?: boolean
+  canEdit?: boolean
   tripMembers?: Array<{
     id: string
     name: string
@@ -22,6 +23,7 @@ interface Props {
 
 const props = withDefaults(defineProps<Props>(), {
   editMode: false,
+  canEdit: false,
   tripMembers: () => [],
   exchangeRate: 1,
   defaultCurrency: 'TWD',
@@ -30,7 +32,11 @@ const props = withDefaults(defineProps<Props>(), {
 
 const emit = defineEmits<{
   (e: 'update:sharedByMemberIds', memberIds: string[]): void
+  (e: 'edit'): void
+  (e: 'split'): void
 }>()
+
+const canSplit = computed(() => (props.item.quantity ?? 1) > 1)
 
 // When sharedByMemberIds is empty/undefined, all members are selected
 // When it has values, only those specific members are selected
@@ -75,13 +81,40 @@ const sharedByMemberAvatars = computed(() => {
     return props.shareableMembers.map(member => member.avatarEmoji)
   return props.shareableMembers.filter(member => props.sharedByMemberIds?.includes(member.id)).map(member => member.avatarEmoji)
 })
+
+const googleSearchUrl = computed(() => {
+  const query = (props.item.name || '').trim()
+  if (!query)
+    return null
+  return `https://www.google.com/search?q=${encodeURIComponent(query)}`
+})
 </script>
 
 <template>
-  <div class="flex flex-wrap items-start justify-between py-3 border-b border-border last:border-b-0">
+  <div class="relative flex flex-wrap items-start justify-between py-3 border-b border-border last:border-b-0">
     <div class="flex-1 min-w-0">
       <div class="flex flex-col items-start gap-1">
-        <span class="font-medium text-sm text-foreground">{{ item.name }}</span>
+        <div class="flex items-center gap-1.5 flex-wrap">
+          <span
+            v-if="item.itemNumber"
+            class="font-mono text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded"
+          >
+            {{ item.itemNumber }}
+          </span>
+          <span class="font-medium text-sm text-foreground">{{ item.name }}</span>
+          <a
+            v-if="googleSearchUrl"
+            :href="googleSearchUrl"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="text-muted-foreground hover:text-indigo-600 transition-colors inline-flex items-center"
+            :aria-label="`在 Google 搜尋 ${item.name}`"
+            :title="`在 Google 搜尋 ${item.name}`"
+            @click.stop
+          >
+            <Icon name="lucide:search" :size="12" />
+          </a>
+        </div>
         <div class="font-mono text-xs text-muted-foreground">
           <span v-if="item.price !== 0">
             {{ currency }} {{ Math.round(item.price * 100) / 100 }}
@@ -92,20 +125,44 @@ const sharedByMemberAvatars = computed(() => {
       <p v-if="item.translatedName" class="text-xs text-muted-foreground mt-2">
         翻譯: {{ item.translatedName }}
       </p>
-      <div v-if="!editMode" class="mt-2 flex items-center gap-1">
+      <div v-if="!editMode" class="mt-2 flex items-center gap-1.5">
         <span v-for="memberAvatar in sharedByMemberAvatars" :key="memberAvatar">
           {{ memberAvatar }}
         </span>
       </div>
     </div>
-    <div class="text-right font-mono text-sm ml-4">
-      <div class="text-green-600 dark:text-green-400">
+    <div class="text-right font-mono text-sm ml-4 flex flex-col items-end gap-1">
+      <span class="text-green-600 dark:text-green-400">
         {{ currency }} {{ Math.round(item.price * (item.quantity ?? 1) * 100) / 100 }}
-      </div>
+      </span>
       <div v-if="convertedPrice" class="text-xs text-muted-foreground inline-flex items-center gap-1">
         <Icon name="lucide:equal-approximately" class="text-muted-foreground" size="12" />
         {{ defaultCurrency }} {{ convertedPrice }}
       </div>
+    </div>
+    <div
+      v-if="canEdit && !editMode"
+      class="absolute bottom-3 right-0 flex items-center gap-1"
+    >
+      <ui-button
+        v-if="canSplit"
+        variant="ghost"
+        size="icon"
+        class="size-6 rounded-full bg-indigo-100 text-indigo-500 hover:bg-indigo-200 hover:text-indigo-700"
+        :aria-label="`拆分 ${item.name}`"
+        @click.stop="emit('split')"
+      >
+        <Icon name="lucide:split" :size="13" />
+      </ui-button>
+      <ui-button
+        variant="ghost"
+        size="icon"
+        class="size-6 rounded-full bg-indigo-100 text-indigo-500 hover:bg-indigo-200 hover:text-indigo-700"
+        :aria-label="`編輯 ${item.name}`"
+        @click.stop="emit('edit')"
+      >
+        <Icon name="mdi:pencil" :size="13" />
+      </ui-button>
     </div>
 
     <!-- Member selection section when in edit mode -->

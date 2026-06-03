@@ -6,11 +6,11 @@ const props = defineProps<{
 const route = useRoute()
 const { tripMembers, hostMember, currentUserMember } = useTripMembers(props.tripId)
 const { trip } = useTrip(props.tripId)
-const { canManageExpenses } = useTripCollaborators(props.tripId)
+const { canAddExpenses } = useTripCollaborators(props.tripId)
 
 const openExpenseDrawer = ref(false)
 
-const canAddExpense = computed(() => trip.value && !trip.value.archived && canManageExpenses.value)
+const canAddExpense = computed(() => trip.value && !trip.value.archived && canAddExpenses.value)
 
 const navItems = computed(() => [
   { to: `/trips/${props.tripId}`, icon: 'lucide:house', label: '總覽', match: 'trips-tripId' },
@@ -48,7 +48,7 @@ function isActive(match: string) {
         @click="canAddExpense && (openExpenseDrawer = true)"
       >
         <Icon v-if="trip?.archived" name="lucide:archive" :size="24" />
-        <Icon v-else-if="!canManageExpenses" name="lucide:lock" :size="24" />
+        <Icon v-else-if="!canAddExpenses" name="lucide:lock" :size="24" />
         <Icon v-else-if="trip" name="lucide:zap" :size="24" />
         <Icon v-else name="lucide:loader-circle" :size="24" class="animate-spin" />
       </button>

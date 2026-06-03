@@ -1,0 +1,320 @@
+const { test } = require('node:test')
+const assert = require('node:assert/strict')
+const { reconcileReceipt, REASON_CODES } = require('../reconcile')
+
+test('exports a function and reason-code constants', () => {
+  assert.equal(typeof reconcileReceipt, 'function')
+  assert.ok(REASON_CODES.GRAND_TOTAL_MISMATCH)
+  assert.ok(REASON_CODES.ITEM_COUNT_MISMATCH)
+  assert.ok(REASON_CODES.SUBTOTAL_MISMATCH)
+  assert.ok(REASON_CODES.ITEM_LINE_TOTAL_MISMATCH)
+  assert.ok(REASON_CODES.CURRENCY_UNEXPECTED)
+  assert.ok(REASON_CODES.ITEM_UNIT_PRICE_CORRECTED)
+})
+
+test('returns parsedData with needsReview false and empty reasons when nothing is wrong', () => {
+  const input = {
+    grandTotal: 100,
+    items: [{ name: 'a', price: 50, quantity: 2, lineTotal: 100 }],
+    currency: 'JPY',
+  }
+  const result = reconcileReceipt(input, 'JPY')
+  assert.equal(result.needsReview, false)
+  assert.deepEqual(result.reviewReasons, [])
+  assert.equal(result.items[0].price, 50)
+})
+
+test('Check 1: auto-corrects unit price when model writes lineTotal into price slot', () => {
+  // qty 3, lineTotal 300, but model wrote price=300 instead of 100
+  const input = {
+    grandTotal: 300,
+    items: [{ name: 'a', price: 300, quantity: 3, lineTotal: 300 }],
+    currency: 'JPY',
+  }
+  const result = reconcileReceipt(input, 'JPY')
+  assert.equal(result.items[0].price, 100)
+  assert.ok(result.reviewReasons.includes(REASON_CODES.ITEM_UNIT_PRICE_CORRECTED))
+  assert.equal(result.needsReview, false, 'info-only code does not flip needsReview')
+})
+
+test('Check 1: flags genuine line-total mismatch without auto-correcting', () => {
+  // qty 2 * 50 = 100, but receipt says lineTotal 120 — model misread something
+  const input = {
+    grandTotal: 120,
+    items: [{ name: 'a', price: 50, quantity: 2, lineTotal: 120 }],
+    currency: 'JPY',
+  }
+  const result = reconcileReceipt(input, 'JPY')
+  assert.equal(result.items[0].price, 50, 'no auto-correct')
+  assert.ok(result.reviewReasons.includes(REASON_CODES.ITEM_LINE_TOTAL_MISMATCH))
+  assert.equal(result.needsReview, true)
+})
+
+test('Check 1: tolerates 2% rounding noise', () => {
+  // 33.33 * 3 = 99.99 vs lineTotal 100 — within tolerance
+  const input = {
+    grandTotal: 100,
+    items: [{ name: 'a', price: 33.33, quantity: 3, lineTotal: 100 }],
+    currency: 'USD',
+  }
+  const result = reconcileReceipt(input, 'USD')
+  assert.deepEqual(result.reviewReasons, [])
+})
+
+test('Check 1: skips items with null lineTotal', () => {
+  const input = {
+    grandTotal: 100,
+    items: [{ name: 'a', price: 50, quantity: 2, lineTotal: null }],
+    currency: 'JPY',
+  }
+  const result = reconcileReceipt(input, 'JPY')
+  assert.deepEqual(result.reviewReasons, [])
+})
+
+test('Check 2: flags grand-total mismatch beyond 2% tolerance', () => {
+  // Real-world: Apurva Kempinski case. grandTotal 726000 but items sum to 1.6M.
+  const input = {
+    grandTotal: 726000,
+    items: [
+      { name: 'Bali Mt.', price: 480000, quantity: 3, lineTotal: 1440000 },
+      { name: 'Espresso', price: 120000, quantity: 1, lineTotal: 120000 },
+    ],
+    serviceCharge: 60000,
+    taxAmount: 66000,
+    currency: 'IDR',
+  }
+  const result = reconcileReceipt(input, 'IDR')
+  assert.ok(result.reviewReasons.includes(REASON_CODES.GRAND_TOTAL_MISMATCH))
+  assert.equal(result.needsReview, true)
+})
+
+test('Check 2: accepts grand total when math reconciles with tax + service - discount + tip', () => {
+  const input = {
+    grandTotal: 1100,
+    items: [{ name: 'x', price: 500, quantity: 2, lineTotal: 1000 }],
+    taxAmount: 100,
+    serviceCharge: 0,
+    discount: 0,
+    tip: 0,
+    currency: 'JPY',
+  }
+  const result = reconcileReceipt(input, 'JPY')
+  assert.equal(
+    result.reviewReasons.includes(REASON_CODES.GRAND_TOTAL_MISMATCH),
+    false,
+  )
+})
+
+test('Check 2: discount is subtracted', () => {
+  // sum 1000 - discount 100 = 900
+  const input = {
+    grandTotal: 900,
+    items: [{ name: 'x', price: 500, quantity: 2, lineTotal: 1000 }],
+    discount: 100,
+    currency: 'JPY',
+  }
+  const result = reconcileReceipt(input, 'JPY')
+  assert.equal(
+    result.reviewReasons.includes(REASON_CODES.GRAND_TOTAL_MISMATCH),
+    false,
+  )
+})
+
+test('Check 2: tolerance is max(1, 2% of grandTotal)', () => {
+  // grandTotal 50 USD — tolerance 1 (not 1.0)
+  const input = {
+    grandTotal: 50,
+    items: [{ name: 'x', price: 49.5, quantity: 1, lineTotal: 49.5 }],
+    currency: 'USD',
+  }
+  const result = reconcileReceipt(input, 'USD')
+  assert.equal(
+    result.reviewReasons.includes(REASON_CODES.GRAND_TOTAL_MISMATCH),
+    false,
+    '0.5 diff within 1-unit floor',
+  )
+})
+
+test('Check 2: skipped when grandTotal is null', () => {
+  const input = {
+    grandTotal: null,
+    items: [{ name: 'x', price: 500, quantity: 1, lineTotal: 500 }],
+    currency: 'JPY',
+  }
+  const result = reconcileReceipt(input, 'JPY')
+  assert.equal(
+    result.reviewReasons.includes(REASON_CODES.GRAND_TOTAL_MISMATCH),
+    false,
+  )
+})
+
+test('Check 2: accepts tax-inclusive (内税) prices — itemsSum equals grandTotal, tax printed for info', () => {
+  // Real-world: おゝず赤煉瓦館 (Japanese receipt with 内税 / tax-inclusive prices).
+  // Items already include the 1137 consumption tax — adding tax on top would
+  // double-count. grandTotal === subtotal === itemsSum is the signal.
+  const input = {
+    grandTotal: 12510,
+    subtotal: 12510,
+    taxAmount: 1137,
+    items: [
+      { name: 'a', price: 480, quantity: 2, lineTotal: 960 },
+      { name: 'b', price: 1650, quantity: 1, lineTotal: 1650 },
+      { name: 'c', price: 770, quantity: 5, lineTotal: 3850 },
+      { name: 'd', price: 4400, quantity: 1, lineTotal: 4400 },
+      { name: 'e', price: 1650, quantity: 1, lineTotal: 1650 },
+    ],
+    currency: 'JPY',
+  }
+  const result = reconcileReceipt(input, 'JPY')
+  assert.equal(
+    result.reviewReasons.includes(REASON_CODES.GRAND_TOTAL_MISMATCH),
+    false,
+    'tax-inclusive math should not flag',
+  )
+})
+
+test('Check 3: flags item-count mismatch against printedItemCount', () => {
+  const input = {
+    grandTotal: 1000,
+    items: [
+      { name: 'a', price: 500, quantity: 1, lineTotal: 500 },
+      { name: 'b', price: 500, quantity: 1, lineTotal: 500 },
+    ],
+    printedItemCount: 3, // receipt said 3 but we extracted 2
+    currency: 'JPY',
+  }
+  const result = reconcileReceipt(input, 'JPY')
+  assert.ok(result.reviewReasons.includes(REASON_CODES.ITEM_COUNT_MISMATCH))
+  assert.equal(result.needsReview, true)
+})
+
+test('Check 3: passes when printedItemCount equals sum of quantities', () => {
+  const input = {
+    grandTotal: 1000,
+    items: [
+      { name: 'a', price: 500, quantity: 1, lineTotal: 500 },
+      { name: 'b', price: 250, quantity: 2, lineTotal: 500 },
+    ],
+    printedItemCount: 3,
+    currency: 'JPY',
+  }
+  const result = reconcileReceipt(input, 'JPY')
+  assert.equal(
+    result.reviewReasons.includes(REASON_CODES.ITEM_COUNT_MISMATCH),
+    false,
+  )
+})
+
+test('Check 3: null quantity defaults to 1 when summing', () => {
+  const input = {
+    grandTotal: 1000,
+    items: [
+      { name: 'a', price: 500, quantity: null, lineTotal: 500 },
+      { name: 'b', price: 500, quantity: null, lineTotal: 500 },
+    ],
+    printedItemCount: 2,
+    currency: 'JPY',
+  }
+  const result = reconcileReceipt(input, 'JPY')
+  assert.equal(
+    result.reviewReasons.includes(REASON_CODES.ITEM_COUNT_MISMATCH),
+    false,
+  )
+})
+
+test('Check 3: skipped when printedItemCount is null', () => {
+  const input = {
+    grandTotal: 1000,
+    items: [{ name: 'a', price: 500, quantity: 1, lineTotal: 500 }],
+    printedItemCount: null,
+    currency: 'JPY',
+  }
+  const result = reconcileReceipt(input, 'JPY')
+  assert.equal(
+    result.reviewReasons.includes(REASON_CODES.ITEM_COUNT_MISMATCH),
+    false,
+  )
+})
+
+test('Check 4: flags when detected currency differs from tripCurrency', () => {
+  // IDR Bali receipt on a TWD-default trip
+  const input = {
+    grandTotal: 11300,
+    items: [{ name: 'a', price: 11300, quantity: 1, lineTotal: 11300 }],
+    currency: 'IDR',
+  }
+  const result = reconcileReceipt(input, 'TWD')
+  assert.ok(result.reviewReasons.includes(REASON_CODES.CURRENCY_UNEXPECTED))
+})
+
+test('Check 4: no flag when currencies match', () => {
+  const input = {
+    grandTotal: 11300,
+    items: [{ name: 'a', price: 11300, quantity: 1, lineTotal: 11300 }],
+    currency: 'IDR',
+  }
+  const result = reconcileReceipt(input, 'IDR')
+  assert.equal(
+    result.reviewReasons.includes(REASON_CODES.CURRENCY_UNEXPECTED),
+    false,
+  )
+})
+
+test('Check 4: skipped when currency is null', () => {
+  const input = {
+    grandTotal: 100,
+    items: [{ name: 'a', price: 100, quantity: 1, lineTotal: 100 }],
+    currency: null,
+  }
+  const result = reconcileReceipt(input, 'JPY')
+  assert.equal(
+    result.reviewReasons.includes(REASON_CODES.CURRENCY_UNEXPECTED),
+    false,
+  )
+})
+
+test('Check 5: flags when items do not sum to subtotal', () => {
+  const input = {
+    grandTotal: 1100,
+    subtotal: 1000,
+    taxAmount: 100,
+    items: [
+      { name: 'a', price: 300, quantity: 1, lineTotal: 300 }, // missing 700 somewhere
+    ],
+    currency: 'JPY',
+  }
+  const result = reconcileReceipt(input, 'JPY')
+  assert.ok(result.reviewReasons.includes(REASON_CODES.SUBTOTAL_MISMATCH))
+})
+
+test('Check 5: passes when items sum to subtotal', () => {
+  const input = {
+    grandTotal: 1100,
+    subtotal: 1000,
+    taxAmount: 100,
+    items: [
+      { name: 'a', price: 600, quantity: 1, lineTotal: 600 },
+      { name: 'b', price: 400, quantity: 1, lineTotal: 400 },
+    ],
+    currency: 'JPY',
+  }
+  const result = reconcileReceipt(input, 'JPY')
+  assert.equal(
+    result.reviewReasons.includes(REASON_CODES.SUBTOTAL_MISMATCH),
+    false,
+  )
+})
+
+test('Check 5: skipped when subtotal is null', () => {
+  const input = {
+    grandTotal: 1100,
+    subtotal: null,
+    items: [{ name: 'a', price: 1100, quantity: 1, lineTotal: 1100 }],
+    currency: 'JPY',
+  }
+  const result = reconcileReceipt(input, 'JPY')
+  assert.equal(
+    result.reviewReasons.includes(REASON_CODES.SUBTOTAL_MISMATCH),
+    false,
+  )
+})

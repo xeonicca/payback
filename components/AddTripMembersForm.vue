@@ -45,7 +45,7 @@ const hostMember = computed(() => {
 
 // Update form avatar when available emojis change
 watch(availableEmojis, (newAvailable) => {
-  if (newAvailable.length > 0 && !newAvailable.includes(form.values.avatar)) {
+  if (newAvailable.length > 0 && form.values.avatar !== undefined && !newAvailable.includes(form.values.avatar)) {
     form.setFieldValue('avatar', newAvailable[0])
   }
 }, { immediate: true })
@@ -116,7 +116,7 @@ function selectAvatar(emoji: string) {
         </div>
         <ui-badge variant="default" class="text-xs shrink-0">
           <Icon name="lucide:crown" :size="12" class="mr-1" />
-          你
+          建立者
         </ui-badge>
       </div>
 
