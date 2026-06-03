@@ -1,5 +1,6 @@
-import { getAnalytics, isSupported, logEvent as firebaseLogEvent } from 'firebase/analytics'
 import type { Analytics } from 'firebase/analytics'
+import type { AppUser } from '@/types'
+import { logEvent as firebaseLogEvent, getAnalytics, isSupported, setUserId, setUserProperties } from 'firebase/analytics'
 
 let analytics: Analytics | null = null
 
@@ -26,5 +27,29 @@ export function useAnalytics() {
     }
   }
 
-  return { logEvent }
+  async function setUser(user: AppUser) {
+    if (import.meta.server)
+      return
+
+    const instance = await getAnalyticsInstance()
+    if (instance) {
+      setUserId(instance, user.uid)
+      setUserProperties(instance, {
+        is_guest: user.isAnonymous,
+        has_email: !!user.email,
+      })
+    }
+  }
+
+  async function clearUser() {
+    if (import.meta.server)
+      return
+
+    const instance = await getAnalyticsInstance()
+    if (instance) {
+      setUserId(instance, null)
+    }
+  }
+
+  return { logEvent, setUser, clearUser }
 }

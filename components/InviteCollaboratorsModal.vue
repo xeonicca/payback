@@ -16,6 +16,7 @@ const isDesktop = useMediaQuery('(min-width: 1024px)')
 
 const { createInvitation, revokeInvitation, listInvitations } = useInvitation()
 const { copyToClipboard } = useCopyToClipboard()
+const { logEvent } = useAnalytics()
 const baseUrl = useRequestURL().origin
 
 const activeTab = ref<'collaborator' | 'guest'>('collaborator')
@@ -54,12 +55,13 @@ async function loadInvitations() {
 async function handleCreateInvitation() {
   try {
     isCreating.value = true
-    const result = await createInvitation({
+    await createInvitation({
       tripId: props.tripId,
       expiresInDays: expiresInDays.value,
       maxUses: maxUses.value,
     })
 
+    logEvent('create_invitation', { trip_id: props.tripId, type: 'collaborator' })
     toast.success('邀請連結已建立！')
     await loadInvitations()
   }
@@ -75,13 +77,14 @@ async function handleCreateInvitation() {
 async function handleCreateGuestInvitation() {
   try {
     isCreatingGuest.value = true
-    const result = await createInvitation({
+    await createInvitation({
       tripId: props.tripId,
       expiresInDays: guestExpiresInDays.value,
       maxUses: guestMaxUses.value,
       type: 'guest',
     })
 
+    logEvent('create_invitation', { trip_id: props.tripId, type: 'guest' })
     toast.success('訪客連結已建立！')
     await loadInvitations()
   }

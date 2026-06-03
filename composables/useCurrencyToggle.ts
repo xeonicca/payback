@@ -5,6 +5,8 @@ import type { Trip } from '@/types'
 const showHomeCurrencyMap = reactive<Record<string, boolean>>({})
 
 export function useCurrencyToggle(tripId: MaybeRefOrGetter<string>, trip: Ref<Trip | null | undefined>) {
+  const { logEvent } = useAnalytics()
+
   const showHomeCurrency = computed({
     get: () => showHomeCurrencyMap[toValue(tripId)] ?? false,
     set: (val: boolean) => { showHomeCurrencyMap[toValue(tripId)] = val },
@@ -12,6 +14,7 @@ export function useCurrencyToggle(tripId: MaybeRefOrGetter<string>, trip: Ref<Tr
 
   const toggleCurrency = () => {
     showHomeCurrency.value = !showHomeCurrency.value
+    logEvent('currency_toggle', { trip_id: toValue(tripId), show_home: showHomeCurrency.value })
   }
 
   const hasDualCurrency = computed(() => {
@@ -19,23 +22,27 @@ export function useCurrencyToggle(tripId: MaybeRefOrGetter<string>, trip: Ref<Tr
   })
 
   const primaryCurrency = computed(() => {
-    if (!trip.value) return ''
+    if (!trip.value)
+      return ''
     return showHomeCurrency.value ? trip.value.defaultCurrency : trip.value.tripCurrency
   })
 
   const secondaryCurrency = computed(() => {
-    if (!trip.value) return ''
+    if (!trip.value)
+      return ''
     return showHomeCurrency.value ? trip.value.tripCurrency : trip.value.defaultCurrency
   })
 
   const toPrimary = (amount: number, exchangeRate?: number): number => {
-    if (!trip.value) return amount
+    if (!trip.value)
+      return amount
     const rate = exchangeRate ?? trip.value.exchangeRate
     return showHomeCurrency.value ? amount * rate : amount
   }
 
   const toSecondary = (amount: number, exchangeRate?: number): number => {
-    if (!trip.value) return amount
+    if (!trip.value)
+      return amount
     const rate = exchangeRate ?? trip.value.exchangeRate
     return showHomeCurrency.value ? amount : amount * rate
   }

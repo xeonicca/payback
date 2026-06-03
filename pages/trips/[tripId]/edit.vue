@@ -26,6 +26,7 @@ const route = useRoute()
 const router = useRouter()
 const db = useFirestore()
 const sessionUser = useSessionUser()
+const { logEvent } = useAnalytics()
 
 const tripId = route.params.tripId as string
 
@@ -229,6 +230,11 @@ const onSubmit = handleSubmit(async (values) => {
       })
     }
 
+    logEvent('edit_trip', {
+      trip_id: tripId,
+      members_added: membersToAdd.value.length,
+      members_removed: membersToDelete.value.length,
+    })
     toast.success('行程已更新')
     router.push(`/trips/${tripId}`)
   }

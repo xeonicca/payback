@@ -7,6 +7,7 @@ const props = defineProps<{
 
 const { upgradeGuestAccount } = useLogin()
 const sessionUser = useSessionUser()
+const { logEvent } = useAnalytics()
 const isUpgrading = ref(false)
 
 async function handleUpgrade() {
@@ -27,6 +28,7 @@ async function handleUpgrade() {
       })
     }
 
+    logEvent('guest_upgrade', { trip_id: props.tripId })
     toast.success('帳號已成功連結！')
   }
   catch (error: any) {

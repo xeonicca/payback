@@ -62,6 +62,7 @@ const isRevertingDiscount = ref(false)
 const isReceiptViewerOpen = ref(false)
 
 const sessionUser = useSessionUser()
+const { logEvent } = useAnalytics()
 
 const hasTaxDeduction = computed(() => expense.value?.taxDeductionPercentage != null)
 const hasDiscount = computed(() => expense.value?.discountPercentage != null)
@@ -104,6 +105,7 @@ async function saveBasics(payload: {
       update.grandTotal = payload.grandTotal
     await updateDoc(doc(db, 'trips', tripId as string, 'expenses', expenseId as string), update)
     isEditingBasics.value = false
+    logEvent('edit_expense', { trip_id: tripId as string, section: 'basics' })
     toast.success('已更新支出')
   }
   catch (error) {
@@ -126,6 +128,7 @@ async function saveSharers(sharedWithMemberIds: string[]) {
       lastEditedAt: serverTimestamp(),
     })
     isEditingSharers.value = false
+    logEvent('edit_expense', { trip_id: tripId as string, section: 'sharers' })
     toast.success('已更新分攤成員')
   }
   catch (error) {
@@ -156,6 +159,7 @@ async function deleteItem(index: number) {
     }
     await updateDoc(doc(db, 'trips', tripId as string, 'expenses', expenseId as string), update)
     editingItemIndex.value = null
+    logEvent('edit_expense_item', { trip_id: tripId as string, action: 'delete' })
     toast.success('已刪除項目')
   }
   catch (error) {
@@ -181,6 +185,7 @@ async function addItem(newItem: ExpenseDetailItem) {
       lastEditedAt: serverTimestamp(),
     })
     isAddingItem.value = false
+    logEvent('edit_expense_item', { trip_id: tripId as string, action: 'add' })
     toast.success('已新增項目')
   }
   catch (error) {
@@ -241,6 +246,7 @@ async function splitItem(originalIndex: number, splitQuantity: number, splitMemb
       lastEditedAt: serverTimestamp(),
     })
     splittingItemIndex.value = null
+    logEvent('edit_expense_item', { trip_id: tripId as string, action: 'split' })
     toast.success('已拆分項目')
   }
   catch (error) {
@@ -266,6 +272,7 @@ async function saveItem(index: number, updated: ExpenseDetailItem) {
       lastEditedAt: serverTimestamp(),
     })
     editingItemIndex.value = null
+    logEvent('edit_expense_item', { trip_id: tripId as string, action: 'edit' })
   }
   catch (error) {
     console.error('Error saving item:', error)
@@ -442,6 +449,8 @@ async function updateExpense(newValue: boolean) {
     enabled: newValue,
   })
 
+  logEvent('toggle_expense', { trip_id: tripId as string, enabled: newValue })
+
   if (newValue) {
     toast.success('支出已顯示')
   }
@@ -457,6 +466,7 @@ async function deleteExpense() {
   try {
     isDeleting.value = true
     await deleteDoc(doc(db, 'trips', tripId as string, 'expenses', expenseId as string))
+    logEvent('delete_expense', { trip_id: tripId as string })
     toast.success('已刪除支出')
     router.push(`/trips/${tripId}/expenses`)
   }
@@ -487,6 +497,7 @@ async function applyTaxDeductionToExpense(percentage: number) {
       lastEditedAt: serverTimestamp(),
     })
     showTaxDeductionDialog.value = false
+    logEvent('apply_tax_deduction', { trip_id: tripId as string, percentage })
     toast.success(`已扣除 ${percentage}% 消費稅`)
   }
   catch (error) {
@@ -542,6 +553,7 @@ async function applyDiscountToExpense(percentage: number) {
       lastEditedAt: serverTimestamp(),
     })
     showDiscountDialog.value = false
+    logEvent('apply_discount', { trip_id: tripId as string, percentage })
     toast.success(`已套用 ${percentage}% 折扣`)
   }
   catch (error) {
@@ -588,6 +600,7 @@ async function reanalyzeReceipt() {
     const functions = getFunctions(undefined, 'us-west1')
     const reanalyze = httpsCallable(functions, 'reanalyzeReceipt-reanalyzeReceipt')
     await reanalyze({ tripId, expenseId })
+    logEvent('reanalyze_receipt', { trip_id: tripId as string })
     toast.success('收據重新分析完成')
   }
   catch (error: unknown) {

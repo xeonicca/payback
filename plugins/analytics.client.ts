@@ -1,6 +1,7 @@
 export default defineNuxtPlugin(() => {
   const router = useRouter()
-  const { logEvent } = useAnalytics()
+  const { logEvent, setUser, clearUser } = useAnalytics()
+  const sessionUser = useSessionUser()
 
   router.afterEach((to) => {
     logEvent('page_view', {
@@ -8,4 +9,11 @@ export default defineNuxtPlugin(() => {
       page_title: to.meta.title as string || document.title,
     })
   })
+
+  watch(sessionUser, (user) => {
+    if (user)
+      setUser(user)
+    else
+      clearUser()
+  }, { immediate: true })
 })
