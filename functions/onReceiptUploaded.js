@@ -55,6 +55,14 @@ exports.analyzeReceiptAndUpdateExpense = onObjectFinalized({
 
   if (!contentType || !contentType.startsWith('image/')) {
     logger.log('File is not an image. Skipping analysis.', { contentType })
+    logger.info('receipt_extraction', {
+      event: 'receipt_extraction',
+      status: 'fail',
+      reason: 'not_image',
+      tripId,
+      expenseId,
+      contentType: contentType || null,
+    })
     const expenseDocRefError = db.doc(`trips/${tripId}/expenses/${expenseId}`)
     try {
       await expenseDocRefError.update({
@@ -91,9 +99,28 @@ exports.analyzeReceiptAndUpdateExpense = onObjectFinalized({
     const expenseDocRef = db.doc(`trips/${tripId}/expenses/${expenseId}`)
     await expenseDocRef.update(firestoreUpdateData)
     logger.info(`Successfully updated Firestore document: trips/${tripId}/expenses/${expenseId}`)
+
+    // Structured outcome event — query reliability via jsonPayload.event
+    logger.info('receipt_extraction', {
+      event: 'receipt_extraction',
+      status: 'success',
+      tripId,
+      expenseId,
+      itemCount: parsedDataFromAI.items?.length ?? 0,
+      needsReview: parsedDataFromAI.needsReview ?? false,
+      currency: parsedDataFromAI.currency ?? null,
+    })
   }
   catch (error) {
     logger.error('Error calling Gemini API or processing:', error)
+    logger.info('receipt_extraction', {
+      event: 'receipt_extraction',
+      status: 'fail',
+      reason: 'ai_error',
+      tripId,
+      expenseId,
+      error: error.message || 'Unknown error',
+    })
     const expenseDocRefGeneralError = db.doc(`trips/${tripId}/expenses/${expenseId}`)
     try {
       await expenseDocRefGeneralError.update({

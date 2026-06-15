@@ -92,6 +92,18 @@ exports.reanalyzeReceipt = onCall({
     await expenseDocRef.update(firestoreUpdateData)
     logger.info(`Successfully updated expense: trips/${tripId}/expenses/${expenseId}`)
 
+    // Structured outcome event — query reliability via jsonPayload.event
+    logger.info('receipt_extraction', {
+      event: 'receipt_extraction',
+      status: 'success',
+      mode: 'reanalyze',
+      tripId,
+      expenseId,
+      itemCount: parsedDataFromAI.items?.length ?? 0,
+      needsReview: parsedDataFromAI.needsReview ?? false,
+      currency: parsedDataFromAI.currency ?? null,
+    })
+
     return {
       success: true,
       message: 'Receipt re-analyzed successfully',
@@ -105,6 +117,15 @@ exports.reanalyzeReceipt = onCall({
   }
   catch (error) {
     logger.error('Error re-analyzing receipt:', error)
+    logger.info('receipt_extraction', {
+      event: 'receipt_extraction',
+      status: 'fail',
+      mode: 'reanalyze',
+      reason: error instanceof HttpsError ? error.code : 'ai_error',
+      tripId,
+      expenseId,
+      error: error.message || 'Unknown error',
+    })
 
     // Update Firestore with error state
     try {
