@@ -680,7 +680,7 @@ async function reanalyzeReceipt() {
           {{ expense?.description }}
         </p>
         <button type="button" class="mt-1" @click="isEditingBasics = true">
-          <category-chip :category="expense.category" show-unlabeled />
+          <category-chip :category="expense?.category" show-unlabeled />
         </button>
         <p class="text-xs text-muted-foreground mt-0.5">
           {{ expense?.paidAtString }}
