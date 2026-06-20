@@ -1,10 +1,16 @@
 import { describe, expect, it } from 'vitest'
-import { CATEGORY_KEYS, coerceCategory, getCategoryMeta } from './categories'
+import { CATEGORY_KEYS, CATEGORY_LIST, coerceCategory, getCategoryMeta } from './categories'
 
 describe('categories', () => {
   it('has the 7 expected keys in order', () => {
     expect(CATEGORY_KEYS).toEqual([
-      'food', 'groceries', 'transport', 'lodging', 'activities', 'shopping', 'other',
+      'food',
+      'groceries',
+      'transport',
+      'lodging',
+      'activities',
+      'shopping',
+      'other',
     ])
   })
 
@@ -28,5 +34,9 @@ describe('categories', () => {
 
   it('returns the other meta for an unknown key', () => {
     expect(getCategoryMeta('nope').label).toBe('其他')
+  })
+
+  it('category_list is ordered to match category_keys', () => {
+    expect(CATEGORY_LIST.map(c => c.key)).toEqual([...CATEGORY_KEYS])
   })
 })

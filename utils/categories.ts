@@ -1,5 +1,11 @@
 export const CATEGORY_KEYS = [
-  'food', 'groceries', 'transport', 'lodging', 'activities', 'shopping', 'other',
+  'food',
+  'groceries',
+  'transport',
+  'lodging',
+  'activities',
+  'shopping',
+  'other',
 ] as const
 
 export type CategoryKey = typeof CATEGORY_KEYS[number]
