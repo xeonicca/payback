@@ -22,6 +22,7 @@ const emit = defineEmits<{
     exchangeRate: number
     paidAt: Date
     paidByMemberId: string
+    category: string
   }): void
 }>()
 
@@ -36,6 +37,7 @@ const previousExchangeRate = ref<number | null>(null)
 const paidAtDateString = ref('')
 const paidAtTime = ref('')
 const paidByMemberId = ref('')
+const category = ref('')
 const paidAtPlaceholder = ref()
 
 const paidAtDate = computed({
@@ -99,6 +101,7 @@ watch(() => props.open, (open) => {
   exchangeRate.value = exp.exchangeRate ?? trip.exchangeRate ?? 1
   previousExchangeRate.value = null
   paidByMemberId.value = exp.paidByMemberId
+  category.value = exp.category ?? ''
 
   // Reconstruct the calendar/time inputs from the structured paidAt fields so
   // we don't have to reach into the Timestamp instance.
@@ -161,6 +164,7 @@ function handleSave() {
     exchangeRate: exchangeRate.value,
     paidAt: selectedDate,
     paidByMemberId: paidByMemberId.value,
+    category: category.value,
   })
 }
 
@@ -186,6 +190,14 @@ function handleClose() {
           <p v-if="description.trim().length > 0 && description.trim().length < 2" class="text-xs text-destructive mt-1">
             描述至少 2 個字
           </p>
+        </div>
+
+        <!-- Category -->
+        <div>
+          <ui-label class="text-sm font-medium text-foreground">
+            分類
+          </ui-label>
+          <category-picker v-model="category" class="mt-1.5" />
         </div>
 
         <!-- Amount (only when no items — otherwise driven by items) -->
