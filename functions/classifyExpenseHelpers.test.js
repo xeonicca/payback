@@ -30,3 +30,11 @@ test('parseClassifyResponse fills missing ids with other', () => {
     { id: 'b', category: 'other' },
   ])
 })
+
+test('parseClassifyResponse returns all other when the text is not valid JSON', () => {
+  const items = [{ id: 'a', description: 'x' }, { id: 'b', description: 'y' }]
+  assert.deepStrictEqual(parseClassifyResponse('not json at all', items), [
+    { id: 'a', category: 'other' },
+    { id: 'b', category: 'other' },
+  ])
+})

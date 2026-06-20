@@ -5,6 +5,7 @@ const { zodToJsonSchema } = require('zod-to-json-schema')
 const { responseSchema, buildClassifyPrompt, parseClassifyResponse } = require('./classifyExpenseHelpers')
 
 const ai = new GoogleGenAI({ apiKey: process.env.GOOGLE_GENAI_API_KEY })
+const MAX_ITEMS_PER_CALL = 100
 
 /**
  * Call Gemini to classify a list of expenses. Thinking disabled for cost.
@@ -34,7 +35,7 @@ exports.classifyExpense = onCall({ region: 'us-west1' }, async (request) => {
   // Defensive: drop malformed entries, cap list size to bound token cost.
   const clean = items
     .filter(it => it && typeof it.id === 'string' && typeof it.description === 'string' && it.description.trim())
-    .slice(0, 100)
+    .slice(0, MAX_ITEMS_PER_CALL)
 
   try {
     const results = await classifyItems(clean)
