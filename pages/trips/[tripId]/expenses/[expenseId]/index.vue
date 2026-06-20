@@ -679,7 +679,7 @@ async function reanalyzeReceipt() {
         <p class="text-sm text-foreground mt-1">
           {{ expense?.description }}
         </p>
-        <button type="button" class="mt-1" @click="isEditingBasics = true">
+        <button type="button" class="mt-1" aria-label="編輯分類" @click="isEditingBasics = true">
           <category-chip :category="expense?.category" show-unlabeled />
         </button>
         <p class="text-xs text-muted-foreground mt-0.5">
