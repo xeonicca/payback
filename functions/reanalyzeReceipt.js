@@ -85,8 +85,11 @@ exports.reanalyzeReceipt = onCall({
     )
     logger.info('Successfully parsed receipt data:', parsedDataFromAI)
 
-    // Prepare update data (don't update receiptImageUrl since it's the same)
-    const firestoreUpdateData = prepareFirestoreUpdateData(parsedDataFromAI, tripCurrency)
+    // Prepare update data (don't update receiptImageUrl since it's the same).
+    // Preserve an existing category so re-analysis never overwrites a manual choice.
+    const firestoreUpdateData = prepareFirestoreUpdateData(parsedDataFromAI, tripCurrency, null, {
+      preserveCategory: !!expenseData.category,
+    })
 
     // Update Firestore
     await expenseDocRef.update(firestoreUpdateData)

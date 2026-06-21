@@ -29,3 +29,13 @@ test('prepareFirestoreUpdateData defaults a missing category to other', () => {
   )
   assert.strictEqual(out.category, 'other')
 })
+
+test('prepareFirestoreUpdateData omits category when preserveCategory is set', () => {
+  const out = prepareFirestoreUpdateData(
+    { items: [], category: 'food', paidAtString: null, currency: 'TWD' },
+    'TWD',
+    null,
+    { preserveCategory: true },
+  )
+  assert.ok(!('category' in out), 'category should be absent so the existing value is kept')
+})

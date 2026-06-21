@@ -336,9 +336,12 @@ function convertToTimestamp(paidAtString, tripCurrency) {
  * @param {object} parsedDataFromAI - Parsed data from Gemini AI
  * @param {string} tripCurrency - The trip destination currency
  * @param {string|null} receiptImageUrl - Optional receipt image URL to include
+ * @param {object} [options] - Extra options
+ * @param {boolean} [options.preserveCategory] - When true, omit category from the
+ *   update entirely so an existing (e.g. manually-set) value is left untouched.
  * @returns {object} Data ready for Firestore update
  */
-function prepareFirestoreUpdateData(parsedDataFromAI, tripCurrency, receiptImageUrl = null) {
+function prepareFirestoreUpdateData(parsedDataFromAI, tripCurrency, receiptImageUrl = null, options = {}) {
   const paidAtTimestamp = convertToTimestamp(parsedDataFromAI.paidAtString, tripCurrency)
 
   // Strip transient fields that should not be written verbatim.
@@ -346,7 +349,9 @@ function prepareFirestoreUpdateData(parsedDataFromAI, tripCurrency, receiptImage
   // - currency: AI-detected currency used by reconcileReceipt for the
   //   currency_unexpected check; we don't persist it (expenses live in
   //   tripCurrency; mismatches are surfaced via reviewReasons instead).
-  const { paidAtString, currency: _detectedCurrency, ...restOfData } = parsedDataFromAI
+  // - category: never written verbatim; either re-derived (coerced) below or
+  //   omitted entirely when preserveCategory keeps an existing value.
+  const { paidAtString, currency: _detectedCurrency, category: _rawCategory, ...restOfData } = parsedDataFromAI
 
   const firestoreUpdateData = {
     ...restOfData,
@@ -362,8 +367,10 @@ function prepareFirestoreUpdateData(parsedDataFromAI, tripCurrency, receiptImage
   if (!Array.isArray(firestoreUpdateData.reviewReasons))
     firestoreUpdateData.reviewReasons = []
 
-  // Category: coerce AI output to a known key; default to 'other'.
-  firestoreUpdateData.category = coerceCategory(parsedDataFromAI.category)
+  // Category: coerce AI output to a known key; default to 'other'. Skipped when
+  // preserveCategory is set so re-analysis never clobbers a manual choice.
+  if (!options.preserveCategory)
+    firestoreUpdateData.category = coerceCategory(parsedDataFromAI.category)
 
   if (receiptImageUrl !== null) {
     firestoreUpdateData.receiptImageUrl = receiptImageUrl
