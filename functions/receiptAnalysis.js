@@ -1,7 +1,6 @@
 const { Storage } = require('@google-cloud/storage')
 const { GoogleGenAI } = require('@google/genai')
 const dayjs = require('dayjs')
-const { reconcileReceipt } = require('./reconcile')
 const customParseFormat = require('dayjs/plugin/customParseFormat')
 const timezone = require('dayjs/plugin/timezone')
 const utc = require('dayjs/plugin/utc')
@@ -9,6 +8,8 @@ const admin = require('firebase-admin')
 const { logger } = require('firebase-functions/v2')
 const { z } = require('zod')
 const { zodToJsonSchema } = require('zod-to-json-schema')
+const { categoryEnum, coerceCategory } = require('./categories')
+const { reconcileReceipt } = require('./reconcile')
 
 // Extend dayjs with timezone support
 dayjs.extend(utc)
@@ -18,8 +19,24 @@ dayjs.extend(customParseFormat)
 const storage = new Storage()
 
 const SUPPORTED_CURRENCIES = [
-  'JPY', 'USD', 'EUR', 'GBP', 'AUD', 'CAD', 'CNY', 'KRW', 'SGD',
-  'HKD', 'TWD', 'VND', 'MYR', 'THB', 'IDR', 'PHP', 'NZD', 'INR',
+  'JPY',
+  'USD',
+  'EUR',
+  'GBP',
+  'AUD',
+  'CAD',
+  'CNY',
+  'KRW',
+  'SGD',
+  'HKD',
+  'TWD',
+  'VND',
+  'MYR',
+  'THB',
+  'IDR',
+  'PHP',
+  'NZD',
+  'INR',
 ]
 
 const expenseItemSchema = z.object({
@@ -55,6 +72,7 @@ const receiptSchema = z.object({
   ),
   items: z.array(expenseItemSchema).describe('Real purchased items only. Do NOT include subtotals, tax lines, service charges, tips, discounts, vouchers, change due, loyalty points, free promotional items printed at 0, or store header/footer messages.'),
   description: z.string().nullable().describe('Concise 1-sentence summary in the TARGET output language only. Do not list every item. Do not provide bilingual output.'),
+  category: categoryEnum.describe('The single best-fitting spending category for the whole receipt. food = restaurants/cafes/drinks/snacks; groceries = supermarkets/convenience stores; transport = taxi/train/flight/fuel/transit; lodging = hotels/lodging; activities = attractions/tours/tickets/entertainment; shopping = retail/clothing/souvenirs; other = anything that does not fit. Default to "other" if unsure.'),
 })
 
 // Configure Google Gen AI
@@ -177,6 +195,17 @@ Analyze the provided receipt image and extract data into the specified JSON stru
 9. **DESCRIPTION**
    One short sentence in ${language} summarizing the receipt (e.g. "7-Eleven, snacks and drinks"). Do not list every item.
 
+10. **CATEGORY**
+   Choose exactly ONE category for the whole receipt from: food, groceries, transport, lodging, activities, shopping, other.
+   - food: restaurants, cafés, bars, drinks, snacks, prepared meals
+   - groceries: supermarkets, convenience stores, raw ingredients
+   - transport: taxi, train, bus, flights, fuel, parking, transit cards
+   - lodging: hotels, hostels, guesthouses, Airbnb
+   - activities: attractions, tours, tickets, museums, entertainment
+   - shopping: retail goods, clothing, electronics, souvenirs
+   - other: anything that does not clearly fit the above
+   If you are unsure, use "other". Output the lowercase key only.
+
 ### EXAMPLE (illustrative — adapt to the actual receipt)
 
 Imagine a Japanese supermarket receipt printing:
@@ -203,6 +232,7 @@ Expected JSON:
   "printedItemCount": 3,
   "paidAtString": null,
   "currency": "JPY",
+  "category": "groceries",
   "items": [
     { "itemNumber": "1", "name": "ペプシコーラ", "translatedName": "...", "quantity": 1, "price": 150, "lineTotal": 150 },
     { "itemNumber": "2", "name": "青のり入川えびせんべい", "translatedName": "...", "quantity": 2, "price": 1100, "lineTotal": 2200 }
@@ -306,9 +336,12 @@ function convertToTimestamp(paidAtString, tripCurrency) {
  * @param {object} parsedDataFromAI - Parsed data from Gemini AI
  * @param {string} tripCurrency - The trip destination currency
  * @param {string|null} receiptImageUrl - Optional receipt image URL to include
+ * @param {object} [options] - Extra options
+ * @param {boolean} [options.preserveCategory] - When true, omit category from the
+ *   update entirely so an existing (e.g. manually-set) value is left untouched.
  * @returns {object} Data ready for Firestore update
  */
-function prepareFirestoreUpdateData(parsedDataFromAI, tripCurrency, receiptImageUrl = null) {
+function prepareFirestoreUpdateData(parsedDataFromAI, tripCurrency, receiptImageUrl = null, options = {}) {
   const paidAtTimestamp = convertToTimestamp(parsedDataFromAI.paidAtString, tripCurrency)
 
   // Strip transient fields that should not be written verbatim.
@@ -316,7 +349,9 @@ function prepareFirestoreUpdateData(parsedDataFromAI, tripCurrency, receiptImage
   // - currency: AI-detected currency used by reconcileReceipt for the
   //   currency_unexpected check; we don't persist it (expenses live in
   //   tripCurrency; mismatches are surfaced via reviewReasons instead).
-  const { paidAtString, currency: _detectedCurrency, ...restOfData } = parsedDataFromAI
+  // - category: never written verbatim; either re-derived (coerced) below or
+  //   omitted entirely when preserveCategory keeps an existing value.
+  const { paidAtString, currency: _detectedCurrency, category: _rawCategory, ...restOfData } = parsedDataFromAI
 
   const firestoreUpdateData = {
     ...restOfData,
@@ -327,8 +362,15 @@ function prepareFirestoreUpdateData(parsedDataFromAI, tripCurrency, receiptImage
 
   // needsReview + reviewReasons are produced by reconcileReceipt and travel
   // through restOfData unchanged. Guarantee they're present even on empty paths.
-  if (firestoreUpdateData.needsReview == null) firestoreUpdateData.needsReview = false
-  if (!Array.isArray(firestoreUpdateData.reviewReasons)) firestoreUpdateData.reviewReasons = []
+  if (firestoreUpdateData.needsReview == null)
+    firestoreUpdateData.needsReview = false
+  if (!Array.isArray(firestoreUpdateData.reviewReasons))
+    firestoreUpdateData.reviewReasons = []
+
+  // Category: coerce AI output to a known key; default to 'other'. Skipped when
+  // preserveCategory is set so re-analysis never clobbers a manual choice.
+  if (!options.preserveCategory)
+    firestoreUpdateData.category = coerceCategory(parsedDataFromAI.category)
 
   if (receiptImageUrl !== null) {
     firestoreUpdateData.receiptImageUrl = receiptImageUrl

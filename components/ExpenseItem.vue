@@ -39,8 +39,10 @@ const displayPrimary = computed(() => {
 })
 
 const displaySecondary = computed(() => {
-  if (usedHomeCurrency.value) return null
-  if (!hasDualCurrency.value) return null
+  if (usedHomeCurrency.value)
+    return null
+  if (!hasDualCurrency.value)
+    return null
   if (props.showHomeCurrency) {
     return { currency: props.trip.tripCurrency, amount: tripCurrencyAmount.value }
   }
@@ -60,6 +62,7 @@ const displaySecondary = computed(() => {
     <!-- Description + meta -->
     <div class="flex-1 min-w-0">
       <p class="text-sm font-semibold text-foreground m-0 line-clamp-2 leading-snug">
+        <category-chip v-if="expense.category" :category="expense.category" class="align-middle mr-1" />
         {{ expense.description }}
         <Icon v-if="!expense.enabled" name="lucide:eye-off" class="w-3.5 h-3.5 text-muted-foreground inline-block align-text-top ml-0.5" />
       </p>

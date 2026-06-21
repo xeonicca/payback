@@ -2,6 +2,7 @@
 import type { FieldValue } from 'firebase/firestore'
 import type { Trip } from '@/types'
 import { doc, Timestamp } from 'firebase/firestore'
+import { toast } from 'vue-sonner'
 import { useDocument, useFirestore } from 'vuefire'
 import { tripConverter } from '@/utils/converter'
 
@@ -38,6 +39,26 @@ const trip = useDocument<Trip>(doc(db, 'trips', tripId as string).withConverter(
 const { showHomeCurrency, primaryCurrency, secondaryCurrency } = useCurrencyToggle(tripId as string, trip)
 const { tripExpenses, enabledExpenses } = useTripExpenses(tripId as string)
 const { tripMembers } = useTripMembers(tripId as string)
+
+const { isRunning: isAutoLabeling, runBatch } = useExpenseAutoLabel(tripId as string)
+const unlabeledCount = computed(() =>
+  enabledExpenses.value.filter(e => !e.category && e.description?.trim()).length,
+)
+
+async function handleAutoLabel() {
+  if (unlabeledCount.value === 0) {
+    toast.info('沒有未分類的支出')
+    return
+  }
+  try {
+    const n = await runBatch(enabledExpenses.value)
+    toast.success(`已自動分類 ${n} 筆支出`)
+  }
+  catch (error) {
+    console.error('Batch auto-label failed:', error)
+    toast.error('自動分類失敗')
+  }
+}
 
 const displayedExpenses = computed(() => {
   let expenses = showHiddenExpenses.value ? tripExpenses.value : enabledExpenses.value
@@ -147,11 +168,29 @@ const displayedExpenses = computed(() => {
       <div class="text-sm text-muted-foreground">
         {{ tripExpenses.length }} 筆支出
       </div>
-      <div class="flex items-center gap-2">
-        <ui-label for="show-hidden" class="text-xs">
-          顯示隱藏
-        </ui-label>
-        <ui-switch id="show-hidden" :model-value="showHiddenExpenses" @update:model-value="showHiddenExpenses = !showHiddenExpenses" />
+      <div class="flex items-center gap-3">
+        <ui-button
+          v-if="unlabeledCount > 0"
+          type="button"
+          variant="outline"
+          size="sm"
+          class="h-7 text-xs"
+          :disabled="isAutoLabeling"
+          @click="handleAutoLabel"
+        >
+          <Icon
+            :name="isAutoLabeling ? 'lucide:loader-circle' : 'lucide:sparkles'"
+            class="mr-1 h-3 w-3"
+            :class="{ 'animate-spin': isAutoLabeling }"
+          />
+          自動分類 ({{ unlabeledCount }})
+        </ui-button>
+        <div class="flex items-center gap-2">
+          <ui-label for="show-hidden" class="text-xs">
+            顯示隱藏
+          </ui-label>
+          <ui-switch id="show-hidden" :model-value="showHiddenExpenses" @update:model-value="showHiddenExpenses = !showHiddenExpenses" />
+        </div>
       </div>
     </div>
 

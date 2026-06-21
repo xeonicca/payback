@@ -3,7 +3,8 @@ import type { NewExpense, Trip, TripMember } from '@/types'
 import { DateFormatter, getLocalTimeZone, parseDate, today } from '@internationalized/date'
 import { toTypedSchema } from '@vee-validate/zod'
 import { useMediaQuery } from '@vueuse/core'
-import { addDoc, collection, serverTimestamp, Timestamp } from 'firebase/firestore'
+import { addDoc, collection, doc as fsDoc, serverTimestamp, Timestamp, updateDoc } from 'firebase/firestore'
+import { getFunctions, httpsCallable } from 'firebase/functions'
 import { getStorage, ref as storageRef, uploadBytes } from 'firebase/storage'
 import { toDate } from 'reka-ui/date'
 import { useForm } from 'vee-validate'
@@ -30,6 +31,8 @@ const isDesktop = useMediaQuery('(min-width: 1024px)')
 const activeTab = ref<'receipt' | 'manual'>(props.defaultTab ?? 'receipt')
 const isSubmitting = ref(false)
 const selectedFile = ref<File | null>(null)
+const manualCategory = ref<string>('')
+const autoLabel = ref(false)
 
 const timezone = getLocalTimeZone()
 
@@ -263,6 +266,8 @@ watch(open, (val) => {
     showSplitPicker.value = false
     showItemsPicker.value = false
     expenseItems.value = []
+    manualCategory.value = ''
+    autoLabel.value = false
     preLockAmount.value = undefined
     paidAtTime.value = new Date().toTimeString().slice(0, 5)
     resetForm({
@@ -376,11 +381,34 @@ async function submitManual(formValues: { description?: string, grandTotal?: num
       isProcessing: false,
       enabled: true,
       createdByUserId: sessionUser.value?.uid,
+      ...(manualCategory.value ? { category: manualCategory.value } : {}),
       ...(cleanItems.length > 0 ? { items: cleanItems } : {}),
     })
 
     open.value = false
     logEvent('add_expense', { method: 'manual', trip_id: props.trip.id })
+
+    // Background auto-label: don't block the save/close. Patch the doc when it returns.
+    if (autoLabel.value && formValues.description) {
+      const description = formValues.description
+      const tripId = props.trip.id
+      void (async () => {
+        try {
+          const functions = getFunctions(undefined, 'us-west1')
+          const classify = httpsCallable(functions, 'classifyExpense-classifyExpense')
+          const res = await classify({ items: [{ id: docRef.id, description }] })
+          const category = (res.data as { results?: Array<{ id: string, category: string }> })
+            .results?.[0]
+            ?.category
+          if (category)
+            await updateDoc(fsDoc(db, 'trips', tripId, 'expenses', docRef.id), { category })
+        }
+        catch (err) {
+          console.error('Auto-label failed:', err)
+        }
+      })()
+    }
+
     toast.success('已新增支出', {
       action: {
         label: '查看支出',
@@ -635,6 +663,23 @@ async function submitManual(formValues: { description?: string, grandTotal?: num
                 <ui-form-message />
               </ui-form-item>
             </ui-form-field>
+
+            <!-- Category + auto-label -->
+            <div class="space-y-2">
+              <div class="flex items-center justify-between">
+                <ui-label class="text-sm">
+                  分類
+                </ui-label>
+                <label class="flex items-center gap-1.5 text-xs text-muted-foreground cursor-pointer">
+                  <ui-switch :model-value="autoLabel" @update:model-value="(v: boolean) => { autoLabel = v; if (v) manualCategory = '' }" />
+                  自動分類
+                </label>
+              </div>
+              <category-picker v-if="!autoLabel" v-model="manualCategory" />
+              <p v-else class="text-xs text-muted-foreground">
+                儲存後將自動判斷分類
+              </p>
+            </div>
 
             <!-- Items accordion -->
             <div data-accordion="items">
@@ -1151,6 +1196,23 @@ async function submitManual(formValues: { description?: string, grandTotal?: num
                   <ui-form-message />
                 </ui-form-item>
               </ui-form-field>
+
+              <!-- Category + auto-label -->
+              <div class="space-y-2">
+                <div class="flex items-center justify-between">
+                  <ui-label class="text-sm">
+                    分類
+                  </ui-label>
+                  <label class="flex items-center gap-1.5 text-xs text-muted-foreground cursor-pointer">
+                    <ui-switch :model-value="autoLabel" @update:model-value="(v: boolean) => { autoLabel = v; if (v) manualCategory = '' }" />
+                    自動分類
+                  </label>
+                </div>
+                <category-picker v-if="!autoLabel" v-model="manualCategory" />
+                <p v-else class="text-xs text-muted-foreground">
+                  儲存後將自動判斷分類
+                </p>
+              </div>
 
               <!-- Items accordion -->
               <div data-accordion="items">
