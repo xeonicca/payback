@@ -62,17 +62,15 @@ const displaySecondary = computed(() => {
     <!-- Description + meta -->
     <div class="flex-1 min-w-0">
       <p class="text-sm font-semibold text-foreground m-0 line-clamp-2 leading-snug">
+        <category-chip v-if="expense.category" :category="expense.category" class="align-middle mr-1" />
         {{ expense.description }}
         <Icon v-if="!expense.enabled" name="lucide:eye-off" class="w-3.5 h-3.5 text-muted-foreground inline-block align-text-top ml-0.5" />
       </p>
-      <p class="text-xs text-muted-foreground m-0 mt-0.5 flex items-center gap-1.5">
-        <span class="min-w-0 truncate">
-          {{ expense.paidAtObject.month }}/{{ expense.paidAtObject.day }} {{ expense.paidAtObject.hour }}:{{ expense.paidAtObject.minute }}
-          <span class="mx-1">·</span>
-          <span v-if="paidByMember" class="hidden lg:inline">{{ paidByMember.name }} 付款 · </span>
-          {{ sharedMembers.length }}人分攤
-        </span>
-        <category-chip v-if="expense.category" :category="expense.category" class="shrink-0" />
+      <p class="text-xs text-muted-foreground m-0 mt-0.5">
+        {{ expense.paidAtObject.month }}/{{ expense.paidAtObject.day }} {{ expense.paidAtObject.hour }}:{{ expense.paidAtObject.minute }}
+        <span class="mx-1">·</span>
+        <span v-if="paidByMember" class="hidden lg:inline">{{ paidByMember.name }} 付款 · </span>
+        {{ sharedMembers.length }}人分攤
       </p>
     </div>
 
