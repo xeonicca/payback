@@ -14,10 +14,10 @@ const meta = computed(() => getCategoryMeta(props.category))
 <template>
   <span
     v-if="!isUnlabeled || showUnlabeled"
-    class="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium leading-none"
+    class="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium leading-none"
     :class="isUnlabeled ? 'bg-slate-100 text-slate-400 dark:bg-slate-800 dark:text-slate-500' : meta.chipClass"
   >
-    <Icon :name="isUnlabeled ? 'lucide:tag' : meta.icon" class="h-2.5 w-2.5" />
+    <Icon :name="isUnlabeled ? 'lucide:tag' : meta.icon" class="h-3 w-3" />
     {{ isUnlabeled ? '未分類' : meta.label }}
   </span>
 </template>
