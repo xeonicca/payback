@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { Expense } from '@/types'
 import { Timestamp } from 'firebase/firestore'
+import { coerceCategory, getCategoryMeta } from '@/utils/categories'
 
 definePageMeta({
   middleware: ['auth'],
@@ -49,17 +50,41 @@ const memberSpending = computed(() => {
 
 const maxMemberPaid = computed(() => Math.max(...memberSpending.value.map(m => m.paid), 1))
 
-// ── Category / time distribution ──
-const spendingByHour = computed(() => {
-  const hours = Array.from({ length: 24 }, () => 0)
+// ── Category distribution ──
+const categorySpending = computed(() => {
+  const grouped: Record<string, number> = {}
   for (const expense of enabledExpenses.value) {
-    const h = Number.parseInt(expense.paidAtObject.hour) || 0
-    hours[h] += expense.grandTotal
+    const key = coerceCategory(expense.category)
+    grouped[key] = (grouped[key] || 0) + expense.grandTotal
   }
-  return hours
+  const total = Object.values(grouped).reduce((sum, n) => sum + n, 0) || 1
+  return Object.entries(grouped)
+    .map(([key, amount]) => {
+      const meta = getCategoryMeta(key)
+      return {
+        key,
+        label: meta.label,
+        icon: meta.icon,
+        color: meta.color,
+        amount,
+        percent: (amount / total) * 100,
+      }
+    })
+    .sort((a, b) => b.amount - a.amount)
 })
 
-const maxHourlySpend = computed(() => Math.max(...spendingByHour.value, 1))
+// Build the conic-gradient stops for the doughnut from cumulative percentages.
+const categoryPieGradient = computed(() => {
+  let cursor = 0
+  const stops = categorySpending.value.map((c) => {
+    const start = cursor
+    cursor += c.percent
+    return `${c.color} ${start}% ${cursor}%`
+  })
+  return `conic-gradient(${stops.join(', ')})`
+})
+
+const topCategory = computed(() => categorySpending.value[0])
 
 // ── Summary stats ──
 const totalExpenses = computed(() => enabledExpenses.value.reduce((sum, e) => sum + e.grandTotal, 0))
@@ -173,33 +198,46 @@ function formatAmount(n: number) {
       </div>
     </section>
 
-    <!-- Spending by hour heatmap -->
+    <!-- Spending by category doughnut (pure CSS) -->
     <section class="bg-card border rounded-xl p-4">
-      <h2 class="text-sm font-semibold text-foreground m-0 mb-4">消費時段</h2>
-      <div class="grid grid-cols-12 gap-1">
-        <div
-          v-for="(amount, hour) in spendingByHour"
-          :key="hour"
-          class="flex flex-col items-center gap-1"
-        >
+      <h2 class="text-sm font-semibold text-foreground m-0 mb-4">消費分類</h2>
+      <div class="flex items-center gap-5">
+        <!-- Doughnut -->
+        <div class="relative shrink-0" style="width: 7rem; height: 7rem;">
           <div
-            class="w-full aspect-square rounded-sm transition-colors"
-            :style="{
-              backgroundColor: amount > 0
-                ? `oklch(0.55 0.15 264 / ${0.15 + (amount / maxHourlySpend) * 0.85})`
-                : undefined,
-            }"
-            :class="amount === 0 ? 'bg-muted' : ''"
-            :title="`${hour}:00 — ${primaryCurrency} ${formatAmount(amount)}`"
+            class="w-full h-full rounded-full"
+            :style="{ background: categoryPieGradient }"
           />
-          <span v-if="hour % 3 === 0" class="text-[10px] text-muted-foreground font-mono leading-none">
-            {{ hour }}
-          </span>
+          <div class="absolute inset-[22%] rounded-full bg-card flex flex-col items-center justify-center">
+            <span class="text-[10px] text-muted-foreground leading-none">總計</span>
+            <span class="text-xs font-mono font-semibold text-foreground leading-tight mt-0.5">
+              {{ formatAmount(totalExpenses) }}
+            </span>
+          </div>
+        </div>
+
+        <!-- Legend -->
+        <div class="flex-1 min-w-0 space-y-2">
+          <div
+            v-for="cat in categorySpending"
+            :key="cat.key"
+            class="flex items-center gap-2"
+          >
+            <span class="size-2.5 rounded-full shrink-0" :style="{ backgroundColor: cat.color }" />
+            <Icon :name="cat.icon" class="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+            <span class="text-xs text-foreground truncate">{{ cat.label }}</span>
+            <span class="ml-auto text-xs font-mono text-muted-foreground shrink-0">{{ cat.percent.toFixed(0) }}%</span>
+            <span class="text-xs font-mono font-semibold text-foreground w-14 shrink-0 text-right">
+              {{ formatAmount(cat.amount) }}
+            </span>
+          </div>
         </div>
       </div>
-      <p class="text-xs text-muted-foreground m-0 mt-3">
-        24 小時消費分佈，顏色越深代表金額越高
-      </p>
+      <div v-if="topCategory" class="mt-3 pt-3 border-t border-border">
+        <p class="text-xs text-muted-foreground m-0">
+          花費最多的分類是 <span class="font-semibold text-foreground">{{ topCategory.label }}</span>，占 {{ topCategory.percent.toFixed(0) }}%
+        </p>
+      </div>
     </section>
   </div>
 </template>
