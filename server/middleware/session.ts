@@ -3,6 +3,21 @@ import { AUTH_COOKIE_NAME } from 'vuefire/server'
 import { getFirebaseAdminAuth, mapDecodedTokenToAppUser } from '../utils/session'
 
 export default defineEventHandler(async (event) => {
+  const authorization = getHeader(event, 'authorization')
+  if (authorization !== undefined) {
+    const token = /^Bearer (\S+)$/i.exec(authorization)?.[1]
+    if (!token)
+      throw createError({ statusCode: 401, statusMessage: 'Invalid authorization header' })
+    try {
+      const decoded = await getFirebaseAdminAuth().verifyIdToken(token, true)
+      event.context.appUser = mapDecodedTokenToAppUser(decoded) as AppUser
+    }
+    catch {
+      throw createError({ statusCode: 401, statusMessage: 'Invalid or expired ID token' })
+    }
+    return
+  }
+
   const cookie = getCookie(event, AUTH_COOKIE_NAME)
   if (!cookie)
     return
