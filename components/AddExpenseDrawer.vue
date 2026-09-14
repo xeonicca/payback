@@ -73,7 +73,7 @@ const formSchema = toTypedSchema(z.object({
   description: z.string().min(2).max(200).optional(),
   grandTotal: z.coerce.number().positive().optional(),
   paidAt: z.string().optional(),
-  paidByMemberId: z.string(),
+  paidByMemberId: z.string({ required_error: '請選擇付款人' }),
   sharedWithMemberIds: z.array(z.string()).refine(value => value.some(item => item), {
     message: '至少選擇一個人',
   }),
@@ -118,6 +118,12 @@ watch(() => values.paidByMemberId, () => {
   showPayerPicker.value = false
 })
 
+// The payer/sharer pickers aren't form fields, so keep their errors from the last
+// failed submit and hide each one as soon as someone is picked
+const submitErrors = ref<Partial<Record<string, string>>>({})
+const payerError = computed(() => values.paidByMemberId ? undefined : submitErrors.value.paidByMemberId)
+const sharerError = computed(() => values.sharedWithMemberIds?.length ? undefined : submitErrors.value.sharedWithMemberIds)
+
 const convertedAmountPreview = computed(() => {
   if (!useHomeCurrency.value || !values.grandTotal)
     return null
@@ -128,10 +134,6 @@ const paidAtDate = computed({
   get: () => values.paidAt ? parseDate(values.paidAt) : today(timezone),
   set: val => val,
 })
-
-const allMembersSelected = computed(() =>
-  values.sharedWithMemberIds?.length === props.tripMembers.length,
-)
 
 // Items state
 interface ExpenseItem {
@@ -212,15 +214,6 @@ function onItemBlur(id: string) {
   }
 }
 
-function toggleSelectAllMembers() {
-  if (allMembersSelected.value) {
-    setFieldValue('sharedWithMemberIds', [])
-  }
-  else {
-    setFieldValue('sharedWithMemberIds', props.tripMembers.map(m => m.id))
-  }
-}
-
 function togglePayerPicker() {
   showPayerPicker.value = !showPayerPicker.value
   showSplitPicker.value = false
@@ -278,6 +271,7 @@ watch(open, (val) => {
       },
     })
     exchangeRateOverride.value = null
+    submitErrors.value = {}
     fetchRate()
   }
 })
@@ -290,14 +284,28 @@ watch(activeTab, (tab) => {
   }
 })
 
+// Open the first picker that failed validation so its error is in view
+function revealInvalidPicker({ errors }: { errors: Partial<Record<string, string>> }) {
+  submitErrors.value = errors
+  if (errors.paidByMemberId) {
+    showPayerPicker.value = true
+    showSplitPicker.value = false
+  }
+  else if (errors.sharedWithMemberIds) {
+    showSplitPicker.value = true
+    showPayerPicker.value = false
+  }
+}
+
 const onSubmit = handleSubmit(async (formValues) => {
+  submitErrors.value = {}
   if (activeTab.value === 'receipt') {
     await submitReceipt(formValues)
   }
   else {
     await submitManual(formValues)
   }
-})
+}, revealInvalidPicker)
 
 async function submitReceipt(formValues: { paidByMemberId: string, sharedWithMemberIds: string[] }) {
   if (!selectedFile.value) {
@@ -502,22 +510,17 @@ async function submitManual(formValues: { description?: string, grandTotal?: num
                 />
               </button>
 
-              <div v-show="showPayerPicker" class="pt-2 pb-1 pl-[4.5rem]">
-                <ui-radio-group
+              <p v-if="payerError" role="alert" class="pt-1 text-xs text-destructive">
+                {{ payerError }}
+              </p>
+              <div v-show="showPayerPicker" class="pt-2 pb-1">
+                <member-picker
                   :model-value="values.paidByMemberId"
-                  class="flex flex-col gap-2.5"
-                  @update:model-value="(val: string) => { setFieldValue('paidByMemberId', val); showPayerPicker = false }"
-                >
-                  <label
-                    v-for="member in tripMembers"
-                    :key="member.id"
-                    class="flex items-center gap-1.5 cursor-pointer"
-                  >
-                    <ui-radio-group-item :value="member.id" class="shrink-0" />
-                    <member-avatar :emoji="member.avatarEmoji" size="sm" />
-                    <span class="text-sm">{{ member.name }}</span>
-                  </label>
-                </ui-radio-group>
+                  :members="tripMembers"
+                  label="付款人"
+                  :invalid="!!payerError"
+                  @update:model-value="(id: string) => { setFieldValue('paidByMemberId', id); showPayerPicker = false }"
+                />
               </div>
             </div>
 
@@ -550,32 +553,19 @@ async function submitManual(formValues: { description?: string, grandTotal?: num
                 />
               </button>
 
-              <div v-show="showSplitPicker" class="pt-2 pb-1 pl-[4.5rem] space-y-2">
-                <div class="flex justify-end">
-                  <ui-button type="button" variant="link" size="sm" class="h-auto p-0 text-xs" @click="toggleSelectAllMembers">
-                    {{ allMembersSelected ? '取消全選' : '全選' }}
-                  </ui-button>
-                </div>
-                <div class="flex flex-col gap-2">
-                  <label
-                    v-for="member in tripMembers"
-                    :key="member.id"
-                    class="flex items-center gap-1.5 cursor-pointer"
-                  >
-                    <ui-checkbox
-                      :model-value="values.sharedWithMemberIds?.includes(member.id) ?? false"
-                      @update:model-value="(checked: boolean | 'indeterminate') => {
-                        if (typeof checked !== 'boolean') return
-                        const current = values.sharedWithMemberIds ?? []
-                        setFieldValue('sharedWithMemberIds', checked
-                          ? [...current, member.id]
-                          : current.filter((id: string) => id !== member.id))
-                      }"
-                    />
-                    <member-avatar :emoji="member.avatarEmoji" size="sm" />
-                    <span class="text-sm">{{ member.name }}</span>
-                  </label>
-                </div>
+              <p v-if="sharerError" role="alert" class="pt-1 text-xs text-destructive">
+                {{ sharerError }}
+              </p>
+              <div v-show="showSplitPicker" class="pt-2 pb-1 space-y-2">
+                <member-picker
+                  :model-value="values.sharedWithMemberIds ?? []"
+                  :members="tripMembers"
+                  multiple
+                  select-all
+                  label="分攤成員"
+                  :invalid="!!sharerError"
+                  @update:model-value="(ids: string[]) => setFieldValue('sharedWithMemberIds', ids)"
+                />
               </div>
             </div>
           </ui-tabs-content>
@@ -855,22 +845,17 @@ async function submitManual(formValues: { description?: string, grandTotal?: num
                 />
               </button>
 
-              <div v-show="showPayerPicker" class="pt-2 pb-1 pl-[4.5rem]">
-                <ui-radio-group
+              <p v-if="payerError" role="alert" class="pt-1 text-xs text-destructive">
+                {{ payerError }}
+              </p>
+              <div v-show="showPayerPicker" class="pt-2 pb-1">
+                <member-picker
                   :model-value="values.paidByMemberId"
-                  class="flex flex-col gap-2.5"
-                  @update:model-value="(val: string) => { setFieldValue('paidByMemberId', val); showPayerPicker = false }"
-                >
-                  <label
-                    v-for="member in tripMembers"
-                    :key="member.id"
-                    class="flex items-center gap-1.5 cursor-pointer"
-                  >
-                    <ui-radio-group-item :value="member.id" class="shrink-0" />
-                    <member-avatar :emoji="member.avatarEmoji" size="sm" />
-                    <span class="text-sm">{{ member.name }}</span>
-                  </label>
-                </ui-radio-group>
+                  :members="tripMembers"
+                  label="付款人"
+                  :invalid="!!payerError"
+                  @update:model-value="(id: string) => { setFieldValue('paidByMemberId', id); showPayerPicker = false }"
+                />
               </div>
             </div>
 
@@ -903,32 +888,19 @@ async function submitManual(formValues: { description?: string, grandTotal?: num
                 />
               </button>
 
-              <div v-show="showSplitPicker" class="pt-2 pb-1 pl-[4.5rem] space-y-2">
-                <div class="flex justify-end">
-                  <ui-button type="button" variant="link" size="sm" class="h-auto p-0 text-xs" @click="toggleSelectAllMembers">
-                    {{ allMembersSelected ? '取消全選' : '全選' }}
-                  </ui-button>
-                </div>
-                <div class="flex flex-col gap-2">
-                  <label
-                    v-for="member in tripMembers"
-                    :key="member.id"
-                    class="flex items-center gap-1.5 cursor-pointer"
-                  >
-                    <ui-checkbox
-                      :model-value="values.sharedWithMemberIds?.includes(member.id) ?? false"
-                      @update:model-value="(checked: boolean | 'indeterminate') => {
-                        if (typeof checked !== 'boolean') return
-                        const current = values.sharedWithMemberIds ?? []
-                        setFieldValue('sharedWithMemberIds', checked
-                          ? [...current, member.id]
-                          : current.filter((id: string) => id !== member.id))
-                      }"
-                    />
-                    <member-avatar :emoji="member.avatarEmoji" size="sm" />
-                    <span class="text-sm">{{ member.name }}</span>
-                  </label>
-                </div>
+              <p v-if="sharerError" role="alert" class="pt-1 text-xs text-destructive">
+                {{ sharerError }}
+              </p>
+              <div v-show="showSplitPicker" class="pt-2 pb-1 space-y-2">
+                <member-picker
+                  :model-value="values.sharedWithMemberIds ?? []"
+                  :members="tripMembers"
+                  multiple
+                  select-all
+                  label="分攤成員"
+                  :invalid="!!sharerError"
+                  @update:model-value="(ids: string[]) => setFieldValue('sharedWithMemberIds', ids)"
+                />
                 <div v-if="hasItems" class="flex items-center gap-1 mt-1.5 px-2 py-1.5 bg-muted rounded text-[11px] text-muted-foreground">
                   <Icon name="lucide:info" class="h-2.5 w-2.5 shrink-0" />
                   <span>需要不同品項分配？儲存後到明細頁面調整</span>
@@ -1035,22 +1007,17 @@ async function submitManual(formValues: { description?: string, grandTotal?: num
                   />
                 </button>
 
-                <div v-show="showPayerPicker" class="pt-2 pb-1 pl-[4.5rem]">
-                  <ui-radio-group
+                <p v-if="payerError" role="alert" class="pt-1 text-xs text-destructive">
+                  {{ payerError }}
+                </p>
+                <div v-show="showPayerPicker" class="pt-2 pb-1">
+                  <member-picker
                     :model-value="values.paidByMemberId"
-                    class="flex flex-col gap-2.5"
-                    @update:model-value="(val: string) => { setFieldValue('paidByMemberId', val); showPayerPicker = false }"
-                  >
-                    <label
-                      v-for="member in tripMembers"
-                      :key="member.id"
-                      class="flex items-center gap-1.5 cursor-pointer"
-                    >
-                      <ui-radio-group-item :value="member.id" class="shrink-0" />
-                      <member-avatar :emoji="member.avatarEmoji" size="sm" />
-                      <span class="text-sm">{{ member.name }}</span>
-                    </label>
-                  </ui-radio-group>
+                    :members="tripMembers"
+                    label="付款人"
+                    :invalid="!!payerError"
+                    @update:model-value="(id: string) => { setFieldValue('paidByMemberId', id); showPayerPicker = false }"
+                  />
                 </div>
               </div>
 
@@ -1083,32 +1050,19 @@ async function submitManual(formValues: { description?: string, grandTotal?: num
                   />
                 </button>
 
-                <div v-show="showSplitPicker" class="pt-2 pb-1 pl-[4.5rem] space-y-2">
-                  <div class="flex justify-end">
-                    <ui-button type="button" variant="link" size="sm" class="h-auto p-0 text-xs" @click="toggleSelectAllMembers">
-                      {{ allMembersSelected ? '取消全選' : '全選' }}
-                    </ui-button>
-                  </div>
-                  <div class="flex flex-col gap-2">
-                    <label
-                      v-for="member in tripMembers"
-                      :key="member.id"
-                      class="flex items-center gap-1.5 cursor-pointer"
-                    >
-                      <ui-checkbox
-                        :model-value="values.sharedWithMemberIds?.includes(member.id) ?? false"
-                        @update:model-value="(checked: boolean | 'indeterminate') => {
-                          if (typeof checked !== 'boolean') return
-                          const current = values.sharedWithMemberIds ?? []
-                          setFieldValue('sharedWithMemberIds', checked
-                            ? [...current, member.id]
-                            : current.filter((id: string) => id !== member.id))
-                        }"
-                      />
-                      <member-avatar :emoji="member.avatarEmoji" size="sm" />
-                      <span class="text-sm">{{ member.name }}</span>
-                    </label>
-                  </div>
+                <p v-if="sharerError" role="alert" class="pt-1 text-xs text-destructive">
+                  {{ sharerError }}
+                </p>
+                <div v-show="showSplitPicker" class="pt-2 pb-1 space-y-2">
+                  <member-picker
+                    :model-value="values.sharedWithMemberIds ?? []"
+                    :members="tripMembers"
+                    multiple
+                    select-all
+                    label="分攤成員"
+                    :invalid="!!sharerError"
+                    @update:model-value="(ids: string[]) => setFieldValue('sharedWithMemberIds', ids)"
+                  />
                 </div>
               </div>
             </ui-tabs-content>
@@ -1388,22 +1342,17 @@ async function submitManual(formValues: { description?: string, grandTotal?: num
                   />
                 </button>
 
-                <div v-show="showPayerPicker" class="pt-2 pb-1 pl-[4.5rem]">
-                  <ui-radio-group
+                <p v-if="payerError" role="alert" class="pt-1 text-xs text-destructive">
+                  {{ payerError }}
+                </p>
+                <div v-show="showPayerPicker" class="pt-2 pb-1">
+                  <member-picker
                     :model-value="values.paidByMemberId"
-                    class="flex flex-col gap-2.5"
-                    @update:model-value="(val: string) => { setFieldValue('paidByMemberId', val); showPayerPicker = false }"
-                  >
-                    <label
-                      v-for="member in tripMembers"
-                      :key="member.id"
-                      class="flex items-center gap-1.5 cursor-pointer"
-                    >
-                      <ui-radio-group-item :value="member.id" class="shrink-0" />
-                      <member-avatar :emoji="member.avatarEmoji" size="sm" />
-                      <span class="text-sm">{{ member.name }}</span>
-                    </label>
-                  </ui-radio-group>
+                    :members="tripMembers"
+                    label="付款人"
+                    :invalid="!!payerError"
+                    @update:model-value="(id: string) => { setFieldValue('paidByMemberId', id); showPayerPicker = false }"
+                  />
                 </div>
               </div>
 
@@ -1436,32 +1385,19 @@ async function submitManual(formValues: { description?: string, grandTotal?: num
                   />
                 </button>
 
-                <div v-show="showSplitPicker" class="pt-2 pb-1 pl-[4.5rem] space-y-2">
-                  <div class="flex justify-end">
-                    <ui-button type="button" variant="link" size="sm" class="h-auto p-0 text-xs" @click="toggleSelectAllMembers">
-                      {{ allMembersSelected ? '取消全選' : '全選' }}
-                    </ui-button>
-                  </div>
-                  <div class="flex flex-col gap-2">
-                    <label
-                      v-for="member in tripMembers"
-                      :key="member.id"
-                      class="flex items-center gap-1.5 cursor-pointer"
-                    >
-                      <ui-checkbox
-                        :model-value="values.sharedWithMemberIds?.includes(member.id) ?? false"
-                        @update:model-value="(checked: boolean | 'indeterminate') => {
-                          if (typeof checked !== 'boolean') return
-                          const current = values.sharedWithMemberIds ?? []
-                          setFieldValue('sharedWithMemberIds', checked
-                            ? [...current, member.id]
-                            : current.filter((id: string) => id !== member.id))
-                        }"
-                      />
-                      <member-avatar :emoji="member.avatarEmoji" size="sm" />
-                      <span class="text-sm">{{ member.name }}</span>
-                    </label>
-                  </div>
+                <p v-if="sharerError" role="alert" class="pt-1 text-xs text-destructive">
+                  {{ sharerError }}
+                </p>
+                <div v-show="showSplitPicker" class="pt-2 pb-1 space-y-2">
+                  <member-picker
+                    :model-value="values.sharedWithMemberIds ?? []"
+                    :members="tripMembers"
+                    multiple
+                    select-all
+                    label="分攤成員"
+                    :invalid="!!sharerError"
+                    @update:model-value="(ids: string[]) => setFieldValue('sharedWithMemberIds', ids)"
+                  />
                   <div v-if="hasItems" class="flex items-center gap-1 mt-1.5 px-2 py-1.5 bg-muted rounded text-[11px] text-muted-foreground">
                     <Icon name="lucide:info" class="h-2.5 w-2.5 shrink-0" />
                     <span>需要不同品項分配？儲存後到明細頁面調整</span>

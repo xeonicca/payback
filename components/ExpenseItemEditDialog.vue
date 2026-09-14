@@ -49,7 +49,7 @@ watch(() => props.open, (open) => {
   if (!open)
     return
   // Materialize the "[] means all" convention into an explicit list so the
-  // checkbox UI and toggle handler operate on the same source of truth.
+  // member picker shows who actually shares the item.
   // handleSave normalizes back to [] when every member is selected.
   if (props.item) {
     name.value = props.item.name
@@ -68,21 +68,6 @@ watch(() => props.open, (open) => {
     sharedByMemberIds.value = props.shareableMembers.map(m => m.id)
   }
 }, { immediate: true })
-
-const allSelected = computed(() =>
-  sharedByMemberIds.value.length === props.shareableMembers.length && props.shareableMembers.length > 0,
-)
-
-function toggleMember(memberId: string) {
-  const current = sharedByMemberIds.value
-  sharedByMemberIds.value = current.includes(memberId)
-    ? current.filter(id => id !== memberId)
-    : [...current, memberId]
-}
-
-function toggleAll() {
-  sharedByMemberIds.value = allSelected.value ? [] : props.shareableMembers.map(m => m.id)
-}
 
 function handleOpenChange(val: boolean) {
   emit('update:open', val)
@@ -164,38 +149,7 @@ function handleSave() {
         <p class="text-xs text-muted-foreground -mt-1">
           未選擇則由所有分攤成員共同分攤
         </p>
-        <div class="space-y-1 rounded-xl border p-1">
-          <!-- Select all -->
-          <div
-            class="flex items-center gap-3 p-2.5 rounded-lg border cursor-pointer transition-colors hover:bg-slate-50"
-            :class="allSelected ? 'border-indigo-200 bg-indigo-50/50' : 'border-transparent'"
-            @click="toggleAll"
-          >
-            <ui-checkbox
-              :model-value="allSelected"
-              @click.stop
-              @update:model-value="toggleAll"
-            />
-            <span class="text-sm font-semibold text-foreground flex-1">全選</span>
-          </div>
-          <div class="border-t border-slate-100 mx-1" />
-          <!-- Member rows -->
-          <div
-            v-for="member in shareableMembers"
-            :key="member.id"
-            class="flex items-center gap-3 p-2.5 rounded-lg border cursor-pointer transition-colors hover:bg-slate-50"
-            :class="sharedByMemberIds.includes(member.id) ? 'border-indigo-200 bg-indigo-50/50' : 'border-transparent'"
-            @click="toggleMember(member.id)"
-          >
-            <ui-checkbox
-              :model-value="sharedByMemberIds.includes(member.id)"
-              @click.stop
-              @update:model-value="toggleMember(member.id)"
-            />
-            <member-avatar :emoji="member.avatarEmoji" size="sm" />
-            <span class="text-sm font-medium text-foreground flex-1">{{ member.name }}</span>
-          </div>
-        </div>
+        <member-picker v-model="sharedByMemberIds" :members="shareableMembers" multiple select-all label="分攤成員" />
       </div>
     </div>
 

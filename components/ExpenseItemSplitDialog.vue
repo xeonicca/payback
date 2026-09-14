@@ -52,27 +52,12 @@ const canSplit = computed(() =>
   && props.itemIndex !== null,
 )
 
-const allSelected = computed(() =>
-  splitMemberIds.value.length === props.shareableMembers.length && props.shareableMembers.length > 0,
-)
-
 watch(() => props.open, (open) => {
   if (open) {
     splitQuantity.value = 1
     splitMemberIds.value = []
   }
 })
-
-function toggleMember(memberId: string) {
-  const current = splitMemberIds.value
-  splitMemberIds.value = current.includes(memberId)
-    ? current.filter(id => id !== memberId)
-    : [...current, memberId]
-}
-
-function toggleAll() {
-  splitMemberIds.value = allSelected.value ? [] : props.shareableMembers.map(m => m.id)
-}
 
 function handleConfirm() {
   if (!canSplit.value || props.itemIndex === null)
@@ -135,39 +120,21 @@ function handleClose() {
         <p class="text-xs text-muted-foreground -mt-1">
           選擇拆出的新項目由誰分攤（這些成員將不再分攤原項目）
         </p>
-        <p v-if="wouldEmptyOriginal" class="text-xs text-destructive -mt-1">
+        <p v-if="wouldEmptyOriginal" role="alert" class="text-xs text-destructive -mt-1">
           拆出後原項目將沒有分攤成員，請取消勾選至少一位成員
         </p>
-        <div class="space-y-1 rounded-xl border p-1">
-          <div
-            class="flex items-center gap-3 p-2.5 rounded-lg border cursor-pointer transition-colors hover:bg-slate-50"
-            :class="allSelected ? 'border-indigo-200 bg-indigo-50/50' : 'border-transparent'"
-            @click="toggleAll"
-          >
-            <ui-checkbox
-              :model-value="allSelected"
-              @click.stop
-              @update:model-value="toggleAll"
-            />
-            <span class="text-sm font-semibold text-foreground flex-1">全選</span>
-          </div>
-          <div class="border-t border-slate-100 mx-1" />
-          <div
-            v-for="member in shareableMembers"
-            :key="member.id"
-            class="flex items-center gap-3 p-2.5 rounded-lg border cursor-pointer transition-colors hover:bg-slate-50"
-            :class="splitMemberIds.includes(member.id) ? 'border-indigo-200 bg-indigo-50/50' : 'border-transparent'"
-            @click="toggleMember(member.id)"
-          >
-            <ui-checkbox
-              :model-value="splitMemberIds.includes(member.id)"
-              @click.stop
-              @update:model-value="toggleMember(member.id)"
-            />
-            <member-avatar :emoji="member.avatarEmoji" size="sm" />
-            <span class="text-sm font-medium text-foreground flex-1">{{ member.name }}</span>
-          </div>
-        </div>
+        <member-picker
+          v-model="splitMemberIds"
+          :members="shareableMembers"
+          multiple
+          select-all
+          label="新項目分攤成員"
+          :invalid="wouldEmptyOriginal"
+        />
+        <!-- Neutral, not an error: nobody is selected when the dialog opens -->
+        <p v-if="!hasMembers" class="text-xs text-muted-foreground">
+          選擇至少一位成員後即可拆分
+        </p>
       </div>
     </div>
 

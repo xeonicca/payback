@@ -323,22 +323,12 @@ function handleClose() {
         </div>
       </div>
 
-      <!-- Payer: whole row is the tap target, two columns keep long member lists short -->
+      <!-- Payer -->
       <div v-if="tripMembers.length > 0">
         <ui-label class="text-sm font-medium text-foreground">
           付款人
         </ui-label>
-        <ui-radio-group v-model="paidByMemberId" class="mt-1.5 grid grid-cols-2 gap-2">
-          <label
-            v-for="member in tripMembers"
-            :key="member.id"
-            class="flex min-h-11 min-w-0 cursor-pointer items-center gap-2 rounded-md border px-3 transition-colors has-[[data-state=checked]]:border-primary has-[[data-state=checked]]:bg-primary/5"
-          >
-            <ui-radio-group-item :value="member.id" />
-            <member-avatar :emoji="member.avatarEmoji" size="sm" />
-            <span class="truncate text-sm">{{ member.name }}</span>
-          </label>
-        </ui-radio-group>
+        <member-picker v-model="paidByMemberId" :members="tripMembers" label="付款人" class="mt-1.5" />
       </div>
     </div>
 

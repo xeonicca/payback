@@ -15,10 +15,6 @@ const emit = defineEmits<{
 
 const selected = ref<string[]>([])
 
-const allSelected = computed(() =>
-  selected.value.length === props.tripMembers.length && props.tripMembers.length > 0,
-)
-
 const canSave = computed(() => selected.value.length > 0)
 
 watch(() => props.open, (open) => {
@@ -26,16 +22,6 @@ watch(() => props.open, (open) => {
     return
   selected.value = [...props.sharedWithMemberIds]
 }, { immediate: true })
-
-function toggle(memberId: string) {
-  selected.value = selected.value.includes(memberId)
-    ? selected.value.filter(id => id !== memberId)
-    : [...selected.value, memberId]
-}
-
-function toggleAll() {
-  selected.value = allSelected.value ? [] : props.tripMembers.map(m => m.id)
-}
 
 function handleSave() {
   if (!canSave.value)
@@ -56,37 +42,15 @@ function handleClose() {
     @update:open="(val) => emit('update:open', val)"
   >
     <div class="space-y-2">
-      <!-- Select all -->
-      <div
-        class="flex items-center gap-3 p-2.5 rounded-lg border cursor-pointer transition-colors hover:bg-slate-50"
-        :class="allSelected ? 'border-indigo-200 bg-indigo-50/50' : 'border-transparent'"
-        @click="toggleAll"
-      >
-        <ui-checkbox
-          :model-value="allSelected"
-          @click.stop
-          @update:model-value="toggleAll"
-        />
-        <span class="text-sm font-semibold text-foreground flex-1">全選</span>
-      </div>
-      <div class="border-t border-slate-100 mx-1" />
-      <!-- Member rows -->
-      <div
-        v-for="member in tripMembers"
-        :key="member.id"
-        class="flex items-center gap-3 p-2.5 rounded-lg border cursor-pointer transition-colors hover:bg-slate-50"
-        :class="selected.includes(member.id) ? 'border-indigo-200 bg-indigo-50/50' : 'border-transparent'"
-        @click="toggle(member.id)"
-      >
-        <ui-checkbox
-          :model-value="selected.includes(member.id)"
-          @click.stop
-          @update:model-value="toggle(member.id)"
-        />
-        <member-avatar :emoji="member.avatarEmoji" size="sm" />
-        <span class="text-sm font-medium text-foreground flex-1">{{ member.name }}</span>
-      </div>
-      <p v-if="selected.length === 0" class="text-xs text-destructive pt-1">
+      <member-picker
+        v-model="selected"
+        :members="tripMembers"
+        multiple
+        select-all
+        label="分攤成員"
+        :invalid="selected.length === 0"
+      />
+      <p v-if="selected.length === 0" role="alert" class="text-xs text-destructive">
         至少選擇一個分攤的成員
       </p>
     </div>
