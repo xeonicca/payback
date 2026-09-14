@@ -13,7 +13,8 @@ export default defineEventHandler(async (event) => {
   const adminAuth = getFirebaseAdminAuth()
 
   if (!token) {
-    deleteCookie(event, AUTH_COOKIE_NAME)
+    // Must match the path the cookie was set on, or the browser only clears an /api-scoped one
+    deleteCookie(event, AUTH_COOKIE_NAME, { path: '/' })
     setResponseStatus(event, 204)
     return ''
   }

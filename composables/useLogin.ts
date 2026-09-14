@@ -52,6 +52,13 @@ export default function useLogin() {
     logEvent('login', { method: 'google' })
   }
 
+  // Drop only this browser's session cookie. Unlike logout(), this does not revoke
+  // refresh tokens, so the user's other devices stay signed in.
+  const clearSession = async () => {
+    sessionUser.value = null
+    await $fetch('/api/__session', { method: 'POST', body: {} }).catch(() => {})
+  }
+
   const redirectToGoogleLogin = async () => {
     if (!auth || !provider)
       return
@@ -205,6 +212,7 @@ export default function useLogin() {
     redirectToGoogleLogin,
     checkRedirectResult,
     setSession,
+    clearSession,
     checkUser,
     logout,
     authError,

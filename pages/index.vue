@@ -83,7 +83,7 @@ definePageMeta({
       <p class="m-0 mb-2 font-mono">
         {{ tripsError.message }}
       </p>
-      <p class="text-xs m-0">
+      <p v-if="tripsError.message?.includes('index')" class="text-xs m-0">
         Check the browser console (F12) for the link to create the missing index.
       </p>
     </alert-banner>
