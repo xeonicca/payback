@@ -41,8 +41,8 @@ const translatedName = ref('')
 const sharedByMemberIds = ref<string[]>([])
 
 const price = computed(() => {
-  const n = parseFloat(priceRaw.value)
-  return isNaN(n) ? 0 : n
+  const n = Number.parseFloat(priceRaw.value)
+  return Number.isNaN(n) ? 0 : n
 })
 
 watch(() => props.open, (open) => {
@@ -112,126 +112,126 @@ function handleSave() {
 </script>
 
 <template>
-  <ui-dialog :open="open" @update:open="handleOpenChange">
-    <ui-dialog-content class="max-w-md" @open-auto-focus.prevent>
-      <ui-dialog-header>
-        <ui-dialog-title>{{ isAddMode ? '新增明細項目' : '編輯明細項目' }}</ui-dialog-title>
-      </ui-dialog-header>
+  <responsive-dialog
+    :open="open"
+    :title="isAddMode ? '新增明細項目' : '編輯明細項目'"
+    description="設定項目名稱、價格、數量與分攤成員"
+    hide-description
+    @update:open="handleOpenChange"
+  >
+    <div class="space-y-4">
+      <!-- Name -->
+      <div>
+        <ui-label class="text-sm font-medium text-foreground">名稱</ui-label>
+        <ui-input v-model="name" placeholder="項目名稱" autocomplete="off" class="mt-1" />
+      </div>
 
-      <div class="space-y-4 py-2">
-        <!-- Name -->
-        <div>
-          <ui-label class="text-sm font-medium text-foreground">名稱</ui-label>
-          <ui-input v-model="name" placeholder="項目名稱" autocomplete="off" class="mt-1" />
-        </div>
-
-        <!-- Price + Quantity -->
-        <div class="flex gap-3">
-          <div class="flex-1 min-w-0">
-            <ui-label class="text-sm font-medium text-foreground">價格</ui-label>
-            <div class="relative mt-1">
-              <ui-input
-                v-model="priceRaw"
-                type="text"
-                inputmode="decimal"
-                placeholder="0.00"
-                class="pl-14 font-mono"
-              />
-              <ui-badge class="absolute start-0 inset-y-0 flex items-center ml-1 my-1 px-2 pointer-events-none">
-                {{ currency }}
-              </ui-badge>
-            </div>
-          </div>
-          <div class="w-20 shrink-0">
-            <ui-label class="text-sm font-medium text-foreground">數量</ui-label>
-            <ui-input v-model.number="quantity" type="number" min="1" placeholder="1" class="mt-1 text-center" />
+      <!-- Price + Quantity -->
+      <div class="flex gap-3">
+        <div class="flex-1 min-w-0">
+          <ui-label class="text-sm font-medium text-foreground">價格</ui-label>
+          <div class="relative mt-1">
+            <ui-input
+              v-model="priceRaw"
+              type="text"
+              inputmode="decimal"
+              placeholder="0.00"
+              class="pl-14 font-mono"
+            />
+            <ui-badge class="absolute start-0 inset-y-0 flex items-center ml-1 my-1 px-2 pointer-events-none">
+              {{ currency }}
+            </ui-badge>
           </div>
         </div>
-
-        <!-- Translated name -->
-        <div>
-          <ui-label class="text-sm font-medium text-foreground">
-            翻譯名稱
-            <span class="text-xs font-normal text-muted-foreground ml-0.5">選填</span>
-          </ui-label>
-          <ui-input v-model="translatedName" placeholder="本地語言名稱" class="mt-1" />
-        </div>
-
-        <!-- Member sharing -->
-        <div v-if="shareableMembers.length > 0" class="space-y-2">
-          <ui-label>分攤成員</ui-label>
-          <p class="text-xs text-muted-foreground -mt-1">
-            未選擇則由所有分攤成員共同分攤
-          </p>
-          <div class="space-y-1 rounded-xl border p-1">
-            <!-- Select all -->
-            <div
-              class="flex items-center gap-3 p-2.5 rounded-lg border cursor-pointer transition-colors hover:bg-slate-50"
-              :class="allSelected ? 'border-indigo-200 bg-indigo-50/50' : 'border-transparent'"
-              @click="toggleAll"
-            >
-              <ui-checkbox
-                :model-value="allSelected"
-                @click.stop
-                @update:model-value="toggleAll"
-              />
-              <span class="text-sm font-semibold text-foreground flex-1">全選</span>
-            </div>
-            <div class="border-t border-slate-100 mx-1" />
-            <!-- Member rows -->
-            <div
-              v-for="member in shareableMembers"
-              :key="member.id"
-              class="flex items-center gap-3 p-2.5 rounded-lg border cursor-pointer transition-colors hover:bg-slate-50"
-              :class="sharedByMemberIds.includes(member.id) ? 'border-indigo-200 bg-indigo-50/50' : 'border-transparent'"
-              @click="toggleMember(member.id)"
-            >
-              <ui-checkbox
-                :model-value="sharedByMemberIds.includes(member.id)"
-                @click.stop
-                @update:model-value="toggleMember(member.id)"
-              />
-              <member-avatar :emoji="member.avatarEmoji" size="sm" />
-              <span class="text-sm font-medium text-foreground flex-1">{{ member.name }}</span>
-            </div>
-          </div>
+        <div class="w-20 shrink-0">
+          <ui-label class="text-sm font-medium text-foreground">數量</ui-label>
+          <ui-input v-model.number="quantity" type="number" min="1" placeholder="1" class="mt-1 text-center" />
         </div>
       </div>
 
-      <ui-dialog-footer class="flex-row items-center gap-2">
-        <ui-button
-          v-if="!isAddMode"
-          type="button"
-          variant="ghost"
-          size="icon"
-          class="shrink-0 text-destructive hover:text-destructive hover:bg-destructive/10"
-          :disabled="isSaving"
-          aria-label="刪除"
-          @click="handleDeleteClick"
-        >
-          <Icon name="lucide:trash-2" :size="16" />
-        </ui-button>
-        <ui-button
-          type="button"
-          variant="outline"
-          class="flex-1"
-          :disabled="isSaving"
-          @click="handleClose"
-        >
-          取消
-        </ui-button>
-        <ui-button
-          type="button"
-          class="flex-1"
-          :disabled="isSaving || !name.trim()"
-          @click="handleSave"
-        >
-          <Icon v-if="isSaving" name="lucide:loader-2" class="animate-spin mr-2" :size="16" />
-          {{ isSaving ? '儲存中...' : (isAddMode ? '新增' : '儲存') }}
-        </ui-button>
-      </ui-dialog-footer>
-    </ui-dialog-content>
-  </ui-dialog>
+      <!-- Translated name -->
+      <div>
+        <ui-label class="text-sm font-medium text-foreground">
+          翻譯名稱
+          <span class="text-xs font-normal text-muted-foreground ml-0.5">選填</span>
+        </ui-label>
+        <ui-input v-model="translatedName" placeholder="本地語言名稱" class="mt-1" />
+      </div>
+
+      <!-- Member sharing -->
+      <div v-if="shareableMembers.length > 0" class="space-y-2">
+        <ui-label>分攤成員</ui-label>
+        <p class="text-xs text-muted-foreground -mt-1">
+          未選擇則由所有分攤成員共同分攤
+        </p>
+        <div class="space-y-1 rounded-xl border p-1">
+          <!-- Select all -->
+          <div
+            class="flex items-center gap-3 p-2.5 rounded-lg border cursor-pointer transition-colors hover:bg-slate-50"
+            :class="allSelected ? 'border-indigo-200 bg-indigo-50/50' : 'border-transparent'"
+            @click="toggleAll"
+          >
+            <ui-checkbox
+              :model-value="allSelected"
+              @click.stop
+              @update:model-value="toggleAll"
+            />
+            <span class="text-sm font-semibold text-foreground flex-1">全選</span>
+          </div>
+          <div class="border-t border-slate-100 mx-1" />
+          <!-- Member rows -->
+          <div
+            v-for="member in shareableMembers"
+            :key="member.id"
+            class="flex items-center gap-3 p-2.5 rounded-lg border cursor-pointer transition-colors hover:bg-slate-50"
+            :class="sharedByMemberIds.includes(member.id) ? 'border-indigo-200 bg-indigo-50/50' : 'border-transparent'"
+            @click="toggleMember(member.id)"
+          >
+            <ui-checkbox
+              :model-value="sharedByMemberIds.includes(member.id)"
+              @click.stop
+              @update:model-value="toggleMember(member.id)"
+            />
+            <member-avatar :emoji="member.avatarEmoji" size="sm" />
+            <span class="text-sm font-medium text-foreground flex-1">{{ member.name }}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <template #footer>
+      <ui-button
+        v-if="!isAddMode"
+        type="button"
+        variant="ghost"
+        size="icon"
+        class="size-11 shrink-0 text-destructive hover:text-destructive hover:bg-destructive/10 lg:size-9"
+        :disabled="isSaving"
+        aria-label="刪除"
+        @click="handleDeleteClick"
+      >
+        <Icon name="lucide:trash-2" :size="16" />
+      </ui-button>
+      <ui-button
+        type="button"
+        variant="outline"
+        class="h-11 flex-1 lg:h-9"
+        :disabled="isSaving"
+        @click="handleClose"
+      >
+        取消
+      </ui-button>
+      <ui-button
+        type="button"
+        class="h-11 flex-1 lg:h-9"
+        :disabled="isSaving || !name.trim()"
+        @click="handleSave"
+      >
+        <Icon v-if="isSaving" name="lucide:loader-2" class="animate-spin mr-2" :size="16" />
+        {{ isSaving ? '儲存中...' : (isAddMode ? '新增' : '儲存') }}
+      </ui-button>
+    </template>
+  </responsive-dialog>
 
   <confirmation-dialog
     v-model:open="showDeleteConfirm"

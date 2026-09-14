@@ -57,100 +57,97 @@ function handleConfirm() {
 </script>
 
 <template>
-  <ui-dialog :open="open" @update:open="handleOpenChange">
-    <ui-dialog-content class="max-w-md" @open-auto-focus.prevent>
-      <ui-dialog-header>
-        <ui-dialog-title>套用折扣</ui-dialog-title>
-        <ui-dialog-description>
-          選擇要套用的折扣百分比，每個項目的價格將以「price × (1 − 折扣率)」重新計算。
-        </ui-dialog-description>
-      </ui-dialog-header>
+  <responsive-dialog
+    :open="open"
+    title="套用折扣"
+    description="選擇要套用的折扣百分比，每個項目的價格將以「price × (1 − 折扣率)」重新計算。"
+    @update:open="handleOpenChange"
+  >
+    <div class="space-y-4">
+      <!-- Empty-state warning -->
+      <div v-if="!currentItems.length" class="rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">
+        此支出沒有明細項目，無法套用折扣。請先新增明細項目。
+      </div>
 
-      <div class="space-y-4 py-2">
-        <!-- Empty-state warning -->
-        <div v-if="!currentItems.length" class="rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">
-          此支出沒有明細項目，無法套用折扣。請先新增明細項目。
-        </div>
-
-        <!-- Percentage buttons + custom input -->
-        <div v-else class="space-y-3">
-          <div>
-            <ui-label class="text-sm font-medium text-foreground">
-              折扣率
-            </ui-label>
-            <div class="grid grid-cols-4 gap-2 mt-2">
-              <ui-button
-                v-for="pct in presetOptions"
-                :key="pct"
-                type="button"
-                :variant="percentage === pct ? 'default' : 'outline'"
-                :disabled="isSaving"
-                @click="selectPreset(pct)"
-              >
-                {{ pct }}%
-              </ui-button>
-            </div>
-          </div>
-          <div>
-            <ui-label class="text-sm font-medium text-foreground">
-              其他
-            </ui-label>
-            <div class="relative mt-1">
-              <ui-input
-                v-model="percentageRaw"
-                type="text"
-                inputmode="decimal"
-                placeholder="自訂百分比"
-                :disabled="isSaving"
-                class="pr-10 font-mono"
-              />
-              <span class="absolute end-3 inset-y-0 flex items-center text-sm text-muted-foreground pointer-events-none">
-                %
-              </span>
-            </div>
+      <!-- Percentage buttons + custom input -->
+      <div v-else class="space-y-3">
+        <div>
+          <ui-label class="text-sm font-medium text-foreground">
+            折扣率
+          </ui-label>
+          <div class="grid grid-cols-4 gap-2 mt-2">
+            <ui-button
+              v-for="pct in presetOptions"
+              :key="pct"
+              type="button"
+              :variant="percentage === pct ? 'default' : 'outline'"
+              class="h-11 lg:h-9"
+              :disabled="isSaving"
+              @click="selectPreset(pct)"
+            >
+              {{ pct }}%
+            </ui-button>
           </div>
         </div>
-
-        <!-- Preview -->
-        <div v-if="preview" class="rounded-lg border bg-muted/40 p-3 space-y-2">
-          <div class="text-xs text-muted-foreground">
-            預覽
-          </div>
-          <div class="flex items-center justify-between text-sm">
-            <span class="text-muted-foreground">原總金額</span>
-            <span class="font-mono text-foreground">{{ currency }} {{ currentGrandTotal.toFixed(2) }}</span>
-          </div>
-          <div class="flex items-center justify-between text-sm">
-            <span class="text-muted-foreground">折扣 {{ percentage }}%</span>
-            <span class="font-mono text-red-600 dark:text-red-400">- {{ currency }} {{ reduction.toFixed(2) }}</span>
-          </div>
-          <div class="border-t border-border pt-2 flex items-center justify-between">
-            <span class="text-sm font-medium text-foreground">折扣後總金額</span>
-            <span class="font-mono text-base font-bold text-primary">{{ currency }} {{ preview.grandTotal.toFixed(2) }}</span>
+        <div>
+          <ui-label class="text-sm font-medium text-foreground">
+            其他
+          </ui-label>
+          <div class="relative mt-1">
+            <ui-input
+              v-model="percentageRaw"
+              type="text"
+              inputmode="decimal"
+              placeholder="自訂百分比"
+              :disabled="isSaving"
+              class="pr-10 font-mono"
+            />
+            <span class="absolute end-3 inset-y-0 flex items-center text-sm text-muted-foreground pointer-events-none">
+              %
+            </span>
           </div>
         </div>
       </div>
 
-      <ui-dialog-footer class="flex-row gap-2">
-        <ui-button
-          type="button"
-          variant="outline"
-          class="flex-1"
-          :disabled="isSaving"
-          @click="handleOpenChange(false)"
-        >
-          取消
-        </ui-button>
-        <ui-button
-          type="button"
-          class="flex-1"
-          :disabled="isSaving || percentage === null || !currentItems.length"
-          @click="handleConfirm"
-        >
-          <Icon v-if="isSaving" name="lucide:loader-2" class="animate-spin mr-2" :size="16" />
-          {{ isSaving ? '套用中...' : '確認套用' }}
-        </ui-button>
-      </ui-dialog-footer>
-    </ui-dialog-content>
-  </ui-dialog>
+      <!-- Preview -->
+      <div v-if="preview" class="rounded-lg border bg-muted/40 p-3 space-y-2">
+        <div class="text-xs text-muted-foreground">
+          預覽
+        </div>
+        <div class="flex items-center justify-between text-sm">
+          <span class="text-muted-foreground">原總金額</span>
+          <span class="font-mono text-foreground">{{ currency }} {{ currentGrandTotal.toFixed(2) }}</span>
+        </div>
+        <div class="flex items-center justify-between text-sm">
+          <span class="text-muted-foreground">折扣 {{ percentage }}%</span>
+          <span class="font-mono text-red-600 dark:text-red-400">- {{ currency }} {{ reduction.toFixed(2) }}</span>
+        </div>
+        <div class="border-t border-border pt-2 flex items-center justify-between">
+          <span class="text-sm font-medium text-foreground">折扣後總金額</span>
+          <span class="font-mono text-base font-bold text-primary">{{ currency }} {{ preview.grandTotal.toFixed(2) }}</span>
+        </div>
+      </div>
+    </div>
+
+    <template #footer>
+      <ui-button
+        type="button"
+        variant="outline"
+        class="h-11 flex-1 lg:h-9"
+        :disabled="isSaving"
+        @click="handleOpenChange(false)"
+      >
+        取消
+      </ui-button>
+      <ui-button
+        type="button"
+        class="h-11 flex-1 lg:h-9"
+        :disabled="isSaving || percentage === null || !currentItems.length"
+        @click="handleConfirm"
+      >
+        <Icon v-if="isSaving" name="lucide:loader-2" class="animate-spin mr-2" :size="16" />
+        {{ isSaving ? '套用中...' : '確認套用' }}
+      </ui-button>
+    </template>
+  </responsive-dialog>
 </template>

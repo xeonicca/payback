@@ -174,192 +174,193 @@ function handleClose() {
 </script>
 
 <template>
-  <ui-dialog :open="open" @update:open="(val) => emit('update:open', val)">
-    <ui-dialog-content class="max-w-md" @open-auto-focus.prevent>
-      <ui-dialog-header>
-        <ui-dialog-title>編輯基本資訊</ui-dialog-title>
-      </ui-dialog-header>
+  <responsive-dialog
+    :open="open"
+    title="編輯基本資訊"
+    description="修改描述、分類、金額、日期與付款人"
+    hide-description
+    @update:open="(val) => emit('update:open', val)"
+  >
+    <div v-if="expense && trip" class="space-y-5">
+      <!-- Description -->
+      <div>
+        <ui-label class="text-sm font-medium text-foreground">
+          描述
+        </ui-label>
+        <ui-textarea v-model="description" rows="2" class="mt-1.5" />
+        <p v-if="description.trim().length > 0 && description.trim().length < 2" class="text-xs text-destructive mt-1">
+          描述至少 2 個字
+        </p>
+      </div>
 
-      <div v-if="expense && trip" class="space-y-4 py-2">
-        <!-- Description -->
-        <div>
+      <!-- Category -->
+      <div>
+        <ui-label class="text-sm font-medium text-foreground">
+          分類
+        </ui-label>
+        <category-picker v-model="category" class="mt-1.5" />
+      </div>
+
+      <!-- Amount (only when no items — otherwise driven by items) -->
+      <div v-if="!hasItems">
+        <div class="flex items-center justify-between">
           <ui-label class="text-sm font-medium text-foreground">
-            描述
+            金額
           </ui-label>
-          <ui-textarea v-model="description" rows="2" class="mt-1" />
-          <p v-if="description.trim().length > 0 && description.trim().length < 2" class="text-xs text-destructive mt-1">
-            描述至少 2 個字
-          </p>
+          <ui-button
+            v-if="hasDifferentCurrencies"
+            type="button"
+            variant="ghost"
+            size="sm"
+            class="-me-2 h-8 px-2 text-xs text-muted-foreground"
+            @click="selectedCurrency = useHomeCurrency ? trip.tripCurrency : trip.defaultCurrency"
+          >
+            <Icon name="lucide:arrow-left-right" class="mr-1 h-3 w-3" />
+            {{ useHomeCurrency ? `改用 ${trip.tripCurrency}` : `改用 ${trip.defaultCurrency}` }}
+          </ui-button>
         </div>
+        <div class="relative mt-1">
+          <ui-input
+            v-model="grandTotalRaw"
+            type="text"
+            inputmode="decimal"
+            placeholder="0.00"
+            class="pl-14 font-mono"
+          />
+          <ui-badge class="absolute start-0 inset-y-0 flex items-center ml-1 my-1 px-2 pointer-events-none">
+            {{ selectedCurrency }}
+          </ui-badge>
+        </div>
+        <p v-if="convertedAmountPreview" class="text-xs text-muted-foreground mt-1">
+          ≈ {{ trip.tripCurrency }} {{ convertedAmountPreview }}
+        </p>
+      </div>
+      <div v-else class="rounded-lg bg-muted/40 p-2 text-xs text-muted-foreground">
+        金額由明細自動計算（{{ trip.tripCurrency }} {{ expense.grandTotal.toFixed(2) }}）
+      </div>
 
-        <!-- Category -->
-        <div>
+      <!-- Exchange rate -->
+      <div v-if="hasDifferentCurrencies">
+        <div class="flex items-center justify-between">
           <ui-label class="text-sm font-medium text-foreground">
-            分類
+            匯率
           </ui-label>
-          <category-picker v-model="category" class="mt-1.5" />
-        </div>
-
-        <!-- Amount (only when no items — otherwise driven by items) -->
-        <div v-if="!hasItems">
-          <div class="flex items-center justify-between">
-            <ui-label class="text-sm font-medium text-foreground">
-              金額
-            </ui-label>
+          <div class="-me-2 flex items-center">
             <ui-button
-              v-if="hasDifferentCurrencies"
               type="button"
               variant="ghost"
               size="sm"
-              class="h-6 text-xs"
-              @click="selectedCurrency = useHomeCurrency ? trip.tripCurrency : trip.defaultCurrency"
+              class="h-8 px-2 text-xs text-muted-foreground"
+              :disabled="isRateLoading"
+              @click="applyLatestRate"
             >
-              <Icon name="lucide:arrow-left-right" class="mr-1 h-3 w-3" />
-              {{ useHomeCurrency ? `改用 ${trip.tripCurrency}` : `改用 ${trip.defaultCurrency}` }}
+              <Icon v-if="isRateLoading" name="lucide:loader-circle" class="mr-1 h-3 w-3 animate-spin" />
+              使用最新匯率
+            </ui-button>
+            <ui-button
+              v-if="previousExchangeRate !== null"
+              type="button"
+              variant="ghost"
+              size="sm"
+              class="h-8 px-2 text-xs text-muted-foreground"
+              @click="revertRate"
+            >
+              還原
             </ui-button>
           </div>
-          <div class="relative mt-1">
-            <ui-input
-              v-model="grandTotalRaw"
-              type="text"
-              inputmode="decimal"
-              placeholder="0.00"
-              class="pl-14 font-mono"
-            />
-            <ui-badge class="absolute start-0 inset-y-0 flex items-center ml-1 my-1 px-2 pointer-events-none">
-              {{ selectedCurrency }}
-            </ui-badge>
-          </div>
-          <p v-if="convertedAmountPreview" class="text-xs text-muted-foreground mt-1">
-            ≈ {{ trip.tripCurrency }} {{ convertedAmountPreview }}
-          </p>
         </div>
-        <div v-else class="rounded-lg bg-muted/40 p-2 text-xs text-muted-foreground">
-          金額由明細自動計算（{{ trip.tripCurrency }} {{ expense.grandTotal.toFixed(2) }}）
-        </div>
-
-        <!-- Exchange rate -->
-        <div v-if="hasDifferentCurrencies">
-          <div class="flex items-center justify-between">
-            <ui-label class="text-sm font-medium text-foreground">
-              匯率
-            </ui-label>
-            <div class="flex items-center gap-1">
-              <ui-button
-                type="button"
-                variant="ghost"
-                size="sm"
-                class="h-auto py-0.5 px-1.5 text-xs text-muted-foreground"
-                :disabled="isRateLoading"
-                @click="applyLatestRate"
-              >
-                <Icon v-if="isRateLoading" name="lucide:loader-circle" class="mr-1 h-3 w-3 animate-spin" />
-                使用最新匯率
-              </ui-button>
-              <ui-button
-                v-if="previousExchangeRate !== null"
-                type="button"
-                variant="ghost"
-                size="sm"
-                class="h-auto py-0.5 px-1.5 text-xs text-muted-foreground"
-                @click="revertRate"
-              >
-                還原
-              </ui-button>
-            </div>
-          </div>
-          <div class="flex items-center gap-1.5 mt-1">
-            <span class="text-xs text-muted-foreground whitespace-nowrap">1 {{ trip.tripCurrency }} =</span>
-            <ui-input
-              v-model.number="exchangeRate"
-              type="number"
-              step="0.0001"
-              min="0"
-              class="h-8 text-xs w-28 px-2"
-            />
-            <span class="text-xs text-muted-foreground">{{ trip.defaultCurrency }}</span>
-          </div>
-        </div>
-
-        <!-- Date + time -->
-        <div>
-          <ui-label class="text-sm font-medium text-foreground">
-            日期與時間
-          </ui-label>
-          <div class="flex gap-2 mt-1">
-            <ui-popover>
-              <ui-popover-trigger as-child>
-                <ui-button
-                  type="button"
-                  variant="outline"
-                  :class="cn('flex-1 ps-3 text-start font-normal', !paidAtDateString && 'text-muted-foreground')"
-                >
-                  <span>{{ paidAtDate ? df.format(toDate(paidAtDate)) : '選擇日期' }}</span>
-                  <Icon name="lucide:calendar" class="ms-auto h-4 w-4 opacity-50" />
-                </ui-button>
-              </ui-popover-trigger>
-              <ui-popover-content class="w-auto p-0">
-                <ui-calendar
-                  v-model:placeholder="paidAtPlaceholder"
-                  v-model="paidAtDate"
-                  calendar-label="支出日期"
-                  initial-focus
-                  @update:model-value="(v) => {
-                    paidAtDateString = v ? v.toString() : ''
-                  }"
-                />
-              </ui-popover-content>
-            </ui-popover>
-            <ui-input
-              v-model="paidAtTime"
-              type="time"
-              class="w-32 shrink-0"
-              aria-label="時間"
-            />
-          </div>
-        </div>
-
-        <!-- Payer -->
-        <div v-if="tripMembers.length > 0">
-          <ui-label class="text-sm font-medium text-foreground">
-            付款人
-          </ui-label>
-          <ui-radio-group v-model="paidByMemberId" class="flex flex-col gap-2 mt-1">
-            <div
-              v-for="member in tripMembers"
-              :key="member.id"
-              class="flex items-center gap-2"
-            >
-              <ui-radio-group-item :id="`payer-${member.id}`" :value="member.id" />
-              <ui-label :for="`payer-${member.id}`" class="font-normal flex items-center gap-1 cursor-pointer">
-                <member-avatar :emoji="member.avatarEmoji" size="sm" />
-                <span class="text-sm">{{ member.name }}</span>
-              </ui-label>
-            </div>
-          </ui-radio-group>
+        <!-- Input keeps the base 16px text on mobile; smaller sizes make iOS zoom in on focus -->
+        <div class="flex items-center gap-2 mt-1">
+          <span class="text-sm text-muted-foreground whitespace-nowrap">1 {{ trip.tripCurrency }} =</span>
+          <ui-input
+            v-model.number="exchangeRate"
+            type="number"
+            inputmode="decimal"
+            step="0.0001"
+            min="0"
+            aria-label="匯率"
+            class="w-32 font-mono"
+          />
+          <span class="text-sm text-muted-foreground">{{ trip.defaultCurrency }}</span>
         </div>
       </div>
 
-      <ui-dialog-footer class="flex-row gap-2">
-        <ui-button
-          type="button"
-          variant="outline"
-          class="flex-1"
-          :disabled="isSaving"
-          @click="handleClose"
-        >
-          取消
-        </ui-button>
-        <ui-button
-          type="button"
-          class="flex-1"
-          :disabled="isSaving || !canSave"
-          @click="handleSave"
-        >
-          <Icon v-if="isSaving" name="lucide:loader-2" class="animate-spin mr-2" :size="16" />
-          {{ isSaving ? '儲存中...' : '儲存' }}
-        </ui-button>
-      </ui-dialog-footer>
-    </ui-dialog-content>
-  </ui-dialog>
+      <!-- Date + time -->
+      <div>
+        <ui-label class="text-sm font-medium text-foreground">
+          日期與時間
+        </ui-label>
+        <div class="flex gap-2 mt-1.5">
+          <ui-popover>
+            <ui-popover-trigger as-child>
+              <ui-button
+                type="button"
+                variant="outline"
+                :class="cn('flex-1 min-w-0 ps-3 text-start font-normal', !paidAtDateString && 'text-muted-foreground')"
+              >
+                <span class="truncate">{{ paidAtDate ? df.format(toDate(paidAtDate)) : '選擇日期' }}</span>
+                <Icon name="lucide:calendar" class="ms-auto h-4 w-4 shrink-0 opacity-50" />
+              </ui-button>
+            </ui-popover-trigger>
+            <ui-popover-content class="w-auto p-0">
+              <ui-calendar
+                v-model:placeholder="paidAtPlaceholder"
+                v-model="paidAtDate"
+                calendar-label="支出日期"
+                initial-focus
+                @update:model-value="(v) => {
+                  paidAtDateString = v ? v.toString() : ''
+                }"
+              />
+            </ui-popover-content>
+          </ui-popover>
+          <ui-input
+            v-model="paidAtTime"
+            type="time"
+            class="w-32 shrink-0"
+            aria-label="時間"
+          />
+        </div>
+      </div>
+
+      <!-- Payer: whole row is the tap target, two columns keep long member lists short -->
+      <div v-if="tripMembers.length > 0">
+        <ui-label class="text-sm font-medium text-foreground">
+          付款人
+        </ui-label>
+        <ui-radio-group v-model="paidByMemberId" class="mt-1.5 grid grid-cols-2 gap-2">
+          <label
+            v-for="member in tripMembers"
+            :key="member.id"
+            class="flex min-h-11 min-w-0 cursor-pointer items-center gap-2 rounded-md border px-3 transition-colors has-[[data-state=checked]]:border-primary has-[[data-state=checked]]:bg-primary/5"
+          >
+            <ui-radio-group-item :value="member.id" />
+            <member-avatar :emoji="member.avatarEmoji" size="sm" />
+            <span class="truncate text-sm">{{ member.name }}</span>
+          </label>
+        </ui-radio-group>
+      </div>
+    </div>
+
+    <template #footer>
+      <ui-button
+        type="button"
+        variant="outline"
+        class="h-11 flex-1 lg:h-9"
+        :disabled="isSaving"
+        @click="handleClose"
+      >
+        取消
+      </ui-button>
+      <ui-button
+        type="button"
+        class="h-11 flex-1 lg:h-9"
+        :disabled="isSaving || !canSave"
+        @click="handleSave"
+      >
+        <Icon v-if="isSaving" name="lucide:loader-2" class="animate-spin mr-2" :size="16" />
+        {{ isSaving ? '儲存中...' : '儲存' }}
+      </ui-button>
+    </template>
+  </responsive-dialog>
 </template>
