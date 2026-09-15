@@ -15,7 +15,9 @@ export async function clearFirestore() {
   const host = process.env.FIRESTORE_EMULATOR_HOST
   if (!host)
     throw new Error('FIRESTORE_EMULATOR_HOST is not set — run via `pnpm test:emulator`')
-  await fetch(`http://${host}/emulator/v1/projects/${PROJECT_ID}/databases/(default)/documents`, { method: 'DELETE' })
+  const response = await fetch(`http://${host}/emulator/v1/projects/${PROJECT_ID}/databases/(default)/documents`, { method: 'DELETE' })
+  if (!response.ok)
+    throw new Error(`Failed to clear the Firestore emulator: ${response.status} ${response.statusText}`)
 }
 
 export function stubH3Globals() {
