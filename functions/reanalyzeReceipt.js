@@ -7,6 +7,7 @@ const {
   prepareFirestoreUpdateData,
   getContentTypeFromPath,
 } = require('./receiptAnalysis')
+const { canModifyExpense } = require('./tripAccess')
 
 const db = admin.firestore()
 const storageBucket = admin.storage().bucket()
@@ -26,6 +27,26 @@ exports.reanalyzeReceipt = onCall({
   }
   if (!expenseId || typeof expenseId !== 'string') {
     throw new HttpsError('invalid-argument', 'expenseId is required and must be a string')
+  }
+
+  if (!request.auth) {
+    throw new HttpsError('unauthenticated', 'Sign in to re-analyze receipts')
+  }
+
+  // Check access before the try block: its catch writes an error state onto the expense.
+  const [tripSnap, collaboratorSnap, expenseSnap] = await Promise.all([
+    db.doc(`trips/${tripId}`).get(),
+    db.doc(`trips/${tripId}/collaborators/${request.auth.uid}`).get(),
+    db.doc(`trips/${tripId}/expenses/${expenseId}`).get(),
+  ])
+  const allowed = canModifyExpense({
+    uid: request.auth.uid,
+    trip: tripSnap.exists ? tripSnap.data() : null,
+    collaborator: collaboratorSnap.exists ? collaboratorSnap.data() : null,
+    expense: expenseSnap.exists ? expenseSnap.data() : null,
+  })
+  if (!allowed) {
+    throw new HttpsError('permission-denied', 'You cannot modify this expense')
   }
 
   logger.info(`Re-analyzing receipt for trip: ${tripId}, expense: ${expenseId}`)
