@@ -13,9 +13,23 @@ service cloud.firestore {
       return get(/databases/$(database)/documents/trips/$(tripId)).data.userId == request.auth.uid;
     }
 
+    // Helper: the user's collaborator doc on the trip
+    function collaboratorDoc(tripId) {
+      return get(/databases/$(database)/documents/trips/$(tripId)/collaborators/$(request.auth.uid));
+    }
+
     // Helper: get the user's collaborator role ('owner', 'editor', 'guest')
     function getRole(tripId) {
-      return get(/databases/$(database)/documents/trips/$(tripId)/collaborators/$(request.auth.uid)).data.role;
+      return collaboratorDoc(tripId).data.role;
+    }
+
+    // Helper: may this user change the ledger (expenses)?
+    // Requires both the collaborator doc and a collaboratorUserIds entry, so any
+    // half-joined collaborator docs left by the old non-atomic accept stay inert.
+    function canWrite(tripId) {
+      return isCollaborator(tripId)
+        && request.auth.uid in get(/databases/$(database)/documents/trips/$(tripId)).data.collaboratorUserIds
+        && collaboratorDoc(tripId).data.get('readOnly', false) != true;
     }
 
     // Helper: check if user is NOT an anonymous guest
@@ -44,7 +58,7 @@ service cloud.firestore {
         allow read: if request.auth != null
           && request.auth.uid in get(/databases/$(database)/documents/trips/$(tripId)).data.collaboratorUserIds;
 
-        // Only owner can manage collaborators (server API handles join via Admin SDK)
+        // Only owner can manage collaborators (server API handles join/remove via Admin SDK)
         allow write: if request.auth != null
           && get(/databases/$(database)/documents/trips/$(tripId)).data.userId == request.auth.uid;
       }
@@ -60,7 +74,7 @@ service cloud.firestore {
           && get(/databases/$(database)/documents/trips/$(tripId)).data.userId == request.auth.uid;
 
         // Owner can update any member
-        // Collaborators (including guests) can update their own linked member (name and avatar only)
+        // Collaborators (including guests and read-only) can update their own linked member (name and avatar only)
         allow update: if request.auth != null && (
           get(/databases/$(database)/documents/trips/$(tripId)).data.userId == request.auth.uid
           || (
@@ -76,17 +90,17 @@ service cloud.firestore {
         allow read: if request.auth != null
           && request.auth.uid in get(/databases/$(database)/documents/trips/$(tripId)).data.collaboratorUserIds;
 
-        // Any collaborator can create expenses
+        // Non-read-only collaborators can create expenses
         // Enforce createdByUserId matches the authenticated user (if provided)
         allow create: if request.auth != null
-          && isCollaborator(tripId)
+          && canWrite(tripId)
           && (!('createdByUserId' in request.resource.data)
               || request.resource.data.createdByUserId == request.auth.uid);
 
         // Owner/editor can update/delete any expense
-        // Any collaborator can update/delete expenses they created
+        // Other non-read-only collaborators can update/delete expenses they created
         allow update, delete: if request.auth != null
-          && isCollaborator(tripId)
+          && canWrite(tripId)
           && (
             getRole(tripId) in ['owner', 'editor']
             || resource.data.createdByUserId == request.auth.uid
@@ -96,8 +110,10 @@ service cloud.firestore {
 
     // Invitations collection
     match /invitations/{invitationId} {
-      // Anyone can read invitations (invitation code acts as secret, needed for invite/guest page before login)
-      allow read: if true;
+      // Only the trip owner can read invitations. Invite pages look codes up through
+      // GET /api/invitations/preview, so the code stays a secret.
+      allow read: if request.auth != null
+        && isOwner(resource.data.tripId);
 
       // Only trip owner can create invitations (handled server-side via Admin SDK, this is a safety net)
       allow create: if request.auth != null
