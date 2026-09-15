@@ -133,8 +133,8 @@ importers:
         specifier: ^4.13.2
         version: 4.13.2(@vue/compiler-sfc@3.5.30)(eslint@9.27.0(jiti@2.6.1))(typescript@5.8.3)(vitest@3.2.4)
       '@firebase/rules-unit-testing':
-        specifier: ^5.0.2
-        version: 5.0.2(firebase@11.8.1)
+        specifier: ^4.0.1
+        version: 4.0.1(firebase@11.8.1)
       '@nuxt/test-utils':
         specifier: ^4.0.0
         version: 4.0.0(@vitest/ui@3.2.4)(magicast@0.5.2)(typescript@5.8.3)(vite@7.3.1(@types/node@22.15.21)(jiti@2.6.1)(lightningcss@1.32.0)(terser@5.39.2)(yaml@2.8.2))(vitest@3.2.4)
@@ -1356,11 +1356,11 @@ packages:
     peerDependencies:
       '@firebase/app': 0.x
 
-  '@firebase/rules-unit-testing@5.0.2':
-    resolution: {integrity: sha512-g053AaFcuf4gpAQbwRK/GIIGfPHhpomW3qkIYLi4xnaTUrf65yGP+0TPdojoXfB/ejrfevkXmMs5qXOTSwdN6A==}
-    engines: {node: '>=20.0.0'}
+  '@firebase/rules-unit-testing@4.0.1':
+    resolution: {integrity: sha512-Vu8iMLP+dO9hCAqUCitWZQdORyM6CxucilRZtleeTZd5bejZmyOiaBPwYm3NOYG6025ac99CEeA+ETmJRxa9zg==}
+    engines: {node: '>=18.0.0'}
     peerDependencies:
-      firebase: ^12.0.0
+      firebase: ^11.0.0
 
   '@firebase/storage-compat@0.3.22':
     resolution: {integrity: sha512-29j6JgXTjQ76sOIkxmTNHQfYA/hDTeV9qGbn0jolynPXSg/AmzCB0CpCoCYrS0ja0Flgmy1hkA3XYDZ/eiV1Cg==}
@@ -9160,7 +9160,7 @@ snapshots:
       '@firebase/util': 1.12.0
       tslib: 2.8.1
 
-  '@firebase/rules-unit-testing@5.0.2(firebase@11.8.1)':
+  '@firebase/rules-unit-testing@4.0.1(firebase@11.8.1)':
     dependencies:
       firebase: 11.8.1
 
