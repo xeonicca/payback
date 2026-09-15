@@ -15,6 +15,9 @@ const joinCode = route.params.code as string
 const { isUserLoggedIn, loginWithGoogle, checkRedirectResult } = useLogin()
 const sessionUser = useSessionUser()
 
+// The public link grants editor access, so an anonymous guest session must sign in with Google
+const needsGoogleLogin = computed(() => !isUserLoggedIn.value || !!sessionUser.value?.isAnonymous)
+
 const isCheckingRedirect = ref(false)
 const isLoading = ref(true)
 const isJoining = ref(false)
@@ -46,7 +49,7 @@ const availableEmojis = computed(() => {
 })
 
 const canJoin = computed(() => {
-  if (!isUserLoggedIn.value || !tripInfo.value)
+  if (needsGoogleLogin.value || !tripInfo.value)
     return false
   if (joinAsNew.value)
     return newMemberName.value.trim().length > 0 && newMemberEmoji.value
@@ -59,10 +62,10 @@ onMounted(async () => {
   isCheckingRedirect.value = false
 })
 
-// Load trip info when user logs in
-watch(isUserLoggedIn, async (loggedIn) => {
-  if (loggedIn)
-    await loadTripInfo()
+// join-info needs no sign-in: load it straight away so the login step can render,
+// and again after sign-in so the "already a member" redirect sees the new user
+watch(needsGoogleLogin, async () => {
+  await loadTripInfo()
 }, { immediate: true })
 
 async function loadTripInfo() {
@@ -216,10 +219,10 @@ async function handleLogin() {
         <!-- Content -->
         <div class="p-6 space-y-6">
           <!-- Step 1: Login Required -->
-          <template v-if="!isUserLoggedIn">
+          <template v-if="needsGoogleLogin">
             <div class="text-center">
               <p class="text-sm text-muted-foreground m-0 leading-relaxed">
-                登入後即可加入行程，和大家一起分帳
+                {{ sessionUser?.isAnonymous ? '此邀請需要 Google 帳號，訪客身份無法使用' : '登入後即可加入行程，和大家一起分帳' }}
               </p>
               <ui-button
                 class="w-full mt-6"

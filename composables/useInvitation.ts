@@ -1,7 +1,4 @@
 import type { Invitation, InvitationPreview } from '@/types'
-import { collection, query, where } from 'firebase/firestore'
-import { useCollection, useFirestore } from 'vuefire'
-import { invitationConverter } from '@/utils/converter'
 
 interface CreateInvitationParams {
   tripId: string
@@ -115,31 +112,11 @@ export function useInvitation() {
     }
   }
 
-  function getInvitationByCode(invitationCode: string) {
-    const db = useFirestore()
-    const invitationsQuery = query(
-      collection(db, 'invitations'),
-      where('invitationCode', '==', invitationCode),
-    ).withConverter(invitationConverter)
-
-    const invitations = useCollection<Invitation>(invitationsQuery, {
-      ssrKey: `invitation-${invitationCode}`,
-    })
-
-    const invitation = computed(() => invitations.value[0] || null)
-
-    return {
-      invitation,
-      isLoading: computed(() => !invitations.value),
-    }
-  }
-
   return {
     createInvitation,
     acceptInvitation,
     revokeInvitation,
     listInvitations,
-    getInvitationByCode,
     getInvitationMembers,
     getInvitationPreview,
   }

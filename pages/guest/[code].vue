@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import type { InvitationPreview } from '@/types'
 import { toast } from 'vue-sonner'
 import { animalEmojis } from '@/constants'
 
@@ -10,7 +11,15 @@ const route = useRoute()
 const router = useRouter()
 const invitationCode = route.params.code as string
 
-const { invitation, isLoading } = useInvitation().getInvitationByCode(invitationCode)
+const invitation = ref<InvitationPreview | null>(null)
+const isLoading = ref(true)
+useInvitation().getInvitationPreview(invitationCode).then((preview) => {
+  invitation.value = preview
+}).catch(() => {
+  invitation.value = null
+}).finally(() => {
+  isLoading.value = false
+})
 const { isUserLoggedIn, loginAsGuest, checkRedirectResult } = useLogin()
 const sessionUser = useSessionUser()
 
@@ -24,28 +33,10 @@ onMounted(async () => {
   isCheckingRedirect.value = false
 })
 
-const isExpired = computed(() => {
-  if (!invitation.value)
-    return false
-  return new Date(invitation.value.expiresAtString) < new Date()
-})
-
-const isAlreadyUsed = computed(() => {
-  if (!invitation.value)
-    return false
-  if (invitation.value.status !== 'accepted')
-    return false
-  const maxUses = invitation.value.maxUses ?? 1
-  return maxUses !== null && invitation.value.usedCount >= maxUses
-})
-
-const isRevoked = computed(() => {
-  return invitation.value?.status === 'revoked'
-})
-
-const isGuestInvitation = computed(() => {
-  return invitation.value?.type === 'guest'
-})
+const isExpired = computed(() => invitation.value?.state === 'expired')
+const isAlreadyUsed = computed(() => invitation.value?.state === 'used')
+const isRevoked = computed(() => invitation.value?.state === 'revoked')
+const isGuestInvitation = computed(() => invitation.value?.type === 'guest')
 
 // Member setup state (guests always create a new member)
 const members = ref<Array<{ id: string, name: string, avatarEmoji: string, isHost: boolean, linkedUserId: string | null }>>([])
@@ -76,16 +67,7 @@ const canAccept = computed(() => {
 })
 
 // Check if invitation is usable
-const isUsable = computed(() => {
-  if (!invitation.value)
-    return false
-  if (!isGuestInvitation.value)
-    return false
-  if (isExpired.value || isRevoked.value || isAlreadyUsed.value)
-    return false
-  return invitation.value.status === 'pending'
-    || (invitation.value.status === 'accepted' && invitation.value.maxUses === null)
-})
+const isUsable = computed(() => invitation.value?.state === 'valid' && isGuestInvitation.value)
 
 // When invitation is valid: ensure anonymous session exists, then load members
 const isInitializing = ref(false)
@@ -132,11 +114,11 @@ async function loadMembers() {
 
     // If current user is already a member, redirect to trip page
     const currentUid = sessionUser.value?.uid
-    if (currentUid && invitation.value) {
+    if (currentUid) {
       const alreadyLinked = result.members.some(m => m.linkedUserId === currentUid)
       if (alreadyLinked) {
         toast.info('你已經是此行程的成員')
-        router.replace(`/trips/${invitation.value.tripId}`)
+        router.replace(`/trips/${result.tripId}`)
         return
       }
     }
@@ -232,7 +214,7 @@ async function handleJoinAsGuest() {
               邀請已過期
             </h1>
             <p class="text-sm text-muted-foreground m-0 leading-relaxed">
-              此連結已於 {{ new Date(invitation.expiresAtString).toLocaleDateString('zh-TW') }} 過期
+              此連結已於 {{ new Date(invitation.expiresAt).toLocaleDateString('zh-TW') }} 過期
             </p>
           </div>
           <p class="text-xs text-muted-foreground/70 m-0 leading-relaxed">
@@ -285,6 +267,10 @@ async function handleJoinAsGuest() {
           <h1 class="text-3xl font-bold text-foreground m-0 tracking-tight">
             {{ invitation.tripName }}
           </h1>
+          <p v-if="invitation.viewOnly" class="flex items-center justify-center gap-1.5 text-xs text-muted-foreground m-0 mt-3">
+            <Icon name="lucide:eye" :size="14" />
+            你將以僅檢視身份加入
+          </p>
         </div>
 
         <!-- Content -->

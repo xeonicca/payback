@@ -5,7 +5,7 @@ import type {
   SnapshotOptions,
   WithFieldValue,
 } from 'firebase/firestore'
-import type { Expense, Invitation, Trip, TripCollaborator, TripMember } from '@/types'
+import type { Expense, Trip, TripCollaborator, TripMember } from '@/types'
 import { formatFirebaseDateAndTime, formatFirebaseTimestamp } from '@/utils/date'
 
 export const tripConverter: FirestoreDataConverter<Trip> = {
@@ -141,35 +141,5 @@ export const tripCollaboratorConverter: FirestoreDataConverter<TripCollaborator>
       joinedAtString: formatFirebaseTimestamp(data.joinedAt),
       invitedBy: data.invitedBy,
     } as TripCollaborator
-  },
-}
-
-export const invitationConverter: FirestoreDataConverter<Invitation> = {
-  toFirestore(invitation: WithFieldValue<Invitation>): DocumentData {
-    const { id, ...data } = invitation
-    return data
-  },
-  fromFirestore(snapshot: QueryDocumentSnapshot, options: SnapshotOptions): Invitation {
-    const data = snapshot.data(options)
-    return {
-      id: snapshot.id,
-      tripId: data.tripId,
-      tripName: data.tripName,
-      invitedByUserId: data.invitedByUserId,
-      invitedByName: data.invitedByName,
-      invitationCode: data.invitationCode,
-      status: data.status,
-      expiresAt: data.expiresAt,
-      expiresAtString: formatFirebaseTimestamp(data.expiresAt),
-      createdAt: data.createdAt,
-      createdAtString: formatFirebaseTimestamp(data.createdAt),
-      maxUses: data.maxUses ?? 1,
-      usedCount: data.usedCount ?? 0,
-      usedByUserIds: data.usedByUserIds ?? [],
-      usedByUserId: data.usedByUserId,
-      usedAt: data.usedAt,
-      usedAtString: data.usedAt ? formatFirebaseTimestamp(data.usedAt) : undefined,
-      type: data.type,
-    } as Invitation
   },
 }

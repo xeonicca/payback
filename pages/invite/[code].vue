@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import type { InvitationPreview } from '@/types'
 import { toast } from 'vue-sonner'
 import { animalEmojis } from '@/constants'
 
@@ -12,9 +13,20 @@ const route = useRoute()
 const router = useRouter()
 const invitationCode = route.params.code as string
 
-const { invitation, isLoading } = useInvitation().getInvitationByCode(invitationCode)
+const invitation = ref<InvitationPreview | null>(null)
+const isLoading = ref(true)
+useInvitation().getInvitationPreview(invitationCode).then((preview) => {
+  invitation.value = preview
+}).catch(() => {
+  invitation.value = null
+}).finally(() => {
+  isLoading.value = false
+})
 const { isUserLoggedIn, loginWithGoogle, checkRedirectResult } = useLogin()
 const sessionUser = useSessionUser()
+
+// Personal invitations grant editor access, so an anonymous guest session must sign in with Google
+const needsGoogleLogin = computed(() => !isUserLoggedIn.value || !!sessionUser.value?.isAnonymous)
 
 const isCheckingRedirect = ref(false)
 const isAccepting = ref(false)
@@ -25,24 +37,9 @@ onMounted(async () => {
   await checkRedirectResult()
   isCheckingRedirect.value = false
 })
-const isExpired = computed(() => {
-  if (!invitation.value)
-    return false
-  return new Date(invitation.value.expiresAtString) < new Date()
-})
-
-const isAlreadyUsed = computed(() => {
-  if (!invitation.value)
-    return false
-  if (invitation.value.status !== 'accepted')
-    return false
-  const maxUses = invitation.value.maxUses ?? 1
-  return maxUses !== null && invitation.value.usedCount >= maxUses
-})
-
-const isRevoked = computed(() => {
-  return invitation.value?.status === 'revoked'
-})
+const isExpired = computed(() => invitation.value?.state === 'expired')
+const isAlreadyUsed = computed(() => invitation.value?.state === 'used')
+const isRevoked = computed(() => invitation.value?.state === 'revoked')
 
 // Member selection state
 const members = ref<Array<{ id: string, name: string, avatarEmoji: string, isHost: boolean, linkedUserId: string | null }>>([])
@@ -66,7 +63,7 @@ const availableEmojis = computed(() => {
 })
 
 const canAccept = computed(() => {
-  if (!isUserLoggedIn.value || !membersLoaded.value)
+  if (needsGoogleLogin.value || !membersLoaded.value)
     return false
   if (joinAsNew.value) {
     return newMemberName.value.trim().length > 0 && newMemberEmoji.value
@@ -74,18 +71,11 @@ const canAccept = computed(() => {
   return selectedMemberId.value !== null
 })
 
-// Load members when user logs in and invitation is valid
-const isUsable = computed(() => {
-  if (!invitation.value)
-    return false
-  if (isExpired.value || isRevoked.value || isAlreadyUsed.value)
-    return false
-  return invitation.value.status === 'pending'
-    || (invitation.value.status === 'accepted' && invitation.value.maxUses === null)
-})
+// Load members once the user is signed in with Google and the invitation is valid
+const isUsable = computed(() => invitation.value?.state === 'valid')
 
-watch([isUserLoggedIn, invitation], async ([loggedIn, inv]) => {
-  if (loggedIn && inv && isUsable.value) {
+watch([needsGoogleLogin, invitation], async ([needsLogin, inv]) => {
+  if (!needsLogin && inv && isUsable.value) {
     await loadMembers()
   }
 }, { immediate: true })
@@ -100,11 +90,11 @@ async function loadMembers() {
 
     // If current user is already a member, redirect to trip page
     const currentUid = sessionUser.value?.uid
-    if (currentUid && invitation.value) {
+    if (currentUid) {
       const alreadyLinked = result.members.some(m => m.linkedUserId === currentUid)
       if (alreadyLinked) {
         toast.info('你已經是此行程的成員')
-        router.replace(`/trips/${invitation.value.tripId}`)
+        router.replace(`/trips/${result.tripId}`)
         return
       }
     }
@@ -211,7 +201,7 @@ async function handleLogin() {
               邀請已過期
             </h1>
             <p class="text-sm text-muted-foreground m-0 leading-relaxed">
-              此連結已於 {{ new Date(invitation.expiresAtString).toLocaleDateString('zh-TW') }} 過期
+              此連結已於 {{ new Date(invitation.expiresAt).toLocaleDateString('zh-TW') }} 過期
             </p>
           </div>
           <p class="text-xs text-muted-foreground/70 m-0 leading-relaxed">
@@ -251,14 +241,14 @@ async function handleLogin() {
           </div>
           <div class="space-y-2">
             <h1 class="text-xl font-bold text-foreground m-0 tracking-tight">
-              已加入行程
+              連結已用完
             </h1>
             <p class="text-sm text-muted-foreground m-0 leading-relaxed">
-              此邀請已被使用，你可以直接進入行程
+              此邀請連結的使用次數已達上限。如果你已經加入，可以從首頁進入行程
             </p>
           </div>
-          <ui-button @click="router.push(`/trips/${invitation.tripId}`)">
-            前往行程
+          <ui-button @click="router.push('/')">
+            前往首頁
             <Icon name="lucide:arrow-right" class="w-4 h-4 ml-1.5" />
           </ui-button>
         </div>
@@ -274,15 +264,19 @@ async function handleLogin() {
           <h1 class="text-3xl font-bold text-foreground m-0 tracking-tight">
             {{ invitation.tripName }}
           </h1>
+          <p v-if="invitation.viewOnly" class="flex items-center justify-center gap-1.5 text-xs text-muted-foreground m-0 mt-3">
+            <Icon name="lucide:eye" :size="14" />
+            你將以僅檢視身份加入
+          </p>
         </div>
 
         <!-- Content -->
         <div class="p-6 space-y-6">
           <!-- Step 1: Login Required -->
-          <template v-if="!isUserLoggedIn">
+          <template v-if="needsGoogleLogin">
             <div class="text-center">
               <p class="text-sm text-muted-foreground m-0 leading-relaxed">
-                登入後即可加入行程，和大家一起分帳
+                {{ sessionUser?.isAnonymous ? '此邀請需要 Google 帳號，訪客身份無法使用' : '登入後即可加入行程，和大家一起分帳' }}
               </p>
 
               <ui-button
