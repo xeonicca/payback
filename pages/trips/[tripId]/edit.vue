@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { TripMember } from '@/types'
+import type { TripCollaborator, TripMember } from '@/types'
 import { toTypedSchema } from '@vee-validate/zod'
 import { addDoc, collection, deleteDoc, doc, updateDoc } from 'firebase/firestore'
 import { useForm } from 'vee-validate'
@@ -35,6 +35,7 @@ const { trip } = useTrip(tripId)
 const { tripMembers, currentUserMember } = useTripMembers(tripId)
 const { enabledExpenses } = useTripExpenses(tripId)
 const { collaborators, isOwner, canInvite } = useTripCollaborators(tripId)
+const { setCollaboratorReadOnly, removeCollaborator, resetPublicLink } = useTripAccess()
 
 const formSchema = toTypedSchema(z.object({
   name: z.string().min(2).max(50),
@@ -99,6 +100,66 @@ async function handleTogglePublicInvite(enabled: boolean) {
   }
   finally {
     isTogglingPublicInvite.value = false
+  }
+}
+
+// Collaborator access (owner only)
+const updatingCollaboratorIds = ref<string[]>([])
+
+async function handleToggleCanEdit(collaborator: TripCollaborator, canEdit: boolean) {
+  const { userId } = collaborator
+  updatingCollaboratorIds.value = [...updatingCollaboratorIds.value, userId]
+  try {
+    await setCollaboratorReadOnly(tripId, userId, !canEdit)
+  }
+  catch (error) {
+    // The switch is bound to live Firestore data, so it snaps back on its own
+    console.error('Error updating collaborator access:', error)
+    toast.error('更新權限失敗')
+  }
+  finally {
+    updatingCollaboratorIds.value = updatingCollaboratorIds.value.filter(id => id !== userId)
+  }
+}
+
+const collaboratorToRemove = ref<TripCollaborator | null>(null)
+const isRemovingCollaborator = ref(false)
+
+async function confirmRemoveCollaborator() {
+  const target = collaboratorToRemove.value
+  if (!target)
+    return
+  try {
+    isRemovingCollaborator.value = true
+    await removeCollaborator(tripId, target.userId)
+    toast.success(`已移除 ${target.displayName || '協作者'}`)
+    collaboratorToRemove.value = null
+  }
+  catch (error) {
+    console.error('Error removing collaborator:', error)
+    toast.error('移除失敗')
+  }
+  finally {
+    isRemovingCollaborator.value = false
+  }
+}
+
+const showResetLinkDialog = ref(false)
+const isResettingLink = ref(false)
+
+async function confirmResetPublicLink() {
+  try {
+    isResettingLink.value = true
+    await resetPublicLink(tripId)
+    toast.success('已重設連結，舊連結已失效')
+    showResetLinkDialog.value = false
+  }
+  catch (error) {
+    console.error('Error resetting public link:', error)
+    toast.error('重設連結失敗')
+  }
+  finally {
+    isResettingLink.value = false
   }
 }
 
@@ -676,9 +737,37 @@ async function handleArchiveToggle() {
                     <Icon name="lucide:crown" :size="12" class="mr-1" />
                     建立者
                   </ui-badge>
-                  <ui-badge v-else variant="secondary" class="text-xs shrink-0">
-                    編輯者
-                  </ui-badge>
+                  <template v-else>
+                    <ui-badge variant="secondary" class="text-xs shrink-0">
+                      {{ collaborator.role === 'guest' ? '訪客' : '編輯者' }}
+                    </ui-badge>
+                    <template v-if="isOwner">
+                      <div class="flex items-center gap-1.5 shrink-0">
+                        <ui-label :for="`can-edit-${collaborator.userId}`" class="text-xs text-muted-foreground">
+                          可編輯
+                        </ui-label>
+                        <ui-switch
+                          :id="`can-edit-${collaborator.userId}`"
+                          :model-value="!collaborator.readOnly"
+                          :disabled="updatingCollaboratorIds.includes(collaborator.userId)"
+                          @update:model-value="(canEdit: boolean) => handleToggleCanEdit(collaborator, canEdit)"
+                        />
+                      </div>
+                      <ui-button
+                        type="button"
+                        size="icon"
+                        variant="ghost"
+                        class="size-11 shrink-0"
+                        :aria-label="`移除 ${collaborator.displayName || '協作者'}`"
+                        @click="collaboratorToRemove = collaborator"
+                      >
+                        <Icon name="lucide:user-minus" :size="16" class="text-destructive" />
+                      </ui-button>
+                    </template>
+                    <ui-badge v-else-if="collaborator.readOnly" variant="outline" class="text-xs shrink-0">
+                      僅檢視
+                    </ui-badge>
+                  </template>
                 </div>
               </div>
 
@@ -725,12 +814,18 @@ async function handleArchiveToggle() {
                     @update:model-value="handleTogglePublicInvite"
                   />
                 </div>
-                <div v-if="trip?.isPublicInviteEnabled && publicJoinUrl" class="flex items-center gap-2">
-                  <ui-input :value="publicJoinUrl" readonly class="flex-1 font-mono text-sm" />
-                  <ui-button size="sm" variant="outline" @click="copyToClipboard(publicJoinUrl)">
-                    <Icon name="lucide:copy" :size="16" />
+                <template v-if="trip?.isPublicInviteEnabled && publicJoinUrl">
+                  <div class="flex items-center gap-2">
+                    <ui-input :value="publicJoinUrl" readonly class="flex-1 font-mono text-sm" />
+                    <ui-button size="sm" variant="outline" aria-label="複製連結" @click="copyToClipboard(publicJoinUrl)">
+                      <Icon name="lucide:copy" :size="16" />
+                    </ui-button>
+                  </div>
+                  <ui-button type="button" size="sm" variant="ghost" class="text-muted-foreground" @click="showResetLinkDialog = true">
+                    <Icon name="lucide:refresh-cw" :size="14" class="mr-1.5" />
+                    重設連結
                   </ui-button>
-                </div>
+                </template>
               </div>
 
               <ui-separator v-if="isOwner" />
@@ -800,6 +895,48 @@ async function handleArchiveToggle() {
       </div>
     </template>
   </div>
+
+  <!-- Remove Collaborator Confirmation -->
+  <ui-alert-dialog :open="!!collaboratorToRemove" @update:open="(open: boolean) => { if (!open) collaboratorToRemove = null }">
+    <ui-alert-dialog-content>
+      <ui-alert-dialog-header>
+        <ui-alert-dialog-title>移除 {{ collaboratorToRemove?.displayName || '協作者' }}？</ui-alert-dialog-title>
+        <ui-alert-dialog-description>
+          對方將無法再查看此行程，他們建立的支出會保留。
+        </ui-alert-dialog-description>
+      </ui-alert-dialog-header>
+      <ui-alert-dialog-footer>
+        <ui-alert-dialog-cancel :disabled="isRemovingCollaborator">
+          取消
+        </ui-alert-dialog-cancel>
+        <ui-button variant="destructive" :disabled="isRemovingCollaborator" @click="confirmRemoveCollaborator">
+          <Icon v-if="isRemovingCollaborator" name="lucide:loader-2" class="animate-spin mr-2" :size="16" />
+          {{ isRemovingCollaborator ? '移除中...' : '移除' }}
+        </ui-button>
+      </ui-alert-dialog-footer>
+    </ui-alert-dialog-content>
+  </ui-alert-dialog>
+
+  <!-- Reset Public Link Confirmation -->
+  <ui-alert-dialog v-model:open="showResetLinkDialog">
+    <ui-alert-dialog-content>
+      <ui-alert-dialog-header>
+        <ui-alert-dialog-title>重設加入連結？</ui-alert-dialog-title>
+        <ui-alert-dialog-description>
+          重設後，舊的連結將失效，需要重新分享新連結。
+        </ui-alert-dialog-description>
+      </ui-alert-dialog-header>
+      <ui-alert-dialog-footer>
+        <ui-alert-dialog-cancel :disabled="isResettingLink">
+          取消
+        </ui-alert-dialog-cancel>
+        <ui-button :disabled="isResettingLink" @click="confirmResetPublicLink">
+          <Icon v-if="isResettingLink" name="lucide:loader-2" class="animate-spin mr-2" :size="16" />
+          {{ isResettingLink ? '重設中...' : '重設' }}
+        </ui-button>
+      </ui-alert-dialog-footer>
+    </ui-alert-dialog-content>
+  </ui-alert-dialog>
 
   <!-- Invite Collaborators Drawer -->
   <invite-collaborators-modal
