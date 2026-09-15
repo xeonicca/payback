@@ -1814,7 +1814,9 @@ export default defineEventHandler(async (event) => {
 - [ ] **Step 4: Run to verify they pass**
 
 Run: `pnpm test:emulator`
-Expected: join tests (4) pass; everything earlier still passes.
+Expected: join tests (6) pass; everything earlier still passes.
+
+(As executed, Task 10 also carries the accept endpoint's review follow-ups: the same `memberId`/`newMember` type checks before the transaction, plus two more tests — a read-only collaborator can't re-join through the public link to shed `readOnly`, and a malformed `memberId` gets a 400 with nothing written.)
 
 - [ ] **Step 5: Commit**
 
