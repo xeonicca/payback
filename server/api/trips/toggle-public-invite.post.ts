@@ -1,3 +1,4 @@
+import { generateUniqueCode, publicJoinCodeTaken } from '~/server/utils/codes'
 import { getFirebaseAdminFirestore, getUserFromSession } from '~/server/utils/session'
 
 export default defineEventHandler(async (event) => {
@@ -46,7 +47,7 @@ export default defineEventHandler(async (event) => {
 
     // Generate join code on first enable if one doesn't exist
     if (enabled && !tripData?.publicJoinCode) {
-      updateData.publicJoinCode = Math.random().toString(36).substring(2, 10).toUpperCase()
+      updateData.publicJoinCode = await generateUniqueCode(publicJoinCodeTaken(db))
     }
 
     await tripRef.update(updateData)

@@ -184,3 +184,35 @@ describe('POST /api/trips/leave', () => {
     await expect(callLeave(googleUser('stranger'))).rejects.toMatchObject({ statusCode: 400 })
   })
 })
+
+describe('public join link', () => {
+  beforeEach(() => seedTrip({ trip: { isPublicInviteEnabled: true, publicJoinCode: 'JOIN1' } }))
+
+  async function callReset(user: AppUser) {
+    const { default: handler } = await import('~/server/api/trips/reset-public-link.post')
+    return handler(makeEvent({ user, body: { tripId: 't1' } }))
+  }
+
+  async function callJoinInfo(joinCode: string) {
+    const { default: handler } = await import('~/server/api/trips/join-info.get')
+    return handler(makeEvent({ query: { joinCode } }))
+  }
+
+  it('reset issues a new code and kills the old one', async () => {
+    const { publicJoinCode } = await callReset(googleUser('owner'))
+    expect(publicJoinCode).toMatch(/^[2-9A-HJKMNP-Z]{10}$/)
+    await expect(callJoinInfo('JOIN1')).rejects.toMatchObject({ statusCode: 404 })
+    expect(await callJoinInfo(publicJoinCode)).toMatchObject({ tripId: 't1' })
+  })
+
+  it('reset is owner-only', async () => {
+    await expect(callReset(googleUser('stranger'))).rejects.toMatchObject({ statusCode: 403 })
+  })
+
+  it('first enable generates a 10-character code', async () => {
+    await getAdminDb().doc('trips/t1').update({ isPublicInviteEnabled: false, publicJoinCode: null })
+    const { default: handler } = await import('~/server/api/trips/toggle-public-invite.post')
+    const result = await handler(makeEvent({ user: googleUser('owner'), body: { tripId: 't1', enabled: true } }))
+    expect(result.publicJoinCode).toMatch(/^[2-9A-HJKMNP-Z]{10}$/)
+  })
+})
