@@ -807,7 +807,16 @@ service cloud.firestore {
 
         // Owner/editor can update/delete any expense
         // Other non-read-only collaborators can update/delete expenses they created
-        allow update, delete: if request.auth != null
+        // Nobody can reassign who created an expense
+        allow update: if request.auth != null
+          && canWrite(tripId)
+          && (
+            getRole(tripId) in ['owner', 'editor']
+            || resource.data.createdByUserId == request.auth.uid
+          )
+          && request.resource.data.get('createdByUserId', null) == resource.data.get('createdByUserId', null);
+
+        allow delete: if request.auth != null
           && canWrite(tripId)
           && (
             getRole(tripId) in ['owner', 'editor']
@@ -823,13 +832,10 @@ service cloud.firestore {
       allow read: if request.auth != null
         && isOwner(resource.data.tripId);
 
-      // Only trip owner can create invitations (handled server-side via Admin SDK, this is a safety net)
-      allow create: if request.auth != null
-        && get(/databases/$(database)/documents/trips/$(request.resource.data.tripId)).data.userId == request.auth.uid;
-
-      // Only trip owner can update/delete invitations
-      allow update, delete: if request.auth != null
-        && get(/databases/$(database)/documents/trips/$(resource.data.tripId)).data.userId == request.auth.uid;
+      // Invitations are created, used and revoked only by server routes (Admin SDK).
+      // Client writes are denied outright: an owner could otherwise point an invitation
+      // for their own trip at someone else's trip and accept it.
+      allow create, update, delete: if false;
     }
   }
 }
@@ -838,7 +844,9 @@ service cloud.firestore {
 - [ ] **Step 4: Run to verify all rules tests pass**
 
 Run: `pnpm test:emulator`
-Expected: `firestore-rules.test.ts` 10 passed; smoke test still passes.
+Expected: `firestore-rules.test.ts` 16 passed; smoke test still passes.
+
+(The Step 1 listing shows the original 10 tests. The code review added 6 more — owner-scoped invitation queries, client invitation writes denied (including retargeting an invitation at another trip), owner CRUD, a collaborator doc with no `readOnly` field, a read-only guest on their own expense, and `createdByUserId` pinned on update — plus a half-joined delete assertion. See `tests/emulator/firestore-rules.test.ts`.)
 
 Do **not** deploy the rules yet — the invite pages still query `invitations` directly until Task 14. Deployment happens in Task 18.
 
@@ -1206,6 +1214,13 @@ describe('POST /api/invitations/accept', () => {
     expect((await readState('alice', 'P1')).invitation?.usedCount).toBe(1)
   })
 
+  it('rejects invitations the trip owner did not issue', async () => {
+    await seedInvitation('FORGED', { invitedByUserId: 'mallory' })
+    await expect(callAccept(googleUser('mallory'), { invitationCode: 'FORGED', newMember }))
+      .rejects.toMatchObject({ statusCode: 403 })
+    expect((await readState('mallory', 'FORGED')).collaborator).toBeNull()
+  })
+
   it('keeps unlimited invitations open', async () => {
     await seedInvitation('U1', { maxUses: null })
     await callAccept(googleUser('alice'), { invitationCode: 'U1', newMember: { name: 'A', avatarEmoji: '🐱' } })
@@ -1307,6 +1322,10 @@ export default defineEventHandler(async (event) => {
       if (!tripDoc.exists) {
         throw createError({ statusCode: 404, statusMessage: 'Trip not found' })
       }
+      // Defence in depth: only invitations the trip's owner issued are honoured
+      if (invitation.invitedByUserId !== tripDoc.data()?.userId) {
+        throw createError({ statusCode: 403, statusMessage: 'Invitation is not valid for this trip' })
+      }
       if (collaboratorDoc.exists) {
         throw createError({ statusCode: 400, statusMessage: 'You are already a collaborator on this trip' })
       }
@@ -1388,7 +1407,7 @@ export default defineEventHandler(async (event) => {
 - [ ] **Step 4: Run to verify they pass**
 
 Run: `pnpm test:emulator`
-Expected: all accept tests (9) pass, plus everything earlier.
+Expected: all accept tests (10) pass, plus everything earlier.
 
 - [ ] **Step 5: Commit**
 
@@ -3098,5 +3117,7 @@ Deploying is outward-facing — don't run these without the user's go-ahead. Ord
 1. Deploy the web app through the usual pipeline.
 2. `firebase deploy --only firestore:rules`
 3. `firebase deploy --only functions:reanalyzeReceipt`
+
+Before the rules deploy, confirm no production trip is missing `collaboratorUserIds` — `canWrite` denies expense writes on such trips (they're already unreadable under the trip read rule). `server/api/admin/migrate-collaborator-ids.post.ts` backfills them.
 
 Remind the user of the open item from the spec: check the Firebase Storage rules in the console. If a view-only user can upload a receipt image to an expense's path, `onReceiptUploaded` will rewrite that expense.

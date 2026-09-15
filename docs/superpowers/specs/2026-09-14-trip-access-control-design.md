@@ -50,7 +50,8 @@ function canWrite(tripId) {
 
 Requiring `collaboratorUserIds` membership as well as the collaborator doc makes any half-joined collaborator docs already in production (from gap 3) inert.
 
-- **Invitations:** `allow read: if request.auth != null && isOwner(resource.data.tripId);` (was `if true`). Create/update/delete unchanged. No client code reads invitations after this change.
+- **Invitations:** `allow read: if request.auth != null && isOwner(resource.data.tripId);` (was `if true`). Create/update/delete: `if false` — only server routes write invitations, and the old owner-only update rule let an owner retarget an invitation for their own trip at someone else's trip and then accept it. No client code reads invitations after this change.
+- **Expense updates** keep `createdByUserId` unchanged, so nobody can reassign who created an expense (and with it, guest edit rights).
 - **Expenses:** `create` requires `canWrite(tripId)` plus the existing `createdByUserId` check. `update, delete` require `canWrite(tripId)` plus the existing role-or-creator check.
 - **Members:** unchanged. Read-only users can still edit their own linked member's `name`/`avatarEmoji` — that's their profile, not the ledger.
 - **Collaborators:** unchanged (owner may write; server handles joins/removals).
@@ -91,6 +92,7 @@ All reads and writes run in one `db.runTransaction`. Reads first: invitation (qu
 2. `type !== 'guest' && user.isAnonymous` → **403** "Sign in with Google to accept this invitation".
 3. Caller is not already a collaborator.
 4. If `memberId`: member exists and has no `linkedUserId`.
+5. The invitation was issued by the trip's owner (`invitedByUserId == trip.userId`) — defence in depth against invitations forged before the rules change.
 
 Only if all pass: write the collaborator doc (`role` = `guest` for guest invites else `editor`; `readOnly` = invitation `viewOnly`), link or create the member, update invitation usage, and add the caller to `collaboratorUserIds` / increment `collaboratorCount`. Any failure writes nothing. Exception: an expired invitation still gets `status: 'expired'` committed, then the handler returns 400. Existing status codes and messages are kept for existing failure cases.
 
