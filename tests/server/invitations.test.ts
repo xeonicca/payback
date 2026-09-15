@@ -35,4 +35,12 @@ describe('getInvitationState', () => {
   it('never runs out when maxUses is null', () => {
     expect(getInvitationState({ status: 'accepted', expiresAt: future, maxUses: null, usedCount: 99 }, NOW)).toBe('valid')
   })
+
+  it('treats a legacy accepted invitation without a usage count as used', () => {
+    expect(getInvitationState({ status: 'accepted', expiresAt: future }, NOW)).toBe('used')
+  })
+
+  it('reports expired ahead of used', () => {
+    expect(getInvitationState({ status: 'accepted', expiresAt: past, maxUses: 1, usedCount: 1 }, NOW)).toBe('expired')
+  })
 })

@@ -12,13 +12,15 @@ export function normalizeMaxUses(maxUses: number | null | undefined): number | n
   return maxUses === undefined ? 1 : maxUses
 }
 
+/** Precedence: revoked > expired > used > valid. */
 export function getInvitationState(invitation: InvitationStateFields, nowMs = Date.now()): InvitationPreviewState {
   if (invitation.status === 'revoked')
     return 'revoked'
   if (invitation.status === 'expired' || invitation.expiresAt.toMillis() < nowMs)
     return 'expired'
   const maxUses = normalizeMaxUses(invitation.maxUses)
-  if (maxUses !== null && (invitation.usedCount ?? 0) >= maxUses)
+  // 'accepted' is only written once a finite limit is used up; legacy docs have no usedCount
+  if (maxUses !== null && (invitation.status === 'accepted' || (invitation.usedCount ?? 0) >= maxUses))
     return 'used'
   return 'valid'
 }
