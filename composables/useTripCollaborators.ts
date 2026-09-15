@@ -32,6 +32,11 @@ export function useTripCollaborators(tripId: string) {
     return currentUserCollaborator.value?.role === 'guest'
   })
 
+  const isReadOnly = computed(() => {
+    // The owner always has full access, whatever their collaborator doc says
+    return !isOwner.value && currentUserCollaborator.value?.readOnly === true
+  })
+
   const canEditTrip = computed(() => {
     // Only owner can edit trip settings
     return isOwner.value
@@ -45,17 +50,19 @@ export function useTripCollaborators(tripId: string) {
   const canManageExpenses = computed(() => {
     // Owner and editors can manage all expenses (bulk operations)
     // Guests are excluded — they use fine-grained canEditExpense/canDeleteExpense
-    if (isGuest.value)
+    if (isGuest.value || isReadOnly.value)
       return false
     return isCollaborator.value || isOwner.value
   })
 
   const canAddExpenses = computed(() => {
-    // All collaborators including guests can add expenses
-    return isCollaborator.value
+    // All collaborators including guests can add expenses, unless they're view-only
+    return isCollaborator.value && !isReadOnly.value
   })
 
   const canEditExpense = (expense: Expense) => {
+    if (isReadOnly.value)
+      return false
     if (isOwner.value || currentUserCollaborator.value?.role === 'editor')
       return true
     if (isCollaborator.value && expense.createdByUserId === sessionUser.value?.uid)
@@ -64,6 +71,8 @@ export function useTripCollaborators(tripId: string) {
   }
 
   const canDeleteExpense = (expense: Expense) => {
+    if (isReadOnly.value)
+      return false
     if (isOwner.value || currentUserCollaborator.value?.role === 'editor')
       return true
     if (isCollaborator.value && expense.createdByUserId === sessionUser.value?.uid)
@@ -87,6 +96,7 @@ export function useTripCollaborators(tripId: string) {
     isOwner,
     isCollaborator,
     isGuest,
+    isReadOnly,
     canEditTrip,
     canManageMembers,
     canManageExpenses,

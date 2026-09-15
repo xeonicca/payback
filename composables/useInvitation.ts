@@ -1,4 +1,4 @@
-import type { Invitation } from '@/types'
+import type { Invitation, InvitationPreview } from '@/types'
 import { collection, query, where } from 'firebase/firestore'
 import { useCollection, useFirestore } from 'vuefire'
 import { invitationConverter } from '@/utils/converter'
@@ -8,6 +8,7 @@ interface CreateInvitationParams {
   expiresInDays?: number
   maxUses?: number | null
   type?: 'personal' | 'guest'
+  viewOnly?: boolean
 }
 
 interface CreateInvitationResponse {
@@ -80,6 +81,13 @@ export function useInvitation() {
     }
   }
 
+  // Public lookup used by the invite/guest pages before sign-in
+  function getInvitationPreview(invitationCode: string): Promise<InvitationPreview> {
+    return $fetch<InvitationPreview>('/api/invitations/preview', {
+      query: { code: invitationCode },
+    })
+  }
+
   async function revokeInvitation(invitationId: string): Promise<{ success: boolean }> {
     try {
       const response = await $fetch<{ success: boolean }>('/api/invitations/revoke', {
@@ -133,5 +141,6 @@ export function useInvitation() {
     listInvitations,
     getInvitationByCode,
     getInvitationMembers,
+    getInvitationPreview,
   }
 }
