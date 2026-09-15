@@ -1,5 +1,6 @@
-import { formatDate } from '~/utils/date'
+import { normalizeMaxUses } from '~/server/utils/invitations'
 import { getFirebaseAdminFirestore, getUserFromSession } from '~/server/utils/session'
+import { formatDate } from '~/utils/date'
 
 export default defineEventHandler(async (event) => {
   const user = await getUserFromSession(event)
@@ -66,7 +67,8 @@ export default defineEventHandler(async (event) => {
         createdAtString: formatDate(createdAtDate),
         usedAt: usedAtDate?.toISOString(),
         usedAtString: usedAtDate ? formatDate(usedAtDate) : undefined,
-        maxUses: data.maxUses ?? 1,
+        maxUses: normalizeMaxUses(data.maxUses),
+        viewOnly: data.viewOnly === true,
         usedCount: data.usedCount ?? 0,
       }
     })

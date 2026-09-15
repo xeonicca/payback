@@ -1,4 +1,4 @@
-import { Timestamp } from 'firebase-admin/firestore'
+import { getInvitationState } from '~/server/utils/invitations'
 import { getFirebaseAdminFirestore, getUserFromSession } from '~/server/utils/session'
 
 export default defineEventHandler(async (event) => {
@@ -40,19 +40,20 @@ export default defineEventHandler(async (event) => {
 
     const invitation = invitationsSnapshot.docs[0].data()
 
-    // Validate invitation is still valid
-    if (invitation.status !== 'pending') {
+    // Same validity rules as accept: unlimited links stay open after their first use
+    const state = getInvitationState(invitation)
+    if (state !== 'valid') {
       throw createError({
         statusCode: 400,
-        statusMessage: `Invitation is ${invitation.status}`,
+        statusMessage: `Invitation is ${state}`,
       })
     }
 
-    const now = Timestamp.now()
-    if (invitation.expiresAt.toMillis() < now.toMillis()) {
+    // Personal invitations are for Google accounts; don't show their member list to guests
+    if (invitation.type !== 'guest' && user.isAnonymous) {
       throw createError({
-        statusCode: 400,
-        statusMessage: 'Invitation has expired',
+        statusCode: 403,
+        statusMessage: 'Sign in with Google to accept this invitation',
       })
     }
 

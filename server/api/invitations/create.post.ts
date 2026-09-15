@@ -1,4 +1,5 @@
 import { FieldValue, Timestamp } from 'firebase-admin/firestore'
+import { generateUniqueCode, invitationCodeTaken } from '~/server/utils/codes'
 import { getFirebaseAdminFirestore, getUserFromSession } from '~/server/utils/session'
 
 export default defineEventHandler(async (event) => {
@@ -11,7 +12,7 @@ export default defineEventHandler(async (event) => {
     })
   }
 
-  const { tripId, expiresInDays = 7, maxUses = 1, type = 'personal' } = await readBody(event)
+  const { tripId, expiresInDays = 7, maxUses = 1, type = 'personal', viewOnly = false } = await readBody(event)
 
   if (!tripId) {
     throw createError({
@@ -44,8 +45,7 @@ export default defineEventHandler(async (event) => {
       })
     }
 
-    // Generate random invitation code (6 characters)
-    const invitationCode = Math.random().toString(36).substring(2, 8).toUpperCase()
+    const invitationCode = await generateUniqueCode(invitationCodeTaken(db))
 
     // Calculate expiry date
     const expiresAt = Timestamp.fromMillis(
@@ -72,6 +72,7 @@ export default defineEventHandler(async (event) => {
       usedCount: 0,
       usedByUserIds: [],
       type: validatedType,
+      viewOnly: viewOnly === true,
     }
 
     const invitationRef = await db.collection('invitations').add(invitationData)

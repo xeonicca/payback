@@ -229,3 +229,76 @@ describe('POST /api/invitations/accept', () => {
     expect((await readState('alice', 'P1')).invitation?.usedCount).toBe(0)
   })
 })
+
+// eslint-disable-next-line test/prefer-lowercase-title -- matches the HTTP method, not a sentence
+describe('POST /api/invitations/create', () => {
+  async function callCreate(user: AppUser, body: Record<string, unknown>) {
+    const { default: handler } = await import('~/server/api/invitations/create.post')
+    return handler(makeEvent({ user, body }))
+  }
+
+  beforeEach(() => seedTrip())
+
+  it('stores viewOnly and uses a 10-character code', async () => {
+    const result = await callCreate(googleUser('owner'), { tripId: 't1', type: 'guest', maxUses: null, viewOnly: true })
+    expect(result.invitationCode).toMatch(/^[2-9A-HJKMNP-Z]{10}$/)
+    expect(result.invitationUrl).toBe(`http://localhost:3000/guest/${result.invitationCode}`)
+
+    const stored = (await getAdminDb().doc(`invitations/${result.invitationId}`).get()).data()
+    expect(stored).toMatchObject({ viewOnly: true, type: 'guest', maxUses: null })
+  })
+
+  it('defaults viewOnly to false', async () => {
+    const result = await callCreate(googleUser('owner'), { tripId: 't1' })
+    expect((await getAdminDb().doc(`invitations/${result.invitationId}`).get()).data()?.viewOnly).toBe(false)
+  })
+
+  it('rejects non-owners', async () => {
+    await expect(callCreate(googleUser('stranger'), { tripId: 't1' })).rejects.toMatchObject({ statusCode: 403 })
+  })
+})
+
+// eslint-disable-next-line test/prefer-lowercase-title -- matches the HTTP method, not a sentence
+describe('GET /api/invitations/list', () => {
+  it('reports unlimited invitations as unlimited and includes viewOnly', async () => {
+    await seedTrip()
+    await seedInvitation('U1', { maxUses: null })
+    const { default: handler } = await import('~/server/api/invitations/list.get')
+    const list = await handler(makeEvent({ user: googleUser('owner'), query: { tripId: 't1' } }))
+    expect(list[0]).toMatchObject({ invitationCode: 'U1', maxUses: null, viewOnly: false })
+  })
+})
+
+// eslint-disable-next-line test/prefer-lowercase-title -- matches the HTTP method, not a sentence
+describe('GET /api/invitations/members', () => {
+  async function callMembers(user: AppUser, invitationCode: string) {
+    const { default: handler } = await import('~/server/api/invitations/members.get')
+    return handler(makeEvent({ user, query: { invitationCode } }))
+  }
+
+  beforeEach(seedAcceptFixture)
+
+  it('lists members for an unlimited link the old bug marked accepted', async () => {
+    await seedInvitation('U2', { status: 'accepted', maxUses: null, usedCount: 1 })
+    const result = await callMembers(googleUser('alice'), 'U2')
+    expect(result.tripId).toBe('t1')
+    expect(result.members.map((m: { id: string }) => m.id)).toContain('m-free')
+  })
+
+  it('hides a personal invitation\'s members from anonymous sessions', async () => {
+    await seedInvitation('P1')
+    await expect(callMembers(anonUser('anon'), 'P1')).rejects.toMatchObject({ statusCode: 403 })
+  })
+
+  it('still serves guest invitations to anonymous sessions', async () => {
+    await seedInvitation('G1', { type: 'guest', maxUses: null })
+    expect((await callMembers(anonUser('anon'), 'G1')).tripId).toBe('t1')
+  })
+
+  it('rejects used-up and expired invitations', async () => {
+    await seedInvitation('USED', { status: 'accepted', usedCount: 1 })
+    await seedInvitation('EXP', { expiresAt: Timestamp.fromMillis(Date.now() - 1000) })
+    await expect(callMembers(googleUser('alice'), 'USED')).rejects.toMatchObject({ statusCode: 400 })
+    await expect(callMembers(googleUser('alice'), 'EXP')).rejects.toMatchObject({ statusCode: 400 })
+  })
+})
