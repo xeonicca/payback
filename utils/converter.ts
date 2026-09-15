@@ -123,6 +123,7 @@ export const tripCollaboratorConverter: FirestoreDataConverter<TripCollaborator>
       displayName: collaborator.displayName,
       photoURL: collaborator.photoURL,
       role: collaborator.role,
+      readOnly: collaborator.readOnly ?? false,
       joinedAt: collaborator.joinedAt,
       invitedBy: collaborator.invitedBy,
     }
@@ -135,6 +136,7 @@ export const tripCollaboratorConverter: FirestoreDataConverter<TripCollaborator>
       displayName: data.displayName,
       photoURL: data.photoURL,
       role: data.role,
+      readOnly: data.readOnly === true,
       joinedAt: data.joinedAt,
       joinedAtString: formatFirebaseTimestamp(data.joinedAt),
       invitedBy: data.invitedBy,

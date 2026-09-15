@@ -133,6 +133,8 @@ export interface NewTripCollaborator {
   displayName: string | null
   photoURL: string | null
   role: 'owner' | 'editor' | 'guest'
+  /** View-only access. Missing means false. Never set on the owner. */
+  readOnly?: boolean
   joinedAt: Timestamp | FieldValue
   invitedBy?: string
 }
@@ -156,6 +158,8 @@ export interface NewInvitation {
   usedByUserId?: string
   usedAt?: Timestamp | FieldValue
   type?: 'personal' | 'guest'
+  /** People who join through this link start read-only. Missing means false. */
+  viewOnly?: boolean
 }
 
 export interface Invitation extends NewInvitation {
@@ -166,3 +170,13 @@ export interface Invitation extends NewInvitation {
 }
 
 export type InvitationPreviewState = 'valid' | 'expired' | 'revoked' | 'used'
+
+export interface InvitationPreview {
+  state: InvitationPreviewState
+  type: 'personal' | 'guest'
+  viewOnly: boolean
+  tripName: string
+  invitedByName: string
+  /** ISO timestamp */
+  expiresAt: string
+}
