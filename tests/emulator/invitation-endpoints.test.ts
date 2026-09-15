@@ -1,6 +1,7 @@
+import type { AppUser } from '@/types'
 import { Timestamp } from 'firebase-admin/firestore'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { clearFirestore, makeEvent, seedInvitation, stubH3Globals } from './helpers'
+import { anonUser, clearFirestore, getAdminDb, googleUser, makeEvent, seedInvitation, seedTrip, stubH3Globals } from './helpers'
 
 vi.mock('~/server/utils/session', async (importOriginal) => {
   const helpers = await import('./helpers')
@@ -47,5 +48,138 @@ describe('GET /api/invitations/preview', () => {
   it('404s on an unknown code and 400s without one', async () => {
     await expect(callPreview({ code: 'NOPE' })).rejects.toMatchObject({ statusCode: 404 })
     await expect(callPreview({})).rejects.toMatchObject({ statusCode: 400 })
+  })
+})
+
+async function callAccept(user: AppUser, body: Record<string, unknown>) {
+  const { default: handler } = await import('~/server/api/invitations/accept.post')
+  return handler(makeEvent({ user, body }))
+}
+
+async function seedAcceptFixture() {
+  await seedTrip({
+    members: [
+      { id: 'm-host', name: 'Host', linkedUserId: 'owner' },
+      { id: 'm-free', name: 'Free' },
+      { id: 'm-taken', name: 'Taken', linkedUserId: 'someone' },
+    ],
+  })
+}
+
+async function readState(uid: string, code: string) {
+  const db = getAdminDb()
+  const [collaborator, trip, invitation] = await Promise.all([
+    db.doc(`trips/t1/collaborators/${uid}`).get(),
+    db.doc('trips/t1').get(),
+    db.doc(`invitations/${code}`).get(),
+  ])
+  return {
+    collaborator: collaborator.exists ? collaborator.data() : null,
+    inArray: (trip.data()?.collaboratorUserIds ?? []).includes(uid),
+    invitation: invitation.data(),
+  }
+}
+
+const newMember = { name: 'New', avatarEmoji: '🐱' }
+
+// eslint-disable-next-line test/prefer-lowercase-title -- matches the HTTP method, not a sentence
+describe('POST /api/invitations/accept', () => {
+  beforeEach(seedAcceptFixture)
+
+  it('links a Google user to an existing member as an editor', async () => {
+    await seedInvitation('P1')
+    expect(await callAccept(googleUser('alice'), { invitationCode: 'P1', memberId: 'm-free' }))
+      .toEqual({ success: true, tripId: 't1' })
+
+    const state = await readState('alice', 'P1')
+    expect(state.collaborator).toMatchObject({ role: 'editor', readOnly: false })
+    expect(state.inArray).toBe(true)
+    expect(state.invitation).toMatchObject({ status: 'accepted', usedCount: 1 })
+    expect((await getAdminDb().doc('trips/t1/members/m-free').get()).data()?.linkedUserId).toBe('alice')
+  })
+
+  it('rejects anonymous users on personal invitations and writes nothing', async () => {
+    await seedInvitation('P1')
+    await expect(callAccept(anonUser('anon'), { invitationCode: 'P1', newMember }))
+      .rejects
+      .toMatchObject({ statusCode: 403 })
+
+    const state = await readState('anon', 'P1')
+    expect(state.collaborator).toBeNull()
+    expect(state.invitation?.usedCount).toBe(0)
+  })
+
+  it('gives anonymous users on guest invitations the guest role', async () => {
+    await seedInvitation('G1', { type: 'guest', maxUses: null })
+    await callAccept(anonUser('anon'), { invitationCode: 'G1', newMember })
+
+    expect((await readState('anon', 'G1')).collaborator).toMatchObject({ role: 'guest', readOnly: false })
+    const linked = await getAdminDb().collection('trips/t1/members').where('linkedUserId', '==', 'anon').get()
+    expect(linked.docs[0]?.data()).toMatchObject({ name: 'New', avatarEmoji: '🐱' })
+  })
+
+  it('writes nothing when the member does not exist, so the user can retry', async () => {
+    await seedInvitation('P1')
+    await expect(callAccept(googleUser('alice'), { invitationCode: 'P1', memberId: 'nope' }))
+      .rejects
+      .toMatchObject({ statusCode: 404 })
+
+    const state = await readState('alice', 'P1')
+    expect(state.collaborator).toBeNull()
+    expect(state.invitation?.usedCount).toBe(0)
+
+    await expect(callAccept(googleUser('alice'), { invitationCode: 'P1', memberId: 'm-free' }))
+      .resolves
+      .toMatchObject({ success: true })
+  })
+
+  it('writes nothing when the member is already linked', async () => {
+    await seedInvitation('P1')
+    await expect(callAccept(googleUser('alice'), { invitationCode: 'P1', memberId: 'm-taken' }))
+      .rejects
+      .toMatchObject({ statusCode: 400 })
+    expect((await readState('alice', 'P1')).collaborator).toBeNull()
+  })
+
+  it('starts view-only invitees as read-only', async () => {
+    await seedInvitation('V1', { viewOnly: true })
+    await callAccept(googleUser('alice'), { invitationCode: 'V1', newMember })
+    expect((await readState('alice', 'V1')).collaborator).toMatchObject({ role: 'editor', readOnly: true })
+  })
+
+  it('marks expired invitations as expired and rejects them', async () => {
+    await seedInvitation('EXP', { expiresAt: Timestamp.fromMillis(Date.now() - 1000) })
+    await expect(callAccept(googleUser('alice'), { invitationCode: 'EXP', newMember }))
+      .rejects
+      .toMatchObject({ statusCode: 400 })
+
+    const state = await readState('alice', 'EXP')
+    expect(state.invitation?.status).toBe('expired')
+    expect(state.collaborator).toBeNull()
+  })
+
+  it('lets exactly one of two concurrent users take a single-use invitation', async () => {
+    await seedInvitation('P1')
+    const results = await Promise.allSettled([
+      callAccept(googleUser('alice'), { invitationCode: 'P1', newMember: { name: 'A', avatarEmoji: '🐱' } }),
+      callAccept(googleUser('bob'), { invitationCode: 'P1', newMember: { name: 'B', avatarEmoji: '🐶' } }),
+    ])
+    expect(results.filter(r => r.status === 'fulfilled')).toHaveLength(1)
+    expect((await readState('alice', 'P1')).invitation?.usedCount).toBe(1)
+  })
+
+  it('rejects invitations the trip owner did not issue', async () => {
+    await seedInvitation('FORGED', { invitedByUserId: 'mallory' })
+    await expect(callAccept(googleUser('mallory'), { invitationCode: 'FORGED', newMember }))
+      .rejects
+      .toMatchObject({ statusCode: 403 })
+    expect((await readState('mallory', 'FORGED')).collaborator).toBeNull()
+  })
+
+  it('keeps unlimited invitations open', async () => {
+    await seedInvitation('U1', { maxUses: null })
+    await callAccept(googleUser('alice'), { invitationCode: 'U1', newMember: { name: 'A', avatarEmoji: '🐱' } })
+    await callAccept(googleUser('bob'), { invitationCode: 'U1', newMember: { name: 'B', avatarEmoji: '🐶' } })
+    expect((await readState('bob', 'U1')).invitation).toMatchObject({ status: 'pending', usedCount: 2 })
   })
 })

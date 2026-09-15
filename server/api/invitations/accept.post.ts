@@ -1,8 +1,9 @@
-import { FieldValue, Timestamp } from 'firebase-admin/firestore'
+import { FieldValue } from 'firebase-admin/firestore'
+import { getInvitationState, normalizeMaxUses } from '~/server/utils/invitations'
 import { getFirebaseAdminFirestore, getUserFromSession } from '~/server/utils/session'
 
 export default defineEventHandler(async (event) => {
-  const user = await getUserFromSession(event)
+  const user = getUserFromSession(event)
 
   if (!user) {
     throw createError({
@@ -37,137 +38,82 @@ export default defineEventHandler(async (event) => {
   try {
     const db = getFirebaseAdminFirestore()
 
-    // Find invitation by code
-    const invitationsSnapshot = await db
-      .collection('invitations')
-      .where('invitationCode', '==', invitationCode)
-      .limit(1)
-      .get()
-
-    if (invitationsSnapshot.empty) {
-      throw createError({
-        statusCode: 404,
-        statusMessage: 'Invitation not found',
-      })
-    }
-
-    const invitationDoc = invitationsSnapshot.docs[0]
-    const invitation = invitationDoc.data()
-
-    // Check invitation status
-    if (invitation.status === 'revoked') {
-      throw createError({
-        statusCode: 400,
-        statusMessage: 'Invitation has been revoked',
-      })
-    }
-
-    if (invitation.status === 'expired') {
-      throw createError({
-        statusCode: 400,
-        statusMessage: 'Invitation has expired',
-      })
-    }
-
-    // Check if invitation has remaining uses
-    const maxUses = invitation.maxUses ?? 1
-    const usedCount = invitation.usedCount ?? 0
-    if (invitation.status === 'accepted' && maxUses !== null && usedCount >= maxUses) {
-      throw createError({
-        statusCode: 400,
-        statusMessage: 'Invitation has reached its usage limit',
-      })
-    }
-
-    // Check if this user already used this invitation
-    const usedByUserIds = invitation.usedByUserIds ?? []
-    if (usedByUserIds.includes(user.uid)) {
-      throw createError({
-        statusCode: 400,
-        statusMessage: 'You have already used this invitation',
-      })
-    }
-
-    // Check if invitation is expired
-    const now = Timestamp.now()
-    if (invitation.expiresAt.toMillis() < now.toMillis()) {
-      // Mark as expired
-      await invitationDoc.ref.update({
-        status: 'expired',
-      })
-
-      throw createError({
-        statusCode: 400,
-        statusMessage: 'Invitation has expired',
-      })
-    }
-
-    const tripId = invitation.tripId
-
-    // Check if user is already a collaborator
-    const collaboratorRef = db
-      .collection('trips')
-      .doc(tripId)
-      .collection('collaborators')
-      .doc(user.uid)
-    const collaboratorDoc = await collaboratorRef.get()
-
-    if (collaboratorDoc.exists) {
-      throw createError({
-        statusCode: 400,
-        statusMessage: 'You are already a collaborator on this trip',
-      })
-    }
-
-    // Add user as collaborator (guest invitations get 'guest' role)
-    const collaboratorRole = invitation.type === 'guest' ? 'guest' : 'editor'
-    await collaboratorRef.set({
-      userId: user.uid,
-      email: user.email || null,
-      displayName: user.displayName || null,
-      photoURL: user.photoURL || null,
-      role: collaboratorRole,
-      joinedAt: FieldValue.serverTimestamp(),
-      invitedBy: invitation.invitedByUserId,
-    })
-
-    // Link to existing member or create new member
-    if (memberId) {
-      // Verify the member exists and isn't already linked
-      const memberRef = db
-        .collection('trips')
-        .doc(tripId)
-        .collection('members')
-        .doc(memberId)
-      const memberDoc = await memberRef.get()
-
-      if (!memberDoc.exists) {
-        throw createError({
-          statusCode: 404,
-          statusMessage: 'Member not found',
-        })
+    // One transaction: every check runs before any write, so a failed accept leaves
+    // no half-joined collaborator behind, and concurrent accepts can't exceed maxUses.
+    const outcome = await db.runTransaction(async (tx) => {
+      const invitationSnapshot = await tx.get(
+        db.collection('invitations').where('invitationCode', '==', invitationCode).limit(1),
+      )
+      if (invitationSnapshot.empty) {
+        throw createError({ statusCode: 404, statusMessage: 'Invitation not found' })
       }
 
-      const memberData = memberDoc.data()
-      if (memberData?.linkedUserId) {
-        throw createError({
-          statusCode: 400,
-          statusMessage: 'This member is already linked to another user',
-        })
+      const invitationDoc = invitationSnapshot.docs[0]
+      const invitation = invitationDoc.data()
+      const tripRef = db.collection('trips').doc(invitation.tripId)
+      const collaboratorRef = tripRef.collection('collaborators').doc(user.uid)
+      const memberRef = memberId ? tripRef.collection('members').doc(memberId) : null
+
+      const [tripDoc, collaboratorDoc, memberDoc] = await Promise.all([
+        tx.get(tripRef),
+        tx.get(collaboratorRef),
+        memberRef ? tx.get(memberRef) : Promise.resolve(null),
+      ])
+
+      const state = getInvitationState(invitation)
+      if (state === 'revoked') {
+        throw createError({ statusCode: 400, statusMessage: 'Invitation has been revoked' })
+      }
+      if (state === 'expired') {
+        // Persist the expiry, then report it once the transaction commits
+        if (invitation.status !== 'expired')
+          tx.update(invitationDoc.ref, { status: 'expired' })
+        return { expired: true as const }
+      }
+      if (state === 'used') {
+        throw createError({ statusCode: 400, statusMessage: 'Invitation has reached its usage limit' })
+      }
+      if ((invitation.usedByUserIds ?? []).includes(user.uid)) {
+        throw createError({ statusCode: 400, statusMessage: 'You have already used this invitation' })
+      }
+      if (invitation.type !== 'guest' && user.isAnonymous) {
+        throw createError({ statusCode: 403, statusMessage: 'Sign in with Google to accept this invitation' })
+      }
+      if (!tripDoc.exists) {
+        throw createError({ statusCode: 404, statusMessage: 'Trip not found' })
+      }
+      // Defence in depth: only invitations the trip's owner issued are honoured
+      if (invitation.invitedByUserId !== tripDoc.data()?.userId) {
+        throw createError({ statusCode: 403, statusMessage: 'Invitation is not valid for this trip' })
+      }
+      if (collaboratorDoc.exists) {
+        throw createError({ statusCode: 400, statusMessage: 'You are already a collaborator on this trip' })
+      }
+      if (memberDoc && !memberDoc.exists) {
+        throw createError({ statusCode: 404, statusMessage: 'Member not found' })
+      }
+      if (memberDoc?.data()?.linkedUserId) {
+        throw createError({ statusCode: 400, statusMessage: 'This member is already linked to another user' })
       }
 
-      // Link the member to this user
-      await memberRef.update({
-        linkedUserId: user.uid,
+      // Add user as collaborator (guest invitations get 'guest' role)
+      tx.set(collaboratorRef, {
+        userId: user.uid,
+        email: user.email || null,
+        displayName: user.displayName || null,
+        photoURL: user.photoURL || null,
+        role: invitation.type === 'guest' ? 'guest' : 'editor',
+        readOnly: invitation.viewOnly === true,
+        joinedAt: FieldValue.serverTimestamp(),
+        invitedBy: invitation.invitedByUserId,
       })
-    }
-    else if (newMember) {
-      // Create a new member and link it
-      await db
-        .collection('trips')
-        .doc(tripId)
-        .collection('members')
-        .add({
+
+      // Link to existing member or create new member
+      if (memberRef) {
+        tx.update(memberRef, { linkedUserId: user.uid })
+      }
+      else {
+        tx.set(tripRef.collection('members').doc(), {
           name: newMember.name,
           avatarEmoji: newMember.avatarEmoji,
           isHost: false,
@@ -175,29 +121,33 @@ export default defineEventHandler(async (event) => {
           createdAt: FieldValue.serverTimestamp(),
           linkedUserId: user.uid,
         })
+      }
+
+      const maxUses = normalizeMaxUses(invitation.maxUses)
+      const usedCount = (invitation.usedCount ?? 0) + 1
+      tx.update(invitationDoc.ref, {
+        status: maxUses !== null && usedCount >= maxUses ? 'accepted' : 'pending',
+        usedCount,
+        usedByUserIds: FieldValue.arrayUnion(user.uid),
+        usedByUserId: user.uid,
+        usedAt: FieldValue.serverTimestamp(),
+      })
+
+      tx.update(tripRef, {
+        collaboratorCount: FieldValue.increment(1),
+        collaboratorUserIds: FieldValue.arrayUnion(user.uid),
+      })
+
+      return { expired: false as const, tripId: tripRef.id }
+    })
+
+    if (outcome.expired) {
+      throw createError({ statusCode: 400, statusMessage: 'Invitation has expired' })
     }
-
-    // Update invitation usage
-    const newUsedCount = usedCount + 1
-    const isFullyUsed = maxUses !== null && newUsedCount >= maxUses
-    await invitationDoc.ref.update({
-      status: isFullyUsed ? 'accepted' : 'pending',
-      usedCount: FieldValue.increment(1),
-      usedByUserIds: FieldValue.arrayUnion(user.uid),
-      usedByUserId: user.uid,
-      usedAt: FieldValue.serverTimestamp(),
-    })
-
-    // Increment collaborator count and add user to collaboratorUserIds
-    const tripRef = db.collection('trips').doc(tripId)
-    await tripRef.update({
-      collaboratorCount: FieldValue.increment(1),
-      collaboratorUserIds: FieldValue.arrayUnion(user.uid),
-    })
 
     return {
       success: true,
-      tripId,
+      tripId: outcome.tripId,
     }
   }
   catch (error: any) {
