@@ -10,7 +10,8 @@
     "preview": "nuxt preview",
     "postinstall": "nuxt prepare",
     "test": "vitest",
-    "test:ui": "vitest --ui"
+    "test:ui": "vitest --ui",
+    "test:emulator": "firebase emulators:exec --only firestore --project demo-payback \"vitest run --config vitest.emulator.config.ts\""
   },
   "dependencies": {
     "@firebase/app-types": "^0.9.3",
@@ -55,6 +56,7 @@
   },
   "devDependencies": {
     "@antfu/eslint-config": "^4.13.2",
+    "@firebase/rules-unit-testing": "^5.0.2",
     "@nuxt/test-utils": "^4.0.0",
     "@vitest/ui": "^3.0.5",
     "eslint": "^9.27.0",
