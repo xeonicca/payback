@@ -2,12 +2,20 @@ import { FieldValue } from 'firebase-admin/firestore'
 import { getFirebaseAdminFirestore, getUserFromSession } from '~/server/utils/session'
 
 export default defineEventHandler(async (event) => {
-  const user = await getUserFromSession(event)
+  const user = getUserFromSession(event)
 
   if (!user) {
     throw createError({
       statusCode: 401,
       statusMessage: 'Not authenticated',
+    })
+  }
+
+  // The public link grants editor access, which anonymous guests never get
+  if (user.isAnonymous) {
+    throw createError({
+      statusCode: 403,
+      statusMessage: 'Sign in with Google to join this trip',
     })
   }
 
@@ -27,7 +35,14 @@ export default defineEventHandler(async (event) => {
     })
   }
 
-  if (newMember && (!newMember.name || !newMember.avatarEmoji)) {
+  if (memberId && (typeof memberId !== 'string' || memberId.includes('/'))) {
+    throw createError({
+      statusCode: 400,
+      statusMessage: 'memberId must be a member id',
+    })
+  }
+
+  if (newMember && (typeof newMember.name !== 'string' || !newMember.name || typeof newMember.avatarEmoji !== 'string' || !newMember.avatarEmoji)) {
     throw createError({
       statusCode: 400,
       statusMessage: 'newMember requires name and avatarEmoji',
@@ -37,99 +52,57 @@ export default defineEventHandler(async (event) => {
   try {
     const db = getFirebaseAdminFirestore()
 
-    // Find trip by join code
-    const tripsSnapshot = await db
-      .collection('trips')
-      .where('publicJoinCode', '==', joinCode)
-      .limit(1)
-      .get()
-
-    if (tripsSnapshot.empty) {
-      throw createError({
-        statusCode: 404,
-        statusMessage: 'Trip not found',
-      })
-    }
-
-    const tripDoc = tripsSnapshot.docs[0]
-    const tripData = tripDoc.data()
-    const tripId = tripDoc.id
-
-    if (!tripData.isPublicInviteEnabled) {
-      throw createError({
-        statusCode: 400,
-        statusMessage: 'Public joining is disabled for this trip',
-      })
-    }
-
-    // Check if user is already a collaborator
-    const collaboratorRef = db
-      .collection('trips')
-      .doc(tripId)
-      .collection('collaborators')
-      .doc(user.uid)
-    const collaboratorDoc = await collaboratorRef.get()
-
-    if (collaboratorDoc.exists) {
-      throw createError({
-        statusCode: 400,
-        statusMessage: 'You are already a collaborator on this trip',
-      })
-    }
-
-    // Also check if user is the trip owner
-    if (tripData.userId === user.uid) {
-      throw createError({
-        statusCode: 400,
-        statusMessage: 'You are the owner of this trip',
-      })
-    }
-
-    // Add user as collaborator
-    await collaboratorRef.set({
-      userId: user.uid,
-      email: user.email,
-      displayName: user.displayName,
-      photoURL: user.photoURL || null,
-      role: 'editor',
-      joinedAt: FieldValue.serverTimestamp(),
-      joinedVia: 'public-link',
-    })
-
-    // Link to existing member or create new member
-    if (memberId) {
-      const memberRef = db
-        .collection('trips')
-        .doc(tripId)
-        .collection('members')
-        .doc(memberId)
-      const memberDoc = await memberRef.get()
-
-      if (!memberDoc.exists) {
-        throw createError({
-          statusCode: 404,
-          statusMessage: 'Member not found',
-        })
+    // One transaction: every check runs before any write
+    const tripId = await db.runTransaction(async (tx) => {
+      const tripsSnapshot = await tx.get(
+        db.collection('trips').where('publicJoinCode', '==', joinCode).limit(1),
+      )
+      if (tripsSnapshot.empty) {
+        throw createError({ statusCode: 404, statusMessage: 'Trip not found' })
       }
 
-      const memberData = memberDoc.data()
-      if (memberData?.linkedUserId) {
-        throw createError({
-          statusCode: 400,
-          statusMessage: 'This member is already linked to another user',
-        })
+      const tripDoc = tripsSnapshot.docs[0]
+      const tripData = tripDoc.data()
+      const collaboratorRef = tripDoc.ref.collection('collaborators').doc(user.uid)
+      const memberRef = memberId ? tripDoc.ref.collection('members').doc(memberId) : null
+
+      const [collaboratorDoc, memberDoc] = await Promise.all([
+        tx.get(collaboratorRef),
+        memberRef ? tx.get(memberRef) : Promise.resolve(null),
+      ])
+
+      if (!tripData.isPublicInviteEnabled) {
+        throw createError({ statusCode: 400, statusMessage: 'Public joining is disabled for this trip' })
+      }
+      if (collaboratorDoc.exists) {
+        throw createError({ statusCode: 400, statusMessage: 'You are already a collaborator on this trip' })
+      }
+      if (tripData.userId === user.uid) {
+        throw createError({ statusCode: 400, statusMessage: 'You are the owner of this trip' })
+      }
+      if (memberDoc && !memberDoc.exists) {
+        throw createError({ statusCode: 404, statusMessage: 'Member not found' })
+      }
+      if (memberDoc?.data()?.linkedUserId) {
+        throw createError({ statusCode: 400, statusMessage: 'This member is already linked to another user' })
       }
 
-      await memberRef.update({
-        linkedUserId: user.uid,
+      tx.set(collaboratorRef, {
+        userId: user.uid,
+        email: user.email,
+        displayName: user.displayName,
+        photoURL: user.photoURL || null,
+        role: 'editor',
+        readOnly: false,
+        joinedAt: FieldValue.serverTimestamp(),
+        joinedVia: 'public-link',
       })
-    }
-    else if (newMember) {
-      await db
-        .collection('trips')
-        .doc(tripId)
-        .collection('members')
-        .add({
+
+      if (memberRef) {
+        tx.update(memberRef, { linkedUserId: user.uid })
+      }
+      else {
+        tx.set(tripDoc.ref.collection('members').doc(), {
           name: newMember.name,
           avatarEmoji: newMember.avatarEmoji,
           isHost: false,
@@ -137,12 +110,14 @@ export default defineEventHandler(async (event) => {
           createdAt: FieldValue.serverTimestamp(),
           linkedUserId: user.uid,
         })
-    }
+      }
 
-    // Update trip collaborator count
-    await tripDoc.ref.update({
-      collaboratorCount: FieldValue.increment(1),
-      collaboratorUserIds: FieldValue.arrayUnion(user.uid),
+      tx.update(tripDoc.ref, {
+        collaboratorCount: FieldValue.increment(1),
+        collaboratorUserIds: FieldValue.arrayUnion(user.uid),
+      })
+
+      return tripDoc.id
     })
 
     return {
