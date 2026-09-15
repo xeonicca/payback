@@ -434,6 +434,14 @@ describe('getInvitationState', () => {
   it('never runs out when maxUses is null', () => {
     expect(getInvitationState({ status: 'accepted', expiresAt: future, maxUses: null, usedCount: 99 }, NOW)).toBe('valid')
   })
+
+  it('treats a legacy accepted invitation without a usage count as used', () => {
+    expect(getInvitationState({ status: 'accepted', expiresAt: future }, NOW)).toBe('used')
+  })
+
+  it('reports expired ahead of used', () => {
+    expect(getInvitationState({ status: 'accepted', expiresAt: past, maxUses: 1, usedCount: 1 }, NOW)).toBe('expired')
+  })
 })
 ```
 
@@ -459,13 +467,15 @@ export function normalizeMaxUses(maxUses: number | null | undefined): number | n
   return maxUses === undefined ? 1 : maxUses
 }
 
+/** Precedence: revoked > expired > used > valid. */
 export function getInvitationState(invitation: InvitationStateFields, nowMs = Date.now()): InvitationPreviewState {
   if (invitation.status === 'revoked')
     return 'revoked'
   if (invitation.status === 'expired' || invitation.expiresAt.toMillis() < nowMs)
     return 'expired'
   const maxUses = normalizeMaxUses(invitation.maxUses)
-  if (maxUses !== null && (invitation.usedCount ?? 0) >= maxUses)
+  // 'accepted' is only written once a finite limit is used up; legacy docs have no usedCount
+  if (maxUses !== null && (invitation.status === 'accepted' || (invitation.usedCount ?? 0) >= maxUses))
     return 'used'
   return 'valid'
 }
@@ -480,7 +490,7 @@ export type InvitationPreviewState = 'valid' | 'expired' | 'revoked' | 'used'
 - [ ] **Step 4: Run it to verify it passes**
 
 Run: `pnpm vitest run tests/server/invitations.test.ts`
-Expected: 6 passed.
+Expected: 8 passed.
 
 - [ ] **Step 5: Commit**
 
