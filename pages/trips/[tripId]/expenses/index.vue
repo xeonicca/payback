@@ -39,6 +39,7 @@ const trip = useDocument<Trip>(doc(db, 'trips', tripId as string).withConverter(
 const { showHomeCurrency, primaryCurrency, secondaryCurrency } = useCurrencyToggle(tripId as string, trip)
 const { tripExpenses, enabledExpenses } = useTripExpenses(tripId as string)
 const { tripMembers } = useTripMembers(tripId as string)
+const { canManageExpenses } = useTripCollaborators(tripId as string)
 
 const { isRunning: isAutoLabeling, runBatch } = useExpenseAutoLabel(tripId as string)
 const unlabeledCount = computed(() =>
@@ -170,7 +171,7 @@ const displayedExpenses = computed(() => {
       </div>
       <div class="flex items-center gap-3">
         <ui-button
-          v-if="unlabeledCount > 0"
+          v-if="unlabeledCount > 0 && canManageExpenses"
           type="button"
           variant="outline"
           size="sm"

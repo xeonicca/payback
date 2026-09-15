@@ -12,7 +12,7 @@ const { tripId } = useRoute().params
 const { trip } = useTrip(tripId as string)
 const { tripMembers, hostMember, currentUserMember } = useTripMembers(tripId as string)
 const { enabledExpenses: recentExpenses } = useTripExpenses(tripId as string, 5)
-const { canAddExpenses } = useTripCollaborators(tripId as string)
+const { canAddExpenses, isReadOnly } = useTripCollaborators(tripId as string)
 
 useTripExpenseToasts(tripId as string)
 
@@ -364,6 +364,10 @@ function formatSecondary(amount: number) {
           <ui-badge v-else-if="trip.archived" variant="secondary" class="text-xs">
             已封存
           </ui-badge>
+          <span v-else-if="isReadOnly" class="flex items-center gap-1 text-xs text-muted-foreground">
+            <icon name="lucide:eye" size="14" />
+            你目前僅能檢視此行程
+          </span>
         </div>
         <div v-if="recentExpenses.length > 0" class="mt-2 pb-4 px-4 pt-2 space-y-1 bg-card rounded-xl border">
           <template v-for="(expense, idx) in recentExpenses" :key="expense.id">

@@ -363,6 +363,7 @@ const isLeaving = ref(false)
 const showLeaveWarning = ref(false)
 
 async function handleLeaveTrip() {
+  const cancelExpectedExit = expectTripExit(tripId)
   try {
     isLeaving.value = true
     await $fetch('/api/trips/leave', {
@@ -383,6 +384,7 @@ async function handleLeaveTrip() {
     }
   }
   catch (error: any) {
+    cancelExpectedExit()
     console.error('Error leaving trip:', error)
     toast.error(error.data?.message || '離開行程失敗')
   }

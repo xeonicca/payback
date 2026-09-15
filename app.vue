@@ -5,6 +5,9 @@ import 'vue-sonner/style.css'
 
 const { $pwa } = useNuxtApp()
 
+const route = useRoute()
+useRemovedFromTripRedirect(() => route.params.tripId as string | undefined)
+
 const FIVE_MINUTES_MS = 5 * 60 * 1000
 let lastUpdateCheck = Date.now()
 
