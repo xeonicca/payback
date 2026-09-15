@@ -1418,10 +1418,14 @@ git commit -m "fix(api): accept invitations atomically and keep anonymous users 
 
 ---
 
-### Task 9: View-only invitation creation; unlimited links in the list
+**Review follow-up (applied in a second commit):** input checks for `memberId` (string, no `/`) and `newMember` (string fields); the expired branch only marks `pending` invitations expired, so used-up ones keep `accepted`; an explicit "owner can't accept their own invitation" 400 after the issuer check; and five more tests — revoked, an existing read-only collaborator can't re-accept to shed `readOnly`, owner accepting their own invite, used-up-then-expired keeps `accepted`, malformed `memberId`. Total accept tests: 15.
+
+---
+
+### Task 9: View-only invitation creation; unlimited links in the list and members lookup
 
 **Files:**
-- Modify: `server/api/invitations/create.post.ts`, `server/api/invitations/list.get.ts`
+- Modify: `server/api/invitations/create.post.ts`, `server/api/invitations/list.get.ts`, `server/api/invitations/members.get.ts`
 - Test: `tests/emulator/invitation-endpoints.test.ts` (append)
 
 - [ ] **Step 1: Append the failing tests**
@@ -1511,15 +1515,75 @@ Replace `maxUses: data.maxUses ?? 1,` with:
         viewOnly: data.viewOnly === true,
 ```
 
+- [ ] **Step 4b: Members lookup uses the same validity rules as accept**
+
+`members.get.ts` still requires `status === 'pending'`, so unlimited links the old `?? 1` bug flipped to `accepted` keep failing in the UI even though accept now takes them; it also shows a personal invitation's member list to anonymous sessions. Append these tests:
+
+```ts
+describe('GET /api/invitations/members', () => {
+  async function callMembers(user: AppUser, invitationCode: string) {
+    const { default: handler } = await import('~/server/api/invitations/members.get')
+    return handler(makeEvent({ user, query: { invitationCode } }))
+  }
+
+  beforeEach(seedAcceptFixture)
+
+  it('lists members for an unlimited link the old bug marked accepted', async () => {
+    await seedInvitation('U2', { status: 'accepted', maxUses: null, usedCount: 1 })
+    const result = await callMembers(googleUser('alice'), 'U2')
+    expect(result.tripId).toBe('t1')
+    expect(result.members.map((m: { id: string }) => m.id)).toContain('m-free')
+  })
+
+  it('hides a personal invitation\'s members from anonymous sessions', async () => {
+    await seedInvitation('P1')
+    await expect(callMembers(anonUser('anon'), 'P1')).rejects.toMatchObject({ statusCode: 403 })
+  })
+
+  it('still serves guest invitations to anonymous sessions', async () => {
+    await seedInvitation('G1', { type: 'guest', maxUses: null })
+    expect((await callMembers(anonUser('anon'), 'G1')).tripId).toBe('t1')
+  })
+
+  it('rejects used-up and expired invitations', async () => {
+    await seedInvitation('USED', { status: 'accepted', usedCount: 1 })
+    await seedInvitation('EXP', { expiresAt: Timestamp.fromMillis(Date.now() - 1000) })
+    await expect(callMembers(googleUser('alice'), 'USED')).rejects.toMatchObject({ statusCode: 400 })
+    await expect(callMembers(googleUser('alice'), 'EXP')).rejects.toMatchObject({ statusCode: 400 })
+  })
+})
+```
+
+Then in `server/api/invitations/members.get.ts`, replace `import { Timestamp } from 'firebase-admin/firestore'` with `import { getInvitationState } from '~/server/utils/invitations'`, and replace the two validity checks (the `invitation.status !== 'pending'` block and the `expiresAt` block) with:
+
+```ts
+    // Same validity rules as accept: unlimited links stay open after their first use
+    const state = getInvitationState(invitation)
+    if (state !== 'valid') {
+      throw createError({
+        statusCode: 400,
+        statusMessage: `Invitation is ${state}`,
+      })
+    }
+
+    // Personal invitations are for Google accounts; don't show their member list to guests
+    if (invitation.type !== 'guest' && user.isAnonymous) {
+      throw createError({
+        statusCode: 403,
+        statusMessage: 'Sign in with Google to accept this invitation',
+      })
+    }
+```
+
 - [ ] **Step 5: Run to verify they pass**
 
 Run: `pnpm test:emulator`
-Expected: create (3) and list (1) tests pass; everything earlier still passes.
+Expected: create (3), list (1) and members (4) tests pass; everything earlier still passes.
 
 - [ ] **Step 6: Commit**
 
 ```bash
-git add server/api/invitations/create.post.ts server/api/invitations/list.get.ts tests/emulator/invitation-endpoints.test.ts
+git add server/api/invitations/create.post.ts server/api/invitations/list.get.ts server/api/invitations/members.get.ts tests/emulator/invitation-endpoints.test.ts
 git commit -m "feat(api): support view-only invitations and crypto-random codes"
 ```
 
@@ -3117,6 +3181,8 @@ Deploying is outward-facing — don't run these without the user's go-ahead. Ord
 1. Deploy the web app through the usual pipeline.
 2. `firebase deploy --only firestore:rules`
 3. `firebase deploy --only functions:reanalyzeReceipt`
+
+Before deploying, check production for pending invitations whose `invitedByUserId` differs from their trip's `userId` (e.g. anything a client created directly under the old rules) — accept now rejects those with 403. Ship the accept change (Task 8) and the invite-page Google prompt (Task 14) in the same web deploy.
 
 Before the rules deploy, confirm no production trip is missing `collaboratorUserIds` — `canWrite` denies expense writes on such trips (they're already unreadable under the trip read rule). `server/api/admin/migrate-collaborator-ids.post.ts` backfills them.
 

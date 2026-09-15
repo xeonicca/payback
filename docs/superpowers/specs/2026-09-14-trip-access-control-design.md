@@ -80,6 +80,10 @@ Returns what the invite/guest pages need before login, and nothing else:
 
 404 if no invitation has that code. `state` is computed server-side (expiry from `expiresAt`, `used` when `maxUses !== null && usedCount >= maxUses`). `pages/invite/[code].vue` and `pages/guest/[code].vue` switch from `getInvitationByCode()` (Firestore query, removed) to this endpoint. The guest page's "already a member → redirect" uses `tripId` from `/api/invitations/members`, which already returns it.
 
+### `GET /api/invitations/members` (changed)
+
+Uses `getInvitationState` (must be `valid`) instead of `status === 'pending'`, so unlimited links the old `?? 1` bug marked `accepted` work again; returns **403** to anonymous sessions on personal invitations.
+
 ### `POST /api/invitations/create` (changed)
 
 Accepts `viewOnly?: boolean`; stores it; uses `generateCode()`.
@@ -90,9 +94,11 @@ All reads and writes run in one `db.runTransaction`. Reads first: invitation (qu
 
 1. Invitation exists, not revoked, not expired, has uses left, caller hasn't used it.
 2. `type !== 'guest' && user.isAnonymous` → **403** "Sign in with Google to accept this invitation".
-3. Caller is not already a collaborator.
-4. If `memberId`: member exists and has no `linkedUserId`.
-5. The invitation was issued by the trip's owner (`invitedByUserId == trip.userId`) — defence in depth against invitations forged before the rules change.
+3. The trip exists, and the invitation was issued by its owner (`invitedByUserId == trip.userId`) → otherwise **403** — defence in depth against invitations forged before the rules change. Checked before anything else about the trip, so a forged invitation can't be used to probe it.
+4. Caller is not the trip owner, and not already a collaborator (so a read-only collaborator can't re-accept to shed `readOnly`).
+5. If `memberId`: it's a plain id string, the member exists and has no `linkedUserId`.
+
+Step 1's "caller hasn't used it" check (`usedByUserIds`) means a removed person can't rejoin through an invitation they already used; a different link, or the public link, still works.
 
 Only if all pass: write the collaborator doc (`role` = `guest` for guest invites else `editor`; `readOnly` = invitation `viewOnly`), link or create the member, update invitation usage, and add the caller to `collaboratorUserIds` / increment `collaboratorCount`. Any failure writes nothing. Exception: an expired invitation still gets `status: 'expired'` committed, then the handler returns 400. Existing status codes and messages are kept for existing failure cases.
 
