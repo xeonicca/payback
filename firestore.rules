@@ -99,7 +99,16 @@ service cloud.firestore {
 
         // Owner/editor can update/delete any expense
         // Other non-read-only collaborators can update/delete expenses they created
-        allow update, delete: if request.auth != null
+        // Nobody can reassign who created an expense
+        allow update: if request.auth != null
+          && canWrite(tripId)
+          && (
+            getRole(tripId) in ['owner', 'editor']
+            || resource.data.createdByUserId == request.auth.uid
+          )
+          && request.resource.data.get('createdByUserId', null) == resource.data.get('createdByUserId', null);
+
+        allow delete: if request.auth != null
           && canWrite(tripId)
           && (
             getRole(tripId) in ['owner', 'editor']
@@ -115,13 +124,10 @@ service cloud.firestore {
       allow read: if request.auth != null
         && isOwner(resource.data.tripId);
 
-      // Only trip owner can create invitations (handled server-side via Admin SDK, this is a safety net)
-      allow create: if request.auth != null
-        && get(/databases/$(database)/documents/trips/$(request.resource.data.tripId)).data.userId == request.auth.uid;
-
-      // Only trip owner can update/delete invitations
-      allow update, delete: if request.auth != null
-        && get(/databases/$(database)/documents/trips/$(resource.data.tripId)).data.userId == request.auth.uid;
+      // Invitations are created, used and revoked only by server routes (Admin SDK).
+      // Client writes are denied outright: an owner could otherwise point an invitation
+      // for their own trip at someone else's trip and accept it.
+      allow create, update, delete: if false;
     }
   }
 }
