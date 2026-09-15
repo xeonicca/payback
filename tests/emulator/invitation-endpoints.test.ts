@@ -182,4 +182,50 @@ describe('POST /api/invitations/accept', () => {
     await callAccept(googleUser('bob'), { invitationCode: 'U1', newMember: { name: 'B', avatarEmoji: '🐶' } })
     expect((await readState('bob', 'U1')).invitation).toMatchObject({ status: 'pending', usedCount: 2 })
   })
+
+  it('rejects revoked invitations', async () => {
+    await seedInvitation('R1', { status: 'revoked' })
+    await expect(callAccept(googleUser('alice'), { invitationCode: 'R1', memberId: 'm-free' }))
+      .rejects
+      .toMatchObject({ statusCode: 400 })
+    expect((await readState('alice', 'R1')).collaborator).toBeNull()
+  })
+
+  it('does not let an existing read-only collaborator re-accept to shed readOnly', async () => {
+    await seedTrip({ collaborators: [{ uid: 'owner', role: 'owner' }, { uid: 'ro', role: 'editor', readOnly: true }] })
+    await seedInvitation('P2')
+    await expect(callAccept(googleUser('ro'), { invitationCode: 'P2', newMember }))
+      .rejects
+      .toMatchObject({ statusCode: 400 })
+    expect((await readState('ro', 'P2')).collaborator).toMatchObject({ readOnly: true })
+  })
+
+  it('does not let the owner accept their own invitation', async () => {
+    await seedInvitation('OWN')
+    await expect(callAccept(googleUser('owner'), { invitationCode: 'OWN', newMember }))
+      .rejects
+      .toMatchObject({ statusCode: 400 })
+    const state = await readState('owner', 'OWN')
+    expect(state.collaborator).toMatchObject({ role: 'owner' })
+    expect(state.invitation?.usedCount).toBe(0)
+  })
+
+  it('keeps a used-up invitation marked accepted after it expires', async () => {
+    await seedInvitation('DONE', { status: 'accepted', usedCount: 1, expiresAt: Timestamp.fromMillis(Date.now() - 1000) })
+    await expect(callAccept(googleUser('alice'), { invitationCode: 'DONE', newMember }))
+      .rejects
+      .toMatchObject({ statusCode: 400 })
+    expect((await readState('alice', 'DONE')).invitation?.status).toBe('accepted')
+  })
+
+  it('rejects a malformed memberId', async () => {
+    await seedInvitation('P1')
+    await expect(callAccept(googleUser('alice'), { invitationCode: 'P1', memberId: 'a/b' }))
+      .rejects
+      .toMatchObject({ statusCode: 400 })
+    await expect(callAccept(googleUser('alice'), { invitationCode: 'P1', memberId: 5 }))
+      .rejects
+      .toMatchObject({ statusCode: 400 })
+    expect((await readState('alice', 'P1')).invitation?.usedCount).toBe(0)
+  })
 })

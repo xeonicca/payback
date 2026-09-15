@@ -28,7 +28,14 @@ export default defineEventHandler(async (event) => {
     })
   }
 
-  if (newMember && (!newMember.name || !newMember.avatarEmoji)) {
+  if (memberId && (typeof memberId !== 'string' || memberId.includes('/'))) {
+    throw createError({
+      statusCode: 400,
+      statusMessage: 'memberId must be a member id',
+    })
+  }
+
+  if (newMember && (typeof newMember.name !== 'string' || !newMember.name || typeof newMember.avatarEmoji !== 'string' || !newMember.avatarEmoji)) {
     throw createError({
       statusCode: 400,
       statusMessage: 'newMember requires name and avatarEmoji',
@@ -65,8 +72,8 @@ export default defineEventHandler(async (event) => {
         throw createError({ statusCode: 400, statusMessage: 'Invitation has been revoked' })
       }
       if (state === 'expired') {
-        // Persist the expiry, then report it once the transaction commits
-        if (invitation.status !== 'expired')
+        // Mark still-open invitations expired (keep 'accepted' history), then report it once the transaction commits
+        if (invitation.status === 'pending')
           tx.update(invitationDoc.ref, { status: 'expired' })
         return { expired: true as const }
       }
@@ -85,6 +92,9 @@ export default defineEventHandler(async (event) => {
       // Defence in depth: only invitations the trip's owner issued are honoured
       if (invitation.invitedByUserId !== tripDoc.data()?.userId) {
         throw createError({ statusCode: 403, statusMessage: 'Invitation is not valid for this trip' })
+      }
+      if (tripDoc.data()?.userId === user.uid) {
+        throw createError({ statusCode: 400, statusMessage: 'You are the owner of this trip' })
       }
       if (collaboratorDoc.exists) {
         throw createError({ statusCode: 400, statusMessage: 'You are already a collaborator on this trip' })
