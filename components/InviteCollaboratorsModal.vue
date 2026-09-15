@@ -30,6 +30,8 @@ const maxUses = ref<number | null>(1)
 const isCreatingGuest = ref(false)
 const guestExpiresInDays = ref(7)
 const guestMaxUses = ref<number | null>(null)
+const viewOnly = ref(false)
+const guestViewOnly = ref(false)
 
 // Load invitations when modal opens
 watch(() => props.open, async (isOpen) => {
@@ -59,6 +61,7 @@ async function handleCreateInvitation() {
       tripId: props.tripId,
       expiresInDays: expiresInDays.value,
       maxUses: maxUses.value,
+      viewOnly: viewOnly.value,
     })
 
     logEvent('create_invitation', { trip_id: props.tripId, type: 'collaborator' })
@@ -82,6 +85,7 @@ async function handleCreateGuestInvitation() {
       expiresInDays: guestExpiresInDays.value,
       maxUses: guestMaxUses.value,
       type: 'guest',
+      viewOnly: guestViewOnly.value,
     })
 
     logEvent('create_invitation', { trip_id: props.tripId, type: 'guest' })
@@ -273,6 +277,18 @@ function getInvitationUrl(invitation: Invitation) {
                 </div>
               </div>
 
+              <div class="flex items-center justify-between gap-3">
+                <div>
+                  <ui-label for="invite-view-only" class="text-sm font-medium text-foreground">
+                    僅檢視
+                  </ui-label>
+                  <p class="text-xs text-muted-foreground m-0 mt-0.5">
+                    加入者只能查看，無法新增或編輯支出
+                  </p>
+                </div>
+                <ui-switch id="invite-view-only" v-model="viewOnly" />
+              </div>
+
               <ui-button class="w-full" :disabled="isCreating" @click="handleCreateInvitation">
                 <Icon v-if="isCreating" name="lucide:loader-circle" :size="20" class="mr-2 animate-spin" />
                 <Icon v-else name="lucide:plus" :size="20" class="mr-2" />
@@ -297,6 +313,9 @@ function getInvitationUrl(invitation: Invitation) {
                         <code class="text-sm font-mono bg-muted px-2 py-1 rounded">{{ invitation.invitationCode }}</code>
                         <ui-badge :variant="getStatusBadgeVariant(invitation.status)">
                           {{ getStatusText(invitation) }}
+                        </ui-badge>
+                        <ui-badge v-if="invitation.viewOnly" variant="outline">
+                          僅檢視
                         </ui-badge>
                       </div>
                       <div class="text-sm text-muted-foreground space-y-1">
@@ -428,6 +447,18 @@ function getInvitationUrl(invitation: Invitation) {
                 </div>
               </div>
 
+              <div class="flex items-center justify-between gap-3">
+                <div>
+                  <ui-label for="guest-view-only" class="text-sm font-medium text-foreground">
+                    僅檢視
+                  </ui-label>
+                  <p class="text-xs text-muted-foreground m-0 mt-0.5">
+                    訪客只能查看，無法新增或編輯支出
+                  </p>
+                </div>
+                <ui-switch id="guest-view-only" v-model="guestViewOnly" />
+              </div>
+
               <ui-button class="w-full" :disabled="isCreatingGuest" @click="handleCreateGuestInvitation">
                 <Icon v-if="isCreatingGuest" name="lucide:loader-circle" :size="20" class="mr-2 animate-spin" />
                 <Icon v-else name="lucide:plus" :size="20" class="mr-2" />
@@ -455,6 +486,9 @@ function getInvitationUrl(invitation: Invitation) {
                         </ui-badge>
                         <ui-badge :variant="getStatusBadgeVariant(invitation.status)">
                           {{ getStatusText(invitation) }}
+                        </ui-badge>
+                        <ui-badge v-if="invitation.viewOnly" variant="outline">
+                          僅檢視
                         </ui-badge>
                       </div>
                       <div class="text-sm text-muted-foreground space-y-1">
@@ -600,6 +634,18 @@ function getInvitationUrl(invitation: Invitation) {
                   </ui-select>
                 </div>
 
+                <div class="flex items-center justify-between gap-3">
+                  <div>
+                    <ui-label for="invite-view-only" class="text-sm font-medium text-foreground">
+                      僅檢視
+                    </ui-label>
+                    <p class="text-xs text-muted-foreground m-0 mt-0.5">
+                      加入者只能查看，無法新增或編輯支出
+                    </p>
+                  </div>
+                  <ui-switch id="invite-view-only" v-model="viewOnly" />
+                </div>
+
                 <ui-button class="w-full" :disabled="isCreating" @click="handleCreateInvitation">
                   <Icon v-if="isCreating" name="lucide:loader-circle" :size="20" class="mr-2 animate-spin" />
                   <Icon v-else name="lucide:plus" :size="20" class="mr-2" />
@@ -623,6 +669,9 @@ function getInvitationUrl(invitation: Invitation) {
                           <code class="text-sm font-mono bg-muted px-2 py-1 rounded">{{ invitation.invitationCode }}</code>
                           <ui-badge :variant="getStatusBadgeVariant(invitation.status)">
                             {{ getStatusText(invitation) }}
+                          </ui-badge>
+                          <ui-badge v-if="invitation.viewOnly" variant="outline">
+                            僅檢視
                           </ui-badge>
                         </div>
                         <div class="text-sm text-muted-foreground space-y-1">
@@ -691,6 +740,18 @@ function getInvitationUrl(invitation: Invitation) {
                   </ui-select>
                 </div>
 
+                <div class="flex items-center justify-between gap-3">
+                  <div>
+                    <ui-label for="guest-view-only" class="text-sm font-medium text-foreground">
+                      僅檢視
+                    </ui-label>
+                    <p class="text-xs text-muted-foreground m-0 mt-0.5">
+                      訪客只能查看，無法新增或編輯支出
+                    </p>
+                  </div>
+                  <ui-switch id="guest-view-only" v-model="guestViewOnly" />
+                </div>
+
                 <ui-button class="w-full" :disabled="isCreatingGuest" @click="handleCreateGuestInvitation">
                   <Icon v-if="isCreatingGuest" name="lucide:loader-circle" :size="20" class="mr-2 animate-spin" />
                   <Icon v-else name="lucide:plus" :size="20" class="mr-2" />
@@ -714,6 +775,9 @@ function getInvitationUrl(invitation: Invitation) {
                           <code class="text-sm font-mono bg-muted px-2 py-1 rounded">{{ invitation.invitationCode }}</code>
                           <ui-badge variant="secondary">
                             訪客
+                          </ui-badge>
+                          <ui-badge v-if="invitation.viewOnly" variant="outline">
+                            僅檢視
                           </ui-badge>
                         </div>
                         <div class="text-sm text-muted-foreground space-y-1">
