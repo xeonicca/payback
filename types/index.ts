@@ -164,3 +164,5 @@ export interface Invitation extends NewInvitation {
   expiresAtString: string
   usedAtString?: string
 }
+
+export type InvitationPreviewState = 'valid' | 'expired' | 'revoked' | 'used'
