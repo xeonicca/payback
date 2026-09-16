@@ -3180,12 +3180,20 @@ Expected: all pass; the build completes without errors.
 
 Deploying is outward-facing — don't run these without the user's go-ahead. Order matters: clients on the old bundle query `invitations` directly, which the new rules deny.
 
-1. Deploy the web app through the usual pipeline.
-2. `firebase deploy --only firestore:rules`
-3. `firebase deploy --only functions:reanalyzeReceipt`
+1. `firebase deploy --only functions:reanalyzeReceipt` — safe to go first (it only adds a check). Deploy from a clean checkout: `functions/` holds untracked local scripts (`recalculate-trip.js`, `show-debts.js`, …) that would otherwise be uploaded.
+2. Deploy the web app through the usual pipeline.
+3. **Wait** before the rules, then `firebase deploy --only firestore:rules`. The PWA updates on prompt (`registerType: 'prompt'`), so home-screen installs and LINE/in-app browsers keep the old invite pages — which query `invitations` directly — until each user taps Update. Nothing in the rules can keep those old queries working without making invitations listable again, so give people days, not minutes.
+
+**Before the rules deploy, confirm the iOS app's behaviour.** It ships its own bundled copy of this SPA (the `capacitor://localhost` origin in `server/middleware/00-native-cors.ts`), updated only by an App Store release. A bundle older than this work will query `invitations` client-side (invite links break), show edit controls to view-only users, and — if it ever writes expenses as a whole-document overwrite — hit the new `createdByUserId` pin on update. Ship an iOS build from this work, or verify what the current one does, first.
+
+**Also gate Firebase Storage receipt uploads.** `onReceiptUploaded` overwrites whatever expense a `trips/{tripId}/expenses/{expenseId}/…` upload points at, so a permissive Storage rule lets read-only and removed users change the ledger through the back door. Mirror `canWrite` there via `firestore.get()`.
 
 Before deploying, check production for pending invitations whose `invitedByUserId` differs from their trip's `userId` (e.g. anything a client created directly under the old rules) — accept now rejects those with 403. Ship the accept change (Task 8) and the invite-page Google prompt (Task 14) in the same web deploy.
 
 Before the rules deploy, confirm no production trip is missing `collaboratorUserIds` — `canWrite` denies expense writes on such trips (they're already unreadable under the trip read rule). `server/api/admin/migrate-collaborator-ids.post.ts` backfills them.
+
+Two more data checks before that deploy:
+- **Half-joined collaborator docs** (a `trips/{id}/collaborators/{uid}` whose uid is missing from that trip's `collaboratorUserIds`, left by the old non-atomic accept). They can't write under the new rules, but they still block the real person from accepting or joining ("already a collaborator") and show as editable in the owner's list. Delete them, or complete the join.
+- **Every trip has a `collaborators/{ownerUid}` doc with `role: 'owner'`.** `canWrite` needs it: without it the owner can't create, update or delete expenses.
 
 Remind the user of the open item from the spec: check the Firebase Storage rules in the console. If a view-only user can upload a receipt image to an expense's path, `onReceiptUploaded` will rewrite that expense.

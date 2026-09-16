@@ -116,7 +116,9 @@ Body `{ readOnly: boolean }`. 401 unauthenticated; 403 caller isn't the trip own
 
 ### `server/utils/collaborators.ts` → `removeCollaborator(db, tripId, userId)` (new)
 
-One transaction: read the collaborator doc and members where `linkedUserId == userId`; delete the collaborator doc; delete `linkedUserId` on those members; `arrayRemove` from `collaboratorUserIds` and decrement `collaboratorCount`. The member entries and the person's expenses stay. `server/api/trips/leave.post.ts` is refactored to use it.
+One transaction: read the collaborator doc and members where `linkedUserId == userId`; delete the collaborator doc; delete `linkedUserId` on those members; `arrayRemove` from `collaboratorUserIds`, and decrement `collaboratorCount` only when the uid was actually in that array (half-joined docs were never counted). The member entries and the person's expenses stay. `server/api/trips/leave.post.ts` is refactored to use it.
+
+It also records the departure at `trips/{tripId}/departed/{uid}` = `{ readOnly, departedAt }`. Accept and join read that record and re-apply `readOnly` to the returning collaborator, then clear it — otherwise a view-only collaborator could shed the restriction by leaving and rejoining through the public link (whose code every collaborator can read from the trip doc) or through any normal invitation. Clients can't touch this subcollection: unlisted paths are denied by default.
 
 ### `POST /api/trips/reset-public-link` (new)
 
