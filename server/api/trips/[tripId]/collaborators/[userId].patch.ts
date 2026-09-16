@@ -18,17 +18,27 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 400, statusMessage: 'readOnly (boolean) is required' })
   }
 
-  const db = getFirebaseAdminFirestore()
-  const trip = await getOwnedTrip(db, tripId, user.uid)
-  if (userId === trip.userId) {
-    throw createError({ statusCode: 400, statusMessage: 'The trip owner always has full access' })
-  }
+  try {
+    const db = getFirebaseAdminFirestore()
+    const trip = await getOwnedTrip(db, tripId, user.uid)
+    if (userId === trip.userId) {
+      throw createError({ statusCode: 400, statusMessage: 'The trip owner always has full access' })
+    }
 
-  const collaboratorRef = db.collection('trips').doc(tripId).collection('collaborators').doc(userId)
-  if (!(await collaboratorRef.get()).exists) {
-    throw createError({ statusCode: 404, statusMessage: 'Not a collaborator on this trip' })
-  }
+    const collaboratorRef = db.collection('trips').doc(tripId).collection('collaborators').doc(userId)
+    if (!(await collaboratorRef.get()).exists) {
+      throw createError({ statusCode: 404, statusMessage: 'Not a collaborator on this trip' })
+    }
 
-  await collaboratorRef.update({ readOnly })
-  return { success: true, readOnly }
+    await collaboratorRef.update({ readOnly })
+    return { success: true, readOnly }
+  }
+  catch (error: any) {
+    if (error.statusCode) {
+      throw error
+    }
+
+    console.error('Error updating collaborator access:', error)
+    throw createError({ statusCode: 500, statusMessage: 'Failed to update collaborator access' })
+  }
 })

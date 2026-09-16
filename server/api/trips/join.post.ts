@@ -65,10 +65,12 @@ export default defineEventHandler(async (event) => {
       const tripData = tripDoc.data()
       const collaboratorRef = tripDoc.ref.collection('collaborators').doc(user.uid)
       const memberRef = memberId ? tripDoc.ref.collection('members').doc(memberId) : null
+      const departedRef = tripDoc.ref.collection('departed').doc(user.uid)
 
-      const [collaboratorDoc, memberDoc] = await Promise.all([
+      const [collaboratorDoc, memberDoc, departedDoc] = await Promise.all([
         tx.get(collaboratorRef),
         memberRef ? tx.get(memberRef) : Promise.resolve(null),
+        tx.get(departedRef),
       ])
 
       if (!tripData.isPublicInviteEnabled) {
@@ -93,7 +95,8 @@ export default defineEventHandler(async (event) => {
         displayName: user.displayName,
         photoURL: user.photoURL || null,
         role: 'editor',
-        readOnly: false,
+        // A view-only collaborator can't shed it by leaving and coming back
+        readOnly: departedDoc.data()?.readOnly === true,
         joinedAt: FieldValue.serverTimestamp(),
         joinedVia: 'public-link',
       })
@@ -116,6 +119,7 @@ export default defineEventHandler(async (event) => {
         collaboratorCount: FieldValue.increment(1),
         collaboratorUserIds: FieldValue.arrayUnion(user.uid),
       })
+      tx.delete(departedRef)
 
       return tripDoc.id
     })

@@ -24,19 +24,31 @@ export async function removeCollaborator(db: Firestore, tripId: string, userId: 
   const collaboratorRef = tripRef.collection('collaborators').doc(userId)
 
   return db.runTransaction(async (tx) => {
-    const [collaboratorDoc, linkedMembers] = await Promise.all([
+    const [collaboratorDoc, linkedMembers, tripDoc] = await Promise.all([
       tx.get(collaboratorRef),
       tx.get(tripRef.collection('members').where('linkedUserId', '==', userId)),
+      tx.get(tripRef),
     ])
     if (!collaboratorDoc.exists)
       return false
 
     for (const member of linkedMembers.docs)
       tx.update(member.ref, { linkedUserId: FieldValue.delete() })
+
+    // Record view-only status so it survives a leave-and-rejoin (public link or a
+    // fresh invitation): accept/join re-apply it and clear this doc.
+    tx.set(tripRef.collection('departed').doc(userId), {
+      readOnly: collaboratorDoc.data()?.readOnly === true,
+      departedAt: FieldValue.serverTimestamp(),
+    })
     tx.delete(collaboratorRef)
+
+    const wasCounted = (tripDoc.data()?.collaboratorUserIds ?? []).includes(userId)
     tx.update(tripRef, {
       collaboratorUserIds: FieldValue.arrayRemove(userId),
-      collaboratorCount: FieldValue.increment(-1),
+      // A half-joined collaborator (old bug) was never counted in the first place —
+      // only decrement when they were actually in collaboratorUserIds.
+      ...(wasCounted ? { collaboratorCount: FieldValue.increment(-1) } : {}),
     })
     return true
   })

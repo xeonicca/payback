@@ -24,39 +24,53 @@ export function useRemovedFromTripRedirect(tripId: MaybeRefOrGetter<string | und
   const sessionUser = useSessionUser()
   const router = useRouter()
 
-  function handleLostAccess(id: string) {
-    if (expectedExits.delete(id))
-      return
-    toast.info('你已被移出此行程')
-    router.replace('/')
-  }
-
   watch(
+    // A primitive key, so navigating within the same trip keeps one listener alive
     () => {
       const id = toValue(tripId)
       const uid = sessionUser.value?.uid
-      return id && uid ? { id, uid } : null
+      return id && uid ? `${id}|${uid}` : ''
     },
-    (target, _previous, onCleanup) => {
-      if (!target)
+    (key, _previous, onCleanup) => {
+      if (!key)
         return
-      // Only react to losing access this listener has actually seen
+      const [id, uid] = key.split('|')
       let hadAccess = false
-      const unsubscribe = onSnapshot(
-        doc(db, 'trips', target.id, 'collaborators', target.uid),
+      let handled = false
+      let unsubscribe: (() => void) | undefined
+
+      function handleLostAccess() {
+        // A removal can arrive as both a deleted doc and a permission error — react once
+        if (handled)
+          return
+        handled = true
+        unsubscribe?.()
+        if (expectedExits.delete(id))
+          return
+        toast.info('你已被移出此行程')
+        router.replace('/')
+      }
+
+      unsubscribe = onSnapshot(
+        doc(db, 'trips', id, 'collaborators', uid),
         (snapshot) => {
           if (snapshot.exists())
             hadAccess = true
           else if (hadAccess)
-            handleLostAccess(target.id)
+            handleLostAccess()
         },
         // Once removed, the rules may deny the listener instead of sending a delete
         (error) => {
           if (hadAccess && error.code === 'permission-denied')
-            handleLostAccess(target.id)
+            handleLostAccess()
         },
       )
-      onCleanup(unsubscribe)
+
+      onCleanup(() => {
+        unsubscribe?.()
+        // Don't let an unused leave expectation mute a later real removal
+        expectedExits.delete(id)
+      })
     },
     { immediate: true },
   )

@@ -905,6 +905,10 @@ async function handleArchiveToggle() {
         <ui-alert-dialog-title>移除 {{ collaboratorToRemove?.displayName || '協作者' }}？</ui-alert-dialog-title>
         <ui-alert-dialog-description>
           對方將無法再查看此行程，他們建立的支出會保留。
+          <template v-if="trip?.isPublicInviteEnabled">
+            <br>
+            此行程的加入連結目前開啟，對方仍可透過連結重新加入，建議一併重設連結。
+          </template>
         </ui-alert-dialog-description>
       </ui-alert-dialog-header>
       <ui-alert-dialog-footer>

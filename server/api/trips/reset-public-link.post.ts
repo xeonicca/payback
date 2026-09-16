@@ -13,12 +13,22 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 400, statusMessage: 'tripId is required' })
   }
 
-  const db = getFirebaseAdminFirestore()
-  await getOwnedTrip(db, tripId, user.uid)
+  try {
+    const db = getFirebaseAdminFirestore()
+    await getOwnedTrip(db, tripId, user.uid)
 
-  // The old /join/<code> URL stops resolving as soon as this is written
-  const publicJoinCode = await generateUniqueCode(publicJoinCodeTaken(db))
-  await db.collection('trips').doc(tripId).update({ publicJoinCode })
+    // The old /join/<code> URL stops resolving as soon as this is written
+    const publicJoinCode = await generateUniqueCode(publicJoinCodeTaken(db))
+    await db.collection('trips').doc(tripId).update({ publicJoinCode })
 
-  return { publicJoinCode }
+    return { publicJoinCode }
+  }
+  catch (error: any) {
+    if (error.statusCode) {
+      throw error
+    }
+
+    console.error('Error resetting public link:', error)
+    throw createError({ statusCode: 500, statusMessage: 'Failed to reset the public link' })
+  }
 })

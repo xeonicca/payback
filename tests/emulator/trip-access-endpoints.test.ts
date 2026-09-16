@@ -94,6 +94,18 @@ describe('POST /api/trips/join', () => {
     })
     expect((await readCollaborator('alice')).collaborator).toBeNull()
   })
+
+  it('re-applies view-only when someone who left rejoins through the public link', async () => {
+    await seedTrip({
+      collaborators: [{ uid: 'owner', role: 'owner' }, { uid: 'ro', role: 'editor', readOnly: true }],
+      trip: { isPublicInviteEnabled: true, publicJoinCode: 'JOIN1' },
+      members: [{ id: 'm-ro', name: 'RO', linkedUserId: 'ro' }],
+    })
+    const { default: leave } = await import('~/server/api/trips/leave.post')
+    await leave(makeEvent({ user: googleUser('ro'), body: { tripId: 't1' } }))
+    await callJoin(googleUser('ro'), { joinCode: 'JOIN1', newMember })
+    expect((await readCollaborator('ro')).collaborator).toMatchObject({ role: 'editor', readOnly: true })
+  })
 })
 
 async function seedAccessFixture() {
@@ -159,6 +171,16 @@ describe('DELETE /api/trips/:tripId/collaborators/:userId', () => {
     await expect(callCollaborator('delete', googleUser('alice'), 'guest')).rejects.toMatchObject({ statusCode: 403 })
     await expect(callCollaborator('delete', googleUser('owner'), 'owner')).rejects.toMatchObject({ statusCode: 400 })
     await expect(callCollaborator('delete', googleUser('owner'), 'nobody')).rejects.toMatchObject({ statusCode: 404 })
+  })
+
+  it('does not decrement the count for a half-joined collaborator', async () => {
+    await seedTrip({
+      collaborators: [{ uid: 'owner', role: 'owner' }, { uid: 'orphan', role: 'editor', inArray: false }],
+    })
+    await callCollaborator('delete', googleUser('owner'), 'orphan')
+    const state = await readCollaborator('orphan')
+    expect(state.collaborator).toBeNull()
+    expect(state.collaboratorCount).toBe(2)
   })
 })
 

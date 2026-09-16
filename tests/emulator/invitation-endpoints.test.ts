@@ -200,6 +200,15 @@ describe('POST /api/invitations/accept', () => {
     expect((await readState('ro', 'P2')).collaborator).toMatchObject({ readOnly: true })
   })
 
+  it('re-applies view-only when someone who left accepts a new invitation', async () => {
+    await seedTrip({ collaborators: [{ uid: 'owner', role: 'owner' }, { uid: 'ro', role: 'editor', readOnly: true }] })
+    const { default: leave } = await import('~/server/api/trips/leave.post')
+    await leave(makeEvent({ user: googleUser('ro'), body: { tripId: 't1' } }))
+    await seedInvitation('P3')
+    await callAccept(googleUser('ro'), { invitationCode: 'P3', newMember })
+    expect((await readState('ro', 'P3')).collaborator).toMatchObject({ readOnly: true })
+  })
+
   it('does not let the owner accept their own invitation', async () => {
     await seedInvitation('OWN')
     await expect(callAccept(googleUser('owner'), { invitationCode: 'OWN', newMember }))

@@ -60,11 +60,13 @@ export default defineEventHandler(async (event) => {
       const tripRef = db.collection('trips').doc(invitation.tripId)
       const collaboratorRef = tripRef.collection('collaborators').doc(user.uid)
       const memberRef = memberId ? tripRef.collection('members').doc(memberId) : null
+      const departedRef = tripRef.collection('departed').doc(user.uid)
 
-      const [tripDoc, collaboratorDoc, memberDoc] = await Promise.all([
+      const [tripDoc, collaboratorDoc, memberDoc, departedDoc] = await Promise.all([
         tx.get(tripRef),
         tx.get(collaboratorRef),
         memberRef ? tx.get(memberRef) : Promise.resolve(null),
+        tx.get(departedRef),
       ])
 
       const state = getInvitationState(invitation)
@@ -113,7 +115,8 @@ export default defineEventHandler(async (event) => {
         displayName: user.displayName || null,
         photoURL: user.photoURL || null,
         role: invitation.type === 'guest' ? 'guest' : 'editor',
-        readOnly: invitation.viewOnly === true,
+        // A view-only collaborator can't shed it by leaving and coming back
+        readOnly: invitation.viewOnly === true || departedDoc.data()?.readOnly === true,
         joinedAt: FieldValue.serverTimestamp(),
         invitedBy: invitation.invitedByUserId,
       })
@@ -147,6 +150,7 @@ export default defineEventHandler(async (event) => {
         collaboratorCount: FieldValue.increment(1),
         collaboratorUserIds: FieldValue.arrayUnion(user.uid),
       })
+      tx.delete(departedRef)
 
       return { expired: false as const, tripId: tripRef.id }
     })
