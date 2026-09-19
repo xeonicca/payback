@@ -12,7 +12,7 @@ const route = useRoute()
 const router = useRouter()
 const joinCode = route.params.code as string
 
-const { isUserLoggedIn, loginWithGoogle, checkRedirectResult } = useLogin()
+const { isUserLoggedIn, signInOrLinkWithGoogle, checkRedirectResult } = useLogin()
 const sessionUser = useSessionUser()
 
 // The public link grants editor access, so an anonymous guest session must sign in with Google
@@ -144,7 +144,15 @@ async function handleJoin() {
 }
 
 async function handleLogin() {
-  await loginWithGoogle()
+  try {
+    const { conflict } = await signInOrLinkWithGoogle()
+    if (conflict)
+      toast.warning('此 Google 帳號已註冊過，已改為直接登入。你先前以訪客身份加入的行程仍留在原訪客身份下。')
+  }
+  catch (error: any) {
+    console.error('Error signing in with Google:', error)
+    toast.error('登入失敗，請稍後再試')
+  }
 }
 </script>
 

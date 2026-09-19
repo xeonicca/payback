@@ -13,27 +13,25 @@ const isUpgrading = ref(false)
 async function handleUpgrade() {
   try {
     isUpgrading.value = true
-    const user = await upgradeGuestAccount()
+    const user = await upgradeGuestAccount({ tripId: props.tripId })
 
     if (!user) {
-      // Redirect-based flow (production) — will be handled on return
+      // Redirect-based flow (production) — finished when the user comes back
       return
-    }
-
-    // Update collaborator records on the server
-    if (props.tripId) {
-      await $fetch('/api/auth/upgrade', {
-        method: 'POST',
-        body: { tripId: props.tripId },
-      })
     }
 
     logEvent('guest_upgrade', { trip_id: props.tripId })
     toast.success('帳號已成功連結！')
   }
   catch (error: any) {
-    console.error('Error upgrading guest account:', error)
-    toast.error('連結帳號失敗，請稍後再試')
+    const code = error?.code
+    if (code === 'auth/credential-already-in-use' || code === 'auth/email-already-in-use') {
+      toast.error('此 Google 帳號已註冊過，請改從登入頁使用該帳號登入')
+    }
+    else {
+      console.error('Error upgrading guest account:', error)
+      toast.error('連結帳號失敗，請稍後再試')
+    }
   }
   finally {
     isUpgrading.value = false

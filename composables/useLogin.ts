@@ -24,6 +24,8 @@ interface ReturnUser {
   user: AppUser
 }
 
+const PENDING_UPGRADE_KEY = 'payback:pendingGuestUpgrade'
+
 export default function useLogin() {
   const sessionUser = useSessionUser()
 
@@ -57,6 +59,41 @@ export default function useLogin() {
   const clearSession = async () => {
     sessionUser.value = null
     await $fetch('/api/__session', { method: 'POST', body: {} }).catch(() => {})
+  }
+
+  // A guest upgrade in production bounces through a redirect, so remember it across the reload
+  function rememberPendingUpgrade(tripId?: string) {
+    if (!import.meta.client)
+      return
+    try {
+      localStorage.setItem(PENDING_UPGRADE_KEY, tripId ?? '')
+    }
+    catch {}
+  }
+
+  function takePendingUpgrade(): { pending: boolean, tripId?: string } {
+    if (!import.meta.client)
+      return { pending: false }
+    try {
+      const value = localStorage.getItem(PENDING_UPGRADE_KEY)
+      if (value === null)
+        return { pending: false }
+      localStorage.removeItem(PENDING_UPGRADE_KEY)
+      return { pending: true, tripId: value || undefined }
+    }
+    catch {
+      return { pending: false }
+    }
+  }
+
+  // Promote the guest's collaborator records now that the account has a real provider
+  const finishGuestUpgrade = async (tripId?: string) => {
+    try {
+      await $fetch('/api/auth/upgrade', { method: 'POST', body: { tripId } })
+    }
+    catch (error) {
+      console.error('Error finishing guest upgrade:', error)
+    }
   }
 
   const redirectToGoogleLogin = async () => {
@@ -114,6 +151,10 @@ export default function useLogin() {
       const result = await getRedirectResult(auth)
       if (result?.user) {
         await setSession(result.user)
+
+        const pendingUpgrade = takePendingUpgrade()
+        if (pendingUpgrade.pending)
+          await finishGuestUpgrade(pendingUpgrade.tripId)
       }
 
       return sessionUser.value
@@ -180,28 +221,50 @@ export default function useLogin() {
     }
   }
 
-  const upgradeGuestAccount = async () => {
+  const upgradeGuestAccount = async (options?: { tripId?: string }) => {
     if (!auth?.currentUser || !provider)
       return null
 
-    try {
-      let result
-      if (import.meta.env.MODE === 'development') {
-        result = await linkWithPopup(auth.currentUser, provider)
-      }
-      else {
+    if (import.meta.env.MODE !== 'development') {
+      rememberPendingUpgrade(options?.tripId)
+      try {
         await linkWithRedirect(auth.currentUser, provider)
-        return null // Will be handled by checkRedirectResult
       }
+      catch (e: unknown) {
+        takePendingUpgrade()
+        throw e
+      }
+      return null // finished by checkRedirectResult when the user comes back
+    }
 
-      // Refresh session with updated user info
-      await setSession(result.user)
-      return sessionUser.value
+    const result = await linkWithPopup(auth.currentUser, provider)
+    await setSession(result.user)
+    await finishGuestUpgrade(options?.tripId)
+    return sessionUser.value
+  }
+
+  /**
+   * Signs in with Google, but links to the current anonymous account when the user
+   * is a guest — otherwise their guest trips would be stranded on an abandoned uid.
+   * Falls back to a plain sign-in when that Google account is already a Payback user.
+   */
+  const signInOrLinkWithGoogle = async (options?: { tripId?: string }) => {
+    if (sessionUser.value?.isAnonymous !== true)
+      return { user: await loginWithGoogle(), linkedGuest: false, conflict: false }
+
+    try {
+      const user = await upgradeGuestAccount(options)
+      return { user, linkedGuest: true, conflict: false }
     }
     catch (e: unknown) {
+      const code = (e as AuthError)?.code
       authError.value = e as AuthError
-      console.error(e)
-      return null
+      if (code === 'auth/credential-already-in-use' || code === 'auth/email-already-in-use') {
+        // That Google account already exists; sign in as it instead. Trips joined as a
+        // guest stay under the old anonymous identity — the caller warns the user.
+        return { user: await loginWithGoogle(), linkedGuest: false, conflict: true }
+      }
+      throw e
     }
   }
 
@@ -209,6 +272,7 @@ export default function useLogin() {
     loginWithGoogle,
     loginAsGuest,
     upgradeGuestAccount,
+    signInOrLinkWithGoogle,
     redirectToGoogleLogin,
     checkRedirectResult,
     setSession,

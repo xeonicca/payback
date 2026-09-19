@@ -22,7 +22,7 @@ useInvitation().getInvitationPreview(invitationCode).then((preview) => {
 }).finally(() => {
   isLoading.value = false
 })
-const { isUserLoggedIn, loginWithGoogle, checkRedirectResult } = useLogin()
+const { isUserLoggedIn, signInOrLinkWithGoogle, checkRedirectResult } = useLogin()
 const sessionUser = useSessionUser()
 
 // Personal invitations grant editor access, so an anonymous guest session must sign in with Google
@@ -150,7 +150,15 @@ async function handleAccept() {
 }
 
 async function handleLogin() {
-  await loginWithGoogle()
+  try {
+    const { conflict } = await signInOrLinkWithGoogle()
+    if (conflict)
+      toast.warning('此 Google 帳號已註冊過，已改為直接登入。你先前以訪客身份加入的行程仍留在原訪客身份下。')
+  }
+  catch (error: any) {
+    console.error('Error signing in with Google:', error)
+    toast.error('登入失敗，請稍後再試')
+  }
 }
 </script>
 
