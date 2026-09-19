@@ -1,14 +1,38 @@
 <script setup lang="ts">
+import type { AppUser } from '~/types'
 import { toast } from 'vue-sonner'
 
 const props = defineProps<{
   tripId?: string
 }>()
 
-const { upgradeGuestAccount } = useLogin()
+const { upgradeGuestAccount, checkRedirectResult } = useLogin()
 const sessionUser = useSessionUser()
+const api = useApi()
 const { logEvent } = useAnalytics()
 const isUpgrading = ref(false)
+
+async function finishUpgrade(linkedUser?: AppUser) {
+  // linkWithRedirect reloads the current page in production. Complete the
+  // redirect here as well as on /login, where this banner is rendered.
+  const user = linkedUser ?? await checkRedirectResult()
+  if (!user || user.isAnonymous)
+    return
+  if (props.tripId) {
+    await api('/api/auth/upgrade', {
+      method: 'POST',
+      body: { tripId: props.tripId },
+    })
+  }
+  logEvent('guest_upgrade', { trip_id: props.tripId })
+  toast.success('帳號已成功連結！')
+}
+
+onMounted(() => {
+  void finishUpgrade().catch((error) => {
+    console.error('Error completing guest account link:', error)
+  })
+})
 
 async function handleUpgrade() {
   try {
@@ -20,16 +44,7 @@ async function handleUpgrade() {
       return
     }
 
-    // Update collaborator records on the server
-    if (props.tripId) {
-      await $fetch('/api/auth/upgrade', {
-        method: 'POST',
-        body: { tripId: props.tripId },
-      })
-    }
-
-    logEvent('guest_upgrade', { trip_id: props.tripId })
-    toast.success('帳號已成功連結！')
+    await finishUpgrade(user)
   }
   catch (error: any) {
     console.error('Error upgrading guest account:', error)

@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import type { NewExpense, Trip, TripMember } from '@/types'
+import { Capacitor } from '@capacitor/core'
 import { DateFormatter, getLocalTimeZone, parseDate, today } from '@internationalized/date'
 import { toTypedSchema } from '@vee-validate/zod'
 import { useMediaQuery } from '@vueuse/core'
-import { addDoc, collection, doc as fsDoc, serverTimestamp, Timestamp, updateDoc } from 'firebase/firestore'
+import { addDoc, collection, deleteDoc, doc as fsDoc, serverTimestamp, Timestamp, updateDoc } from 'firebase/firestore'
 import { getFunctions, httpsCallable } from 'firebase/functions'
 import { getStorage, ref as storageRef, uploadBytes } from 'firebase/storage'
 import { toDate } from 'reka-ui/date'
@@ -14,6 +15,7 @@ import { toast } from 'vue-sonner'
 import { useFirestore } from 'vuefire'
 import { z } from 'zod'
 import { cn } from '@/lib/utils'
+import { selectReceiptPhoto } from '~/utils/receipt-photo'
 
 const props = defineProps<{
   trip: Trip
@@ -31,6 +33,28 @@ const isDesktop = useMediaQuery('(min-width: 1024px)')
 const activeTab = ref<'receipt' | 'manual'>(props.defaultTab ?? 'receipt')
 const isSubmitting = ref(false)
 const selectedFile = ref<File | null>(null)
+const isNativeApp = Capacitor.isNativePlatform()
+const isSelectingPhoto = ref(false)
+
+async function selectNativeReceipt(event: MouseEvent) {
+  if (!isNativeApp)
+    return
+  event.preventDefault()
+  if (isSelectingPhoto.value)
+    return
+  isSelectingPhoto.value = true
+  try {
+    const file = await selectReceiptPhoto()
+    if (file)
+      selectedFile.value = file
+  }
+  catch {
+    toast.error('無法開啟照片，請確認相機與照片權限後重試')
+  }
+  finally {
+    isSelectingPhoto.value = false
+  }
+}
 const manualCategory = ref<string>('')
 const autoLabel = ref(false)
 
@@ -306,6 +330,7 @@ async function submitReceipt(formValues: { paidByMemberId: string, sharedWithMem
   }
 
   isSubmitting.value = true
+  let expensePath: ReturnType<typeof fsDoc> | null = null
   try {
     const db = useFirestore()
     const storage = getStorage()
@@ -324,15 +349,28 @@ async function submitReceipt(formValues: { paidByMemberId: string, sharedWithMem
     }
 
     const expenseDoc = await addDoc(collection(db, 'trips', props.trip.id, 'expenses'), expense)
+    expensePath = expenseDoc
 
     const fileRef = storageRef(storage, `trips/${props.trip.id}/expenses/${expenseDoc.id}/${selectedFile.value.name}`)
-    uploadBytes(fileRef, selectedFile.value)
+    await uploadBytes(fileRef, selectedFile.value)
+    // The document is now valid; later UI/analytics failures must not remove it.
+    expensePath = null
 
     open.value = false
     logEvent('add_expense', { method: 'receipt', trip_id: props.trip.id })
     toast.success('收據上傳成功，正在解析收據中...')
   }
   catch (error) {
+    // Do not leave an unprocessable expense behind when storage rejects the
+    // upload (for example after a denied photo permission or offline retry).
+    if (expensePath) {
+      try {
+        await deleteDoc(expensePath)
+      }
+      catch (cleanupError) {
+        console.error('Error cleaning up failed receipt expense:', cleanupError)
+      }
+    }
     console.error('Error uploading receipt:', error)
     toast.error((error as Error).message || '收據上傳失敗，請重新上傳')
   }
@@ -456,8 +494,12 @@ async function submitManual(formValues: { description?: string, grandTotal?: num
                 id="picture-desktop"
                 type="file"
                 accept="image/*"
+                @click="selectNativeReceipt"
                 @change="(e: Event) => selectedFile = (e.target as HTMLInputElement).files?.[0] ?? null"
               />
+              <p v-if="isNativeApp && selectedFile" class="text-sm text-muted-foreground break-all" aria-live="polite">
+                {{ selectedFile.name }}
+              </p>
             </div>
             <div v-if="hasDifferentCurrencies" class="flex items-center gap-2">
               <span class="text-xs text-muted-foreground whitespace-nowrap">1 {{ trip.tripCurrency }} =</span>
@@ -989,8 +1031,12 @@ async function submitManual(formValues: { description?: string, grandTotal?: num
                   id="picture-mobile"
                   type="file"
                   accept="image/*"
+                  @click="selectNativeReceipt"
                   @change="(e: Event) => selectedFile = (e.target as HTMLInputElement).files?.[0] ?? null"
                 />
+                <p v-if="isNativeApp && selectedFile" class="text-sm text-muted-foreground break-all" aria-live="polite">
+                  {{ selectedFile.name }}
+                </p>
               </div>
               <div v-if="hasDifferentCurrencies" class="flex items-center gap-2">
                 <span class="text-xs text-muted-foreground whitespace-nowrap">1 {{ trip.tripCurrency }} =</span>

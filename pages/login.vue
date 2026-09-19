@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { toast } from 'vue-sonner'
+import { getSafeReturnPath } from '~/utils/app-links'
 
 definePageMeta({
   layout: false,
@@ -11,11 +12,12 @@ const {
 } = useLogin()
 const sessionUser = useSessionUser()
 const $router = useRouter()
+const route = useRoute()
 
 const isLoading = ref(false)
 
 function loginSuccessRedirect() {
-  $router.replace('/')
+  $router.replace(getSafeReturnPath(route.query.redirect))
   localStorage.removeItem('prevRoute')
   toast.success(`登入成功`, {
     description: `Hello ${sessionUser.value?.displayName || ''}`.trim() || undefined,

@@ -8,9 +8,11 @@ const tripId = computed(() => {
 
 <template>
   <div class="min-h-screen bg-slate-200">
-    <keep-alive>
-      <navbar />
-    </keep-alive>
+    <trip-navbar />
+
+    <div v-if="tripId" class="container mx-auto px-6 pt-4">
+      <guest-upgrade-banner :trip-id="tripId" />
+    </div>
 
     <main class="container mx-auto px-6 pb-30 lg:pb-20">
       <slot />

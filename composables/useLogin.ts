@@ -3,6 +3,7 @@ import type {
   User,
 } from 'firebase/auth'
 import type { AppUser } from '~/types'
+import { Capacitor } from '@capacitor/core'
 import {
   browserLocalPersistence,
   getIdToken,
@@ -18,10 +19,26 @@ import {
   signOut,
 } from 'firebase/auth'
 import { getCurrentUser, useFirebaseAuth } from 'vuefire'
+import { authenticateWithNativeGoogle } from '~/utils/native-auth'
 import { useSessionUser } from './useSessionUser'
 
 interface ReturnUser {
   user: AppUser
+}
+
+// Capacitor native app (iOS/Android WebView): no Nitro server, and Google
+// popup/redirect OAuth doesn't work in a WebView. Sign in via the native
+// Firebase plugin and build the session client-side instead of via /api/*.
+const isNativeApp = import.meta.client && Capacitor.isNativePlatform()
+
+function buildAppUser(user: User): AppUser {
+  return {
+    uid: user.uid,
+    email: user.email,
+    displayName: user.displayName,
+    photoURL: user.photoURL,
+    isAnonymous: user.isAnonymous,
+  }
 }
 
 export default function useLogin() {
@@ -42,6 +59,13 @@ export default function useLogin() {
   const { logEvent } = useAnalytics()
 
   const setSession = async (user: User) => {
+    // Native app: no server session cookie — derive AppUser from the Firebase user.
+    if (isNativeApp) {
+      sessionUser.value = buildAppUser(user)
+      logEvent('login', { method: 'google' })
+      return
+    }
+
     const token = await getIdToken(user, true)
     await $fetch('/api/__session', {
       method: 'POST',
@@ -68,6 +92,22 @@ export default function useLogin() {
   const loginWithGoogle = async () => {
     if (!auth || !provider)
       return null
+    authError.value = null
+
+    // Native app: native Google sign-in, then bridge the credential into the
+    // web SDK so VueFire/Firestore queries are authenticated too.
+    if (isNativeApp) {
+      try {
+        await setPersistence(auth, browserLocalPersistence)
+        const user = await authenticateWithNativeGoogle(auth)
+        await setSession(user)
+      }
+      catch (e: unknown) {
+        authError.value = e as AuthError
+        console.error(e)
+      }
+      return sessionUser.value
+    }
 
     if (import.meta.env.MODE === 'development') {
       try {
@@ -90,6 +130,20 @@ export default function useLogin() {
     if (!auth)
       return null
 
+    // Native app: no redirect flow — restore from the persisted Firebase user.
+    if (isNativeApp) {
+      try {
+        const user = await getCurrentUser()
+        if (user)
+          await setSession(user)
+      }
+      catch (e: unknown) {
+        console.warn('Failed to restore session from cached user, signing out', e)
+        await signOut(auth)
+      }
+      return null
+    }
+
     if (import.meta.env.MODE === 'development') {
       try {
         const user = await getCurrentUser()
@@ -101,7 +155,7 @@ export default function useLogin() {
         console.warn('Failed to restore session from cached user, signing out', e)
         await signOut(auth!)
       }
-      return sessionUser.value
+      return null
     }
     try {
       const result = await getRedirectResult(auth)
@@ -109,7 +163,10 @@ export default function useLogin() {
         await setSession(result.user)
       }
 
-      return sessionUser.value
+      // A null result means this was a normal page load, not the completion
+      // of a redirect. Callers (notably guest account linking) use this to
+      // avoid repeating post-redirect work for every authenticated page.
+      return result?.user ? sessionUser.value : null
     }
     catch (e: unknown) {
       authError.value = e as AuthError
@@ -123,6 +180,15 @@ export default function useLogin() {
       return
 
     try {
+      if (isNativeApp) {
+        // The JS SDK owns the session; the native plugin only obtains credentials.
+        await signOut(auth)
+        sessionUser.value = null
+        localStorage.removeItem('payback:lastRoute')
+        logEvent('logout')
+        return
+      }
+
       // Call server logout endpoint to clear session cookie
       await $fetch('/api/auth/logout', {
         method: 'POST',
@@ -140,6 +206,11 @@ export default function useLogin() {
   }
 
   const checkUser = async () => {
+    // Native app: no server endpoint. Return null so initUser falls back to
+    // restoring the session from the persisted Firebase user.
+    if (isNativeApp)
+      return null
+
     try {
       const data = await $fetch<ReturnUser>('/api/auth/me', {
         headers: useRequestHeaders(['cookie']) as HeadersInit,
@@ -176,6 +247,21 @@ export default function useLogin() {
   const upgradeGuestAccount = async () => {
     if (!auth?.currentUser || !provider)
       return null
+
+    authError.value = null
+    // Link the credential to the existing JS user so their guest UID survives.
+    if (isNativeApp) {
+      try {
+        const user = await authenticateWithNativeGoogle(auth, true)
+        await setSession(user)
+        return sessionUser.value
+      }
+      catch (e: unknown) {
+        authError.value = e as AuthError
+        console.error(e)
+        throw e
+      }
+    }
 
     try {
       let result

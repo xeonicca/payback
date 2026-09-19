@@ -8,6 +8,8 @@ dist
 
 # Node dependencies
 node_modules
+.pnpm-store/
+.playwright-mcp/
 
 # Logs
 logs
@@ -25,5 +27,8 @@ logs
 
 # Service account
 service-account.json
+# Per-environment Firebase iOS app registration (never the Admin SDK key).
+ios/App/App/GoogleService-Info.plist
 # Sentry Config File
 .env.sentry-build-plugin
+.vercel

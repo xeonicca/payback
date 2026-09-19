@@ -36,9 +36,10 @@ interface InvitationMembersResponse {
 }
 
 export function useInvitation() {
+  const api = useApi()
   async function createInvitation(params: CreateInvitationParams): Promise<CreateInvitationResponse> {
     try {
-      const response = await $fetch<CreateInvitationResponse>('/api/invitations/create', {
+      const response = await api<CreateInvitationResponse>('/api/invitations/create', {
         method: 'POST',
         body: params,
       })
@@ -55,7 +56,7 @@ export function useInvitation() {
     memberChoice: { memberId: string } | { newMember: { name: string, avatarEmoji: string } },
   ): Promise<AcceptInvitationResponse> {
     try {
-      const response = await $fetch<AcceptInvitationResponse>('/api/invitations/accept', {
+      const response = await api<AcceptInvitationResponse>('/api/invitations/accept', {
         method: 'POST',
         body: { invitationCode, ...memberChoice },
       })
@@ -69,7 +70,7 @@ export function useInvitation() {
 
   async function getInvitationMembers(invitationCode: string): Promise<InvitationMembersResponse> {
     try {
-      const response = await $fetch<InvitationMembersResponse>('/api/invitations/members', {
+      const response = await api<InvitationMembersResponse>('/api/invitations/members', {
         query: { invitationCode },
       })
       return response
@@ -82,7 +83,7 @@ export function useInvitation() {
 
   async function revokeInvitation(invitationId: string): Promise<{ success: boolean }> {
     try {
-      const response = await $fetch<{ success: boolean }>('/api/invitations/revoke', {
+      const response = await api<{ success: boolean }>('/api/invitations/revoke', {
         method: 'POST',
         body: { invitationId },
       })
@@ -96,7 +97,7 @@ export function useInvitation() {
 
   async function listInvitations(tripId: string): Promise<Invitation[]> {
     try {
-      const response = await $fetch<any[]>('/api/invitations/list', {
+      const response = await api<any[]>('/api/invitations/list', {
         query: { tripId },
       })
       return response as Invitation[]

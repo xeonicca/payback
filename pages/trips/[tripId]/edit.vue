@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { TripMember } from '@/types'
+import { Capacitor } from '@capacitor/core'
 import { toTypedSchema } from '@vee-validate/zod'
 import { addDoc, collection, deleteDoc, doc, updateDoc } from 'firebase/firestore'
 import { useForm } from 'vee-validate'
@@ -17,12 +18,14 @@ import {
   FormMessage as UiFormMessage,
 } from '@/components/ui/form'
 import { animalEmojis, CurrencyCode, supportedCurrencies } from '@/constants'
+import { getPublicOrigin } from '~/utils/api'
 
 definePageMeta({
   middleware: ['auth'],
 })
 
 const route = useRoute()
+const api = useApi()
 const router = useRouter()
 const db = useFirestore()
 const sessionUser = useSessionUser()
@@ -77,7 +80,7 @@ const showInviteDrawer = ref(false)
 const isTogglingPublicInvite = ref(false)
 const { copyToClipboard } = useCopyToClipboard()
 
-const baseUrl = useRequestURL().origin
+const baseUrl = getPublicOrigin(Capacitor.isNativePlatform(), useRuntimeConfig().public.siteUrl, useRequestURL().origin)
 const publicJoinUrl = computed(() => {
   if (!trip.value?.publicJoinCode)
     return null
@@ -87,7 +90,7 @@ const publicJoinUrl = computed(() => {
 async function handleTogglePublicInvite(enabled: boolean) {
   try {
     isTogglingPublicInvite.value = true
-    await $fetch('/api/trips/toggle-public-invite', {
+    await api('/api/trips/toggle-public-invite', {
       method: 'POST',
       body: { tripId, enabled },
     })
@@ -304,7 +307,7 @@ const showLeaveWarning = ref(false)
 async function handleLeaveTrip() {
   try {
     isLeaving.value = true
-    await $fetch('/api/trips/leave', {
+    await api('/api/trips/leave', {
       method: 'POST',
       body: { tripId },
     })
@@ -362,7 +365,7 @@ async function handleSelfSave() {
 
   try {
     isSelfSubmitting.value = true
-    await $fetch(`/api/trips/${tripId}/members/me`, {
+    await api(`/api/trips/${tripId}/members/me`, {
       method: 'PATCH',
       body: { name: trimmedName, avatarEmoji: selfEditAvatar.value },
     })

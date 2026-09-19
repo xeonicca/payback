@@ -1,5 +1,10 @@
 import tailwindcss from '@tailwindcss/vite'
 
+// Capacitor native app build (`BUILD_TARGET=app nuxt generate`).
+// No Nitro server + WebView runtime → disable PWA service worker and
+// server-side session cookie auth (use client Firebase Auth instead).
+const isApp = process.env.BUILD_TARGET === 'app'
+
 export default defineNuxtConfig({
   compatibilityDate: '2025-05-15',
   ssr: false,
@@ -13,7 +18,8 @@ export default defineNuxtConfig({
     'nuxt-vuefire',
     'shadcn-nuxt',
     // '@sentry/nuxt/module' // comment out for now until https://github.com/getsentry/sentry-javascript/pull/16444 is released
-    '@vite-pwa/nuxt',
+    // PWA service worker conflicts with the Capacitor WebView (stale cache, navigateFallback) — web only.
+    ...(isApp ? [] : ['@vite-pwa/nuxt']),
   ],
 
   app: {
@@ -33,6 +39,12 @@ export default defineNuxtConfig({
 
   css: ['~/assets/css/tailwind.css'],
 
+  // Bundled iOS assets cannot depend on Nitro image/icon endpoints.
+  image: isApp ? { provider: 'none' } : {},
+  icon: {
+    clientBundle: { scan: true },
+  },
+
   vite: {
     plugins: [
       tailwindcss(),
@@ -41,6 +53,9 @@ export default defineNuxtConfig({
 
   runtimeConfig: {
     public: {
+      apiBaseUrl: '',
+      siteUrl: '',
+      isNativeBuild: isApp,
       firebase: {
         apiKey: process.env.NUXT_PUBLIC_FIREBASE_API_KEY,
         authDomain: process.env.NUXT_PUBLIC_FIREBASE_AUTH_DOMAIN || process.env.VERCEL_URL,
@@ -56,7 +71,11 @@ export default defineNuxtConfig({
   vuefire: {
     auth: {
       enabled: true,
-      sessionCookie: true, // Enable SSR authentication with service account
+      // Native auth is owned by the Capacitor Firebase plugin. Avoid the JS
+      // SDK's browser OAuth iframe/redirect resolver in the WKWebView.
+      popupRedirectResolver: isApp ? false : 'browser',
+      // SSR session cookie needs the Nitro server; app build has none → client auth only.
+      sessionCookie: !isApp,
     },
     config: {
       apiKey: process.env.NUXT_PUBLIC_FIREBASE_API_KEY,

@@ -9,6 +9,7 @@ definePageMeta({
 })
 
 const route = useRoute()
+const api = useApi()
 const router = useRouter()
 const joinCode = route.params.code as string
 
@@ -57,6 +58,9 @@ onMounted(async () => {
   isCheckingRedirect.value = true
   await checkRedirectResult()
   isCheckingRedirect.value = false
+  // Join metadata is public. Load it before authentication so logged-out
+  // users see the login action instead of an indefinite loading state.
+  await loadTripInfo()
 })
 
 // Load trip info when user logs in
@@ -68,7 +72,7 @@ watch(isUserLoggedIn, async (loggedIn) => {
 async function loadTripInfo() {
   try {
     isLoading.value = true
-    const result = await $fetch<typeof tripInfo.value>('/api/trips/join-info', {
+    const result = await api<typeof tripInfo.value>('/api/trips/join-info', {
       query: { joinCode },
     })
     tripInfo.value = result
@@ -122,7 +126,7 @@ async function handleJoin() {
       ? { newMember: { name: newMemberName.value.trim(), avatarEmoji: newMemberEmoji.value } }
       : { memberId: selectedMemberId.value! }
 
-    const result = await $fetch<{ success: boolean, tripId: string }>('/api/trips/join', {
+    const result = await api<{ success: boolean, tripId: string }>('/api/trips/join', {
       method: 'POST',
       body: { joinCode, ...memberChoice },
     })

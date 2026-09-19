@@ -4,6 +4,7 @@ import { Toaster } from '@/components/ui/sonner'
 import 'vue-sonner/style.css'
 
 const { $pwa } = useNuxtApp()
+const isNativeBuild = useRuntimeConfig().public.isNativeBuild
 
 const FIVE_MINUTES_MS = 5 * 60 * 1000
 let lastUpdateCheck = Date.now()
@@ -53,7 +54,7 @@ if (import.meta.client && 'serviceWorker' in navigator) {
 <template>
   <NuxtLayout>
     <NuxtPage />
-    <NuxtPwaManifest />
+    <NuxtPwaManifest v-if="!isNativeBuild" />
   </NuxtLayout>
 
   <toaster position="top-center" style="top: calc(8px + env(safe-area-inset-top, 0px))" />
