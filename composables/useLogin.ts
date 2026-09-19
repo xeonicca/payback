@@ -61,28 +61,32 @@ export default function useLogin() {
     await $fetch('/api/__session', { method: 'POST', body: {} }).catch(() => {})
   }
 
-  // A guest upgrade in production bounces through a redirect, so remember it across the reload
-  function rememberPendingUpgrade(tripId?: string) {
+  // A guest upgrade in production bounces through a redirect, so remember that one is
+  // pending across the reload. No tripId is stored: /api/auth/upgrade with no tripId
+  // promotes every 'guest' collaborator record for the calling user, so a plain flag is
+  // enough — and it makes the marker harmless if a second tab races it or a redirect is
+  // abandoned (the later call either promotes everything, or finds nothing to promote).
+  function rememberPendingUpgrade() {
     if (!import.meta.client)
       return
     try {
-      localStorage.setItem(PENDING_UPGRADE_KEY, tripId ?? '')
+      localStorage.setItem(PENDING_UPGRADE_KEY, '1')
     }
     catch {}
   }
 
-  function takePendingUpgrade(): { pending: boolean, tripId?: string } {
+  function takePendingUpgrade(): boolean {
     if (!import.meta.client)
-      return { pending: false }
+      return false
     try {
       const value = localStorage.getItem(PENDING_UPGRADE_KEY)
       if (value === null)
-        return { pending: false }
+        return false
       localStorage.removeItem(PENDING_UPGRADE_KEY)
-      return { pending: true, tripId: value || undefined }
+      return true
     }
     catch {
-      return { pending: false }
+      return false
     }
   }
 
@@ -152,9 +156,8 @@ export default function useLogin() {
       if (result?.user) {
         await setSession(result.user)
 
-        const pendingUpgrade = takePendingUpgrade()
-        if (pendingUpgrade.pending)
-          await finishGuestUpgrade(pendingUpgrade.tripId)
+        if (takePendingUpgrade())
+          await finishGuestUpgrade()
       }
 
       return sessionUser.value
@@ -226,7 +229,7 @@ export default function useLogin() {
       return null
 
     if (import.meta.env.MODE !== 'development') {
-      rememberPendingUpgrade(options?.tripId)
+      rememberPendingUpgrade()
       try {
         await linkWithRedirect(auth.currentUser, provider)
       }
