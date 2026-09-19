@@ -6,6 +6,9 @@ const props = defineProps<{
   item: ExpenseDetailItem | null
   itemIndex: number | null
   currency: string
+  homeCurrency?: string
+  exchangeRate?: number
+  inputCurrency?: string
   shareableMembers: Array<{ id: string, name: string, avatarEmoji: string }>
   isSaving?: boolean
 }>()
@@ -39,11 +42,39 @@ const priceRaw = ref('')
 const quantity = ref(1)
 const translatedName = ref('')
 const sharedByMemberIds = ref<string[]>([])
+const selectedCurrency = ref('')
+// Snapshot of what the form showed on open; used to keep the stored price
+// exact when an item is saved untouched in home currency (avoids round-trip drift).
+const initialPriceRaw = ref('')
+const initialCurrency = ref('')
 
-const price = computed(() => {
+const rate = computed(() => (props.exchangeRate && props.exchangeRate > 0) ? props.exchangeRate : 1)
+const canSwitchCurrency = computed(() => !!props.homeCurrency && props.homeCurrency !== props.currency)
+const useHomeCurrency = computed(() => canSwitchCurrency.value && selectedCurrency.value === props.homeCurrency)
+
+const inputPrice = computed(() => {
   const n = parseFloat(priceRaw.value)
   return isNaN(n) ? 0 : n
 })
+
+// Item prices are always stored in trip currency.
+const price = computed(() => {
+  if (!useHomeCurrency.value)
+    return inputPrice.value
+  if (props.item && priceRaw.value === initialPriceRaw.value && selectedCurrency.value === initialCurrency.value)
+    return props.item.price
+  return Math.round((inputPrice.value / rate.value) * 100) / 100
+})
+
+const convertedPricePreview = computed(() => {
+  if (!useHomeCurrency.value || !inputPrice.value)
+    return null
+  return price.value.toFixed(2)
+})
+
+function toggleCurrency() {
+  selectedCurrency.value = useHomeCurrency.value ? props.currency : props.homeCurrency!
+}
 
 watch(() => props.open, (open) => {
   if (!open)
@@ -51,9 +82,14 @@ watch(() => props.open, (open) => {
   // Materialize the "[] means all" convention into an explicit list so the
   // checkbox UI and toggle handler operate on the same source of truth.
   // handleSave normalizes back to [] when every member is selected.
+  selectedCurrency.value = canSwitchCurrency.value && props.inputCurrency === props.homeCurrency
+    ? props.homeCurrency!
+    : props.currency
   if (props.item) {
     name.value = props.item.name
-    priceRaw.value = String(props.item.price)
+    priceRaw.value = useHomeCurrency.value
+      ? String(Math.round(props.item.price * rate.value * 100) / 100)
+      : String(props.item.price)
     quantity.value = props.item.quantity ?? 1
     translatedName.value = props.item.translatedName ?? ''
     sharedByMemberIds.value = props.item.sharedByMemberIds && props.item.sharedByMemberIds.length > 0
@@ -67,6 +103,8 @@ watch(() => props.open, (open) => {
     translatedName.value = ''
     sharedByMemberIds.value = props.shareableMembers.map(m => m.id)
   }
+  initialPriceRaw.value = priceRaw.value
+  initialCurrency.value = selectedCurrency.value
 }, { immediate: true })
 
 const allSelected = computed(() =>
@@ -128,7 +166,20 @@ function handleSave() {
         <!-- Price + Quantity -->
         <div class="flex gap-3">
           <div class="flex-1 min-w-0">
-            <ui-label class="text-sm font-medium text-foreground">價格</ui-label>
+            <div class="flex items-center justify-between gap-1">
+              <ui-label class="text-sm font-medium text-foreground">價格</ui-label>
+              <ui-button
+                v-if="canSwitchCurrency"
+                type="button"
+                variant="ghost"
+                size="sm"
+                class="h-6 text-xs"
+                @click="toggleCurrency"
+              >
+                <Icon name="lucide:arrow-left-right" class="mr-1 h-3 w-3" />
+                改用 {{ useHomeCurrency ? currency : homeCurrency }}
+              </ui-button>
+            </div>
             <div class="relative mt-1">
               <ui-input
                 v-model="priceRaw"
@@ -138,9 +189,12 @@ function handleSave() {
                 class="pl-14 font-mono"
               />
               <ui-badge class="absolute start-0 inset-y-0 flex items-center ml-1 my-1 px-2 pointer-events-none">
-                {{ currency }}
+                {{ useHomeCurrency ? homeCurrency : currency }}
               </ui-badge>
             </div>
+            <p v-if="convertedPricePreview" class="text-xs text-muted-foreground mt-1">
+              ≈ {{ currency }} {{ convertedPricePreview }}
+            </p>
           </div>
           <div class="w-20 shrink-0">
             <ui-label class="text-sm font-medium text-foreground">數量</ui-label>
