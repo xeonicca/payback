@@ -19,6 +19,7 @@ interface Props {
     name: string
     avatarEmoji: string
   }>
+  solo?: boolean
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -28,6 +29,7 @@ const props = withDefaults(defineProps<Props>(), {
   exchangeRate: 1,
   defaultCurrency: 'TWD',
   sharedByMemberIds: () => [],
+  solo: false,
 })
 
 const emit = defineEmits<{
@@ -125,7 +127,7 @@ const googleSearchUrl = computed(() => {
       <p v-if="item.translatedName" class="text-xs text-muted-foreground mt-2">
         翻譯: {{ item.translatedName }}
       </p>
-      <div v-if="!editMode" class="mt-2 flex items-center gap-1.5">
+      <div v-if="!editMode && !solo" class="mt-2 flex items-center gap-1.5">
         <span v-for="memberAvatar in sharedByMemberAvatars" :key="memberAvatar">
           {{ memberAvatar }}
         </span>
@@ -145,7 +147,7 @@ const googleSearchUrl = computed(() => {
       class="absolute bottom-3 right-0 flex items-center gap-1"
     >
       <ui-button
-        v-if="canSplit"
+        v-if="canSplit && !solo"
         variant="ghost"
         size="icon"
         class="size-6 rounded-full bg-indigo-100 text-indigo-500 hover:bg-indigo-200 hover:text-indigo-700"
@@ -166,7 +168,7 @@ const googleSearchUrl = computed(() => {
     </div>
 
     <!-- Member selection section when in edit mode -->
-    <div v-if="editMode && tripMembers.length > 0" class="mt-3 w-full space-y-2 bg-muted rounded-lg p-2">
+    <div v-if="editMode && tripMembers.length > 0 && !solo" class="mt-3 w-full space-y-2 bg-muted rounded-lg p-2">
       <p class="text-xs text-muted-foreground font-medium">
         明細分攤成員
       </p>

@@ -10,6 +10,7 @@ import { useTripMembers } from '@/composables/useTripMember'
 import { expenseConverter, tripConverter } from '@/utils/converter'
 import { applyDiscount } from '@/utils/discount'
 import { applyTaxDeduction } from '@/utils/tax'
+import { isSoloTrip } from '@/utils/tripMode'
 
 definePageMeta({
   middleware: ['auth'],
@@ -23,6 +24,7 @@ const { tripId, expenseId } = useRoute().params
 const trip = useDocument<Trip>(doc(db, 'trips', tripId as string).withConverter(tripConverter))
 const expense = useDocument<Expense>(doc(db, 'trips', tripId as string, 'expenses', expenseId as string).withConverter(expenseConverter))
 const { tripMembers } = useTripMembers(tripId as string)
+const isSolo = computed(() => isSoloTrip(trip.value, tripMembers.value?.length ?? 0))
 const { canEditExpense, canDeleteExpense, collaborators } = useTripCollaborators(tripId as string)
 const { hasDualCurrency, primaryCurrency, secondaryCurrency, toPrimary, toSecondary } = useCurrencyToggle(tripId as string, trip)
 
@@ -713,9 +715,9 @@ async function reanalyzeReceipt() {
     </div>
 
     <!-- Desktop: two-column / Mobile: single column -->
-    <div class="lg:grid lg:grid-cols-2 lg:gap-6 space-y-4 lg:space-y-0">
+    <div class="space-y-4 lg:space-y-0" :class="{ 'lg:grid lg:grid-cols-2 lg:gap-6': !isSolo }">
       <!-- Left: Payer + member split breakdown -->
-      <div class="bg-card rounded-xl border p-4 space-y-4">
+      <div v-if="!isSolo" class="bg-card rounded-xl border p-4 space-y-4">
         <div class="flex items-center justify-between">
           <div class="text-sm text-muted-foreground">
             付款人
@@ -839,6 +841,7 @@ async function reanalyzeReceipt() {
               :trip-members="tripMembers"
               :shareable-members="sharedWithMembers"
               :shared-by-member-ids="item.sharedByMemberIds"
+              :solo="isSolo"
               @edit="editingItemIndex = index"
               @split="splittingItemIndex = index"
             />
