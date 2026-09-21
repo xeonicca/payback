@@ -91,6 +91,9 @@ export default defineEventHandler(async (event) => {
       if (!tripDoc.exists) {
         throw createError({ statusCode: 404, statusMessage: 'Trip not found' })
       }
+      if (tripDoc.data()?.soloMode === true) {
+        throw createError({ statusCode: 403, statusMessage: 'Solo trips cannot be joined' })
+      }
       // Defence in depth: only invitations the trip's owner issued are honoured
       if (invitation.invitedByUserId !== tripDoc.data()?.userId) {
         throw createError({ statusCode: 403, statusMessage: 'Invitation is not valid for this trip' })

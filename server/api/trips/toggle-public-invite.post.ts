@@ -41,6 +41,13 @@ export default defineEventHandler(async (event) => {
       })
     }
 
+    if (enabled && tripData?.soloMode === true) {
+      throw createError({
+        statusCode: 400,
+        statusMessage: 'Turn off solo mode before enabling public joining',
+      })
+    }
+
     const updateData: Record<string, any> = {
       isPublicInviteEnabled: enabled,
     }

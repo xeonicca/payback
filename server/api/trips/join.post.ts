@@ -73,6 +73,9 @@ export default defineEventHandler(async (event) => {
         tx.get(departedRef),
       ])
 
+      if (tripData.soloMode === true) {
+        throw createError({ statusCode: 403, statusMessage: 'Solo trips cannot be joined' })
+      }
       if (!tripData.isPublicInviteEnabled) {
         throw createError({ statusCode: 400, statusMessage: 'Public joining is disabled for this trip' })
       }

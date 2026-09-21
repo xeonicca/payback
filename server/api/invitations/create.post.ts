@@ -45,6 +45,13 @@ export default defineEventHandler(async (event) => {
       })
     }
 
+    if (tripData?.soloMode === true) {
+      throw createError({
+        statusCode: 403,
+        statusMessage: 'Solo trips cannot have invitations',
+      })
+    }
+
     const invitationCode = await generateUniqueCode(invitationCodeTaken(db))
 
     // Calculate expiry date
