@@ -16,7 +16,8 @@ import {
   FormLabel as UiFormLabel,
   FormMessage as UiFormMessage,
 } from '@/components/ui/form'
-import { animalEmojis, CurrencyCode, supportedCurrencies } from '@/constants'
+import { CurrencyCode, supportedCurrencies } from '@/constants'
+import { canSwitchToSolo, isSoloModeBroken, isSoloTrip } from '@/utils/tripMode'
 
 definePageMeta({
   middleware: ['auth'],
@@ -35,7 +36,7 @@ const { trip } = useTrip(tripId)
 const { tripMembers, currentUserMember } = useTripMembers(tripId)
 const { enabledExpenses } = useTripExpenses(tripId)
 const { collaborators, isOwner, canInvite } = useTripCollaborators(tripId)
-const { setCollaboratorReadOnly, removeCollaborator, resetPublicLink } = useTripAccess()
+const { setCollaboratorReadOnly, removeCollaborator, resetPublicLink, setSoloMode } = useTripAccess()
 
 const formSchema = toTypedSchema(z.object({
   name: z.string().min(2).max(50),
@@ -71,6 +72,40 @@ const exchangeRateToTwd = computed(() => {
 
 const isSubmitting = ref(false)
 const activeTab = ref('info')
+
+const isSolo = computed(() => isSoloTrip(trip.value, tripMembers.value.length))
+const soloModeBroken = computed(() => isSoloModeBroken(trip.value, tripMembers.value.length))
+const canEnterSolo = computed(() => canSwitchToSolo({
+  isOwner: isOwner.value,
+  soloMode: trip.value?.soloMode ?? false,
+  memberCount: tripMembers.value.length,
+  collaboratorCount: trip.value?.collaboratorCount ?? 0,
+}))
+
+// The 成員/協作 tabs disappear in solo mode; don't leave the user on a hidden tab
+watch(isSolo, (solo) => {
+  if (solo && (activeTab.value === 'members' || activeTab.value === 'collaborators'))
+    activeTab.value = 'settings'
+})
+
+const isSwitchingMode = ref(false)
+
+async function handleSetSoloMode(enabled: boolean) {
+  try {
+    isSwitchingMode.value = true
+    await setSoloMode(tripId, enabled)
+    logEvent('toggle_solo_mode', { trip_id: tripId, enabled })
+    toast.success(enabled ? '已切換為個人模式' : '已切換為團體旅程，可到「協作」邀請朋友')
+  }
+  catch (error: any) {
+    console.error('Error switching solo mode:', error)
+    toast.error(error.data?.message || '切換失敗，請稍後再試')
+  }
+  finally {
+    isSwitchingMode.value = false
+  }
+}
+
 const isArchiving = ref(false)
 const showArchiveWarning = ref(false)
 const showUnarchiveWarning = ref(false)
@@ -394,58 +429,6 @@ async function handleLeaveTrip() {
   }
 }
 
-// Self-edit for non-owner collaborators
-const selfEditName = ref('')
-const selfEditAvatar = ref('')
-const isSelfSubmitting = ref(false)
-
-watch(currentUserMember, (member) => {
-  if (member && !selfEditName.value) {
-    selfEditName.value = member.name
-    selfEditAvatar.value = member.avatarEmoji
-  }
-}, { immediate: true })
-
-const selfAvailableEmojis = computed(() => {
-  const usedEmojis = tripMembers.value
-    ?.filter(m => m.id !== currentUserMember.value?.id)
-    .map(m => m.avatarEmoji) || []
-  return animalEmojis.filter(emoji => !usedEmojis.includes(emoji))
-})
-
-async function handleSelfSave() {
-  if (!currentUserMember.value)
-    return
-
-  const trimmedName = selfEditName.value.trim()
-  if (!trimmedName) {
-    toast.error('請輸入名稱')
-    return
-  }
-
-  try {
-    isSelfSubmitting.value = true
-    await $fetch(`/api/trips/${tripId}/members/me`, {
-      method: 'PATCH',
-      body: { name: trimmedName, avatarEmoji: selfEditAvatar.value },
-    })
-    toast.success('個人資料已更新')
-    router.push(`/trips/${tripId}`)
-  }
-  catch (error: any) {
-    console.error('Error updating member:', error)
-    if (error.status === 409) {
-      toast.error(error.data?.message || `「${trimmedName}」已被其他成員使用`)
-    }
-    else {
-      toast.error(error.data?.message || '更新失敗，請稍後再試')
-    }
-  }
-  finally {
-    isSelfSubmitting.value = false
-  }
-}
-
 function handleArchiveClick() {
   if (!trip.value)
     return
@@ -512,64 +495,16 @@ async function handleArchiveToggle() {
 
     <!-- ===== Non-owner: Self-edit profile only ===== -->
     <template v-if="!isOwner">
-      <form v-if="currentUserMember" class="bg-card rounded-xl border p-5 space-y-5" @submit.prevent="handleSelfSave">
-        <div class="flex items-center gap-4">
-          <div class="size-16 flex items-center justify-center text-3xl bg-primary/10 border-2 border-primary/20 rounded-full shrink-0">
-            {{ selfEditAvatar }}
-          </div>
-          <div class="flex-1">
-            <label for="self-edit-name" class="text-sm font-medium text-foreground mb-1.5 block">顯示名稱</label>
-            <ui-input
-              id="self-edit-name"
-              v-model="selfEditName"
-              type="text"
-              placeholder="輸入你的名稱"
-              class="h-12 text-base"
-              :disabled="isSelfSubmitting"
-            />
-          </div>
-        </div>
-
-        <!-- Avatar grid -->
-        <div class="space-y-2">
-          <label class="text-xs font-semibold text-muted-foreground uppercase tracking-wide">選擇頭像</label>
-          <div class="grid grid-cols-8 sm:grid-cols-10 gap-1.5">
-            <button
-              v-for="emoji in selfAvailableEmojis"
-              :key="emoji"
-              type="button"
-              :class="{
-                'bg-primary ring-2 ring-primary ring-offset-1': selfEditAvatar === emoji,
-                'bg-card hover:bg-muted': selfEditAvatar !== emoji,
-              }"
-              class="aspect-square flex items-center justify-center text-xl rounded-lg border border-border transition-colors cursor-pointer"
-              @click="selfEditAvatar = emoji"
-            >
-              {{ emoji }}
-            </button>
-          </div>
-        </div>
-
-        <div class="flex gap-3 pt-1">
-          <ui-button
-            type="button"
-            variant="outline"
-            class="flex-1"
-            :disabled="isSelfSubmitting"
-            @click="router.push(`/trips/${tripId}`)"
-          >
-            取消
-          </ui-button>
-          <ui-button
-            type="submit"
-            class="flex-1"
-            :disabled="isSelfSubmitting"
-          >
-            <Icon v-if="isSelfSubmitting" name="lucide:loader-circle" :size="16" class="animate-spin mr-2" />
-            {{ isSelfSubmitting ? '儲存中...' : '儲存變更' }}
-          </ui-button>
-        </div>
-      </form>
+      <div v-if="currentUserMember" class="bg-card rounded-xl border p-5">
+        <member-profile-form
+          :trip-id="tripId"
+          :member="currentUserMember"
+          :members="tripMembers"
+          show-cancel
+          @saved="router.push(`/trips/${tripId}`)"
+          @cancel="router.push(`/trips/${tripId}`)"
+        />
+      </div>
 
       <!-- Loading state -->
       <div v-else class="py-8 flex justify-center">
@@ -613,10 +548,10 @@ async function handleArchiveToggle() {
             <ui-tabs-trigger value="info" class="flex-1">
               行程資訊
             </ui-tabs-trigger>
-            <ui-tabs-trigger value="members" class="flex-1">
+            <ui-tabs-trigger v-if="!isSolo" value="members" class="flex-1">
               成員
             </ui-tabs-trigger>
-            <ui-tabs-trigger value="collaborators" class="flex-1">
+            <ui-tabs-trigger v-if="!isSolo" value="collaborators" class="flex-1">
               協作
             </ui-tabs-trigger>
             <ui-tabs-trigger value="settings" class="flex-1">
@@ -677,7 +612,7 @@ async function handleArchiveToggle() {
           </ui-tabs-content>
 
           <!-- Tab: Members -->
-          <ui-tabs-content value="members" force-mount class="p-5 data-[state=inactive]:hidden">
+          <ui-tabs-content v-if="!isSolo" value="members" force-mount class="p-5 data-[state=inactive]:hidden">
             <edit-trip-members-form
               v-if="localMembers.length > 0 && !trip?.archived"
               :members="localMembers"
@@ -708,7 +643,7 @@ async function handleArchiveToggle() {
           </ui-tabs-content>
 
           <!-- Tab: Collaborators -->
-          <ui-tabs-content value="collaborators" class="p-5">
+          <ui-tabs-content v-if="!isSolo" value="collaborators" class="p-5">
             <div class="space-y-4">
               <div v-if="collaborators.length > 0" class="divide-y divide-border">
                 <div
@@ -799,8 +734,67 @@ async function handleArchiveToggle() {
           <!-- Tab: Settings -->
           <ui-tabs-content value="settings" class="p-5">
             <div class="space-y-4">
-              <!-- Public Join Toggle -->
+              <!-- Solo trips have no 成員 tab, so the owner edits their own profile here -->
+              <template v-if="isSolo && currentUserMember">
+                <div class="space-y-3">
+                  <p class="text-sm font-semibold text-foreground m-0">
+                    個人資料
+                  </p>
+                  <member-profile-form
+                    :key="currentUserMember.id"
+                    :trip-id="tripId"
+                    :member="currentUserMember"
+                    :members="tripMembers"
+                  />
+                </div>
+                <ui-separator />
+              </template>
+
+              <!-- Solo mode switch -->
               <div v-if="isOwner" class="space-y-3">
+                <div>
+                  <p class="text-sm font-semibold text-foreground m-0">
+                    個人模式
+                  </p>
+                  <p class="text-xs text-muted-foreground m-0 mt-1">
+                    {{ trip?.soloMode
+                      ? '目前為個人模式：隱藏分帳、邀請與成員管理。切換為團體旅程後即可邀請朋友。'
+                      : '只有你一個人記帳時，可以隱藏分帳、邀請與成員管理。'
+                    }}
+                  </p>
+                </div>
+                <alert-banner v-if="soloModeBroken" icon="lucide:triangle-alert" title="個人模式未生效" variant="warning">
+                  此行程有多位成員，已自動顯示團體功能。
+                </alert-banner>
+                <ui-button
+                  v-if="trip?.soloMode"
+                  type="button"
+                  variant="outline"
+                  class="w-full"
+                  :disabled="isSwitchingMode"
+                  @click="handleSetSoloMode(false)"
+                >
+                  <Icon name="lucide:users" :size="16" class="mr-2" />
+                  切換為團體旅程
+                </ui-button>
+                <ui-button
+                  v-else-if="canEnterSolo"
+                  type="button"
+                  variant="outline"
+                  class="w-full"
+                  :disabled="isSwitchingMode"
+                  @click="handleSetSoloMode(true)"
+                >
+                  <Icon name="lucide:user" :size="16" class="mr-2" />
+                  切換為個人模式
+                </ui-button>
+                <p v-else class="text-xs text-muted-foreground m-0">
+                  行程只有你一位成員、且沒有其他協作者時，才能切換為個人模式。
+                </p>
+              </div>
+
+              <!-- Public Join Toggle -->
+              <div v-if="isOwner && !isSolo" class="space-y-3">
                 <div class="flex items-center justify-between">
                   <div>
                     <p class="text-sm font-semibold text-foreground m-0">
@@ -830,7 +824,7 @@ async function handleArchiveToggle() {
                 </template>
               </div>
 
-              <ui-separator v-if="isOwner" />
+              <ui-separator v-if="isOwner && !isSolo" />
 
               <div class="space-y-3">
                 <div>
