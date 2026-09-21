@@ -27,8 +27,9 @@ by default.
 
 ## Approach
 
-Explicit `soloMode` flag on the trip plus a `useTripMode()` composable that all surfaces
-branch on. New UI lives in small dedicated components so large pages don't grow. Server
+Explicit `soloMode` flag on the trip plus pure helpers in `utils/tripMode.ts` that every surface
+branches on through a local `computed` (pages already load trip and members, so a composable
+would only add duplicate listeners). New UI lives in small dedicated components so large pages don't grow. Server
 join/invite endpoints enforce the mode (hiding buttons alone would leave existing links working).
 
 Rejected:
@@ -42,10 +43,11 @@ Rejected:
 - `Trip.soloMode?: boolean` (and `NewTrip`) in `types/index.ts`.
 - `tripConverter` in `utils/converter.ts` defaults missing to `false` — existing trips unaffected.
 
-### `useTripMode()` composable
-- `isSolo = trip.soloMode === true && members.length === 1` — inconsistent data falls back to group UI so nothing is hidden.
-- `soloModeBroken = trip.soloMode === true && members.length > 1` — used to show a notice in settings.
-- `canSwitchToSolo = isOwner && !trip.soloMode && members.length === 1 && collaboratorCount === 1 && no pending invitations`.
+### Mode helpers (`utils/tripMode.ts`)
+- `isSoloTrip(trip, memberCount)` = `trip.soloMode === true && memberCount === 1` — inconsistent data falls back to group UI so nothing is hidden.
+- `isSoloModeBroken(trip, memberCount)` = `trip.soloMode === true && memberCount > 1` — used to show a notice in settings.
+- `canSwitchToSolo({ isOwner, soloMode, memberCount, collaboratorCount })` = owner, not already solo, 1 member, `collaboratorCount <= 1`.
+  Pending invitations are not a precondition: the endpoint revokes them.
 
 ### Entering at creation (`pages/trips/new.vue`)
 On submit, if the member list contains only the host, show a dialog:
@@ -55,8 +57,8 @@ On submit, if the member list contains only the host, show a dialog:
 
 ### Group → solo (設定)
 Shown only when `canSwitchToSolo`. Calls new endpoint
-`POST /api/trips/[tripId]/solo-mode` with `{ enabled: true }`, which, after verifying owner
-and the same preconditions server-side:
+`POST /api/trips/[tripId]/solo-mode` with `{ enabled: true }`, which, after verifying ownership and
+the preconditions server-side (exactly 1 member, no collaborator other than the owner):
 - sets `soloMode: true`
 - sets `isPublicInviteEnabled: false`
 - revokes all open invitations (collaborator and guest)
@@ -67,10 +69,11 @@ owner enables it in 協作 when ready. Expenses untouched (already paid by / sha
 single member).
 
 ### Server guards
-Return 403 「個人模式旅程無法加入」 when the trip has `soloMode: true`:
-- `server/api/trips/join.post.ts`
-- `server/api/invitations/create.post.ts`
-- `server/api/invitations/accept.post.ts`
+When the trip has `soloMode: true` (English `statusMessage`, matching the other endpoints):
+- `server/api/trips/join.post.ts` → 403 `Solo trips cannot be joined`
+- `server/api/invitations/create.post.ts` → 403 `Solo trips cannot have invitations`
+- `server/api/invitations/accept.post.ts` → 403 `Solo trips cannot be joined`
+- `server/api/trips/toggle-public-invite.post.ts` → 400 `Turn off solo mode before enabling public joining` (enable only)
 
 ## 2. UI when `isSolo`
 
@@ -83,7 +86,7 @@ Return 403 「個人模式旅程無法加入」 when the trip has `soloMode: tru
 - 結算建議 hidden entirely.
 - Recent expenses unchanged.
 
-### Expense form (`components/AddExpenseDrawer.vue`, all three copies: receipt tab, manual tab, mobile drawer)
+### Expense form (`components/AddExpenseDrawer.vue`, all four copies: receipt + manual tabs in both the desktop dialog and the mobile drawer)
 - Hide payer picker and 分攤成員 picker; values still default to the single member so the data shape is unchanged.
 - Hide `splitSummary` text.
 
@@ -98,8 +101,8 @@ Return 403 「個人模式旅程無法加入」 when the trip has `soloMode: tru
 
 ### 設定 (`pages/trips/[tripId]/edit.vue`)
 - Hide 成員 and 協作 tabs.
-- Owner's own name/emoji edit moves into 行程資訊 so it remains reachable.
-- 設定 tab gains a 「個人模式」 section: switch action (to solo when `canSwitchToSolo`, to group when solo),
+- Owner's own name/emoji edit moves into the 設定 tab (it has its own save; 行程資訊 already has the trip save bar). The non-owner self-edit form is extracted into `components/MemberProfileForm.vue` and reused.
+- 設定 tab hides the public join toggle and gains a 「個人模式」 section: switch action (to solo when `canSwitchToSolo`, to group when solo),
   a short explanation of what changes, and a notice when `soloModeBroken`.
 
 ### Bottom bar
@@ -110,9 +113,10 @@ Small 「個人」 badge on solo trips.
 
 ## 3. Summary calculation
 
-Pure function in `utils/soloSummary.ts`, input: enabled expenses, trip currency/exchange
-rate fields, archived flag, `now`.
-- `total` — sum of enabled expense grand totals (trip currency), plus converted home-currency total using existing `exchangeRate` / `defaultCurrency`.
+Pure function in `utils/soloSummary.ts`, input: enabled expenses, archived flag, `now`. All
+amounts are in trip currency; the component converts for display with the existing
+`useCurrencyToggle` (`toPrimary` / `toSecondary`), like the current 總支出 tile.
+- `total` — sum of enabled expense grand totals.
 - `today` — sum of expenses whose `paidAt` falls on the current local date.
 - `dailyAverage` — `total / days`, where `days` = calendar days from first expense `paidAt` to today (or to last expense if archived), floored at 1. No expenses → shown as 「—」.
 - `topCategory` — category with the highest total; `null` if none categorized.
@@ -127,7 +131,7 @@ rate fields, archived flag, `now`.
 
 ## 5. Testing
 
-- **Unit (vitest)**: `utils/soloSummary.test.ts` — empty, single day, multi-day, archived, category ties/none, currency conversion.
-- **Unit**: mode logic (`isSolo`, `soloModeBroken`, `canSwitchToSolo`) across member / collaborator / invitation combinations — extract as pure helpers for testability.
-- **Server**: 403 paths on join, invitation create, invitation accept; solo-mode endpoint precondition checks and revocation.
+- **Unit (vitest)**: `utils/soloSummary.test.ts` — empty, single day, multi-day, archived, category ties/none, expenses without a resolved `paidAt`.
+- **Unit**: `utils/tripMode.test.ts` — `isSoloTrip`, `isSoloModeBroken`, `canSwitchToSolo` across member / collaborator combinations.
+- **Server (emulator)**: guard paths on join, invitation create, invitation accept, toggle-public-invite; solo-mode endpoint ownership, preconditions and revocation.
 - **Manual QA (browser)**: create solo trip via prompt; add expense (no pickers); home summary; 統計; 設定 tabs hidden; switch solo → group → solo; previously issued join link refused.
