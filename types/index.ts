@@ -44,6 +44,7 @@ export interface NewTrip {
   ownerDisplayName?: string
   memberEmojis?: string[]
   lastExpenseDescription?: string
+  soloMode?: boolean
 }
 
 export interface Trip extends NewTrip {
@@ -62,6 +63,7 @@ export interface Trip extends NewTrip {
   ownerDisplayName: string
   memberEmojis: string[]
   lastExpenseDescription: string
+  soloMode: boolean
 }
 
 export interface ExpenseDetailItem {
