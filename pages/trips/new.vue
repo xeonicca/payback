@@ -142,6 +142,8 @@ watch(() => values.tripCurrency, () => {
 })
 
 function handleCreate() {
+  if (currentStep.value !== 3)
+    return
   if (allMembers.value.length === 1) {
     showSoloPrompt.value = true
     return
@@ -151,6 +153,8 @@ function handleCreate() {
 }
 
 function chooseTripMode(solo: boolean) {
+  if (!showSoloPrompt.value)
+    return
   createAsSolo.value = solo
   showSoloPrompt.value = false
   onSubmit()
@@ -389,10 +393,10 @@ function onMembersChange(updatedMembers: NewTripMember[]) {
           </ui-alert-dialog-description>
         </ui-alert-dialog-header>
         <ui-alert-dialog-footer>
-          <ui-button type="button" variant="outline" @click="chooseTripMode(false)">
+          <ui-button type="button" variant="outline" :disabled="isSubmitting" @click="chooseTripMode(false)">
             之後會邀請朋友
           </ui-button>
-          <ui-button type="button" @click="chooseTripMode(true)">
+          <ui-button type="button" :disabled="isSubmitting" @click="chooseTripMode(true)">
             個人模式
           </ui-button>
         </ui-alert-dialog-footer>
