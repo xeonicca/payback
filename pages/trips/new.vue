@@ -82,6 +82,10 @@ const defaultMembers: NewTripMember[] = [
 
 const allMembers = ref<NewTripMember[]>([...defaultMembers])
 
+// A trip created with only the host is offered solo mode before it is written
+const showSoloPrompt = ref(false)
+const createAsSolo = ref(false)
+
 const onSubmit = handleSubmit(async (values) => {
   try {
     isSubmitting.value = true
@@ -96,7 +100,8 @@ const onSubmit = handleSubmit(async (values) => {
       expenseCount: 0,
       archived: false,
       collaboratorCount: 1, // Owner is the first collaborator
-      isPublicInviteEnabled: true,
+      isPublicInviteEnabled: !createAsSolo.value,
+      soloMode: createAsSolo.value,
       collaboratorUserIds: [sessionUser.value!.uid],
       ownerDisplayName: sessionUser.value!.displayName || '',
     }
@@ -119,7 +124,7 @@ const onSubmit = handleSubmit(async (values) => {
     }
 
     const { logEvent } = useAnalytics()
-    logEvent('create_trip', { trip_id: docRef.id })
+    logEvent('create_trip', { trip_id: docRef.id, solo: createAsSolo.value })
     toast.success('行程建立成功！')
     router.push(`/trips/${docRef.id}`)
   }
@@ -135,6 +140,21 @@ const onSubmit = handleSubmit(async (values) => {
 watch(() => values.tripCurrency, () => {
   setFieldValue('exchangeRate', exchangeRateToTwd.value)
 })
+
+function handleCreate() {
+  if (allMembers.value.length === 1) {
+    showSoloPrompt.value = true
+    return
+  }
+  createAsSolo.value = false
+  onSubmit()
+}
+
+function chooseTripMode(solo: boolean) {
+  createAsSolo.value = solo
+  showSoloPrompt.value = false
+  onSubmit()
+}
 
 async function writeTrip(tripData: NewTrip) {
   const docRef = await addDoc(collection(db, 'trips'), tripData)
@@ -158,7 +178,7 @@ function onMembersChange(updatedMembers: NewTripMember[]) {
 </script>
 
 <template>
-  <form class="max-w-2xl mx-auto bg-white p-8 rounded-lg shadow-xl space-y-6" @submit.prevent="onSubmit">
+  <form class="max-w-2xl mx-auto bg-white p-8 rounded-lg shadow-xl space-y-6" @submit.prevent="handleCreate">
     <!-- Step Indicator -->
     <div class="flex items-center gap-2">
       <template v-for="step in 3" :key="step">
@@ -359,5 +379,24 @@ function onMembersChange(updatedMembers: NewTripMember[]) {
         </ui-button>
       </div>
     </div>
+
+    <ui-alert-dialog v-model:open="showSoloPrompt">
+      <ui-alert-dialog-content>
+        <ui-alert-dialog-header>
+          <ui-alert-dialog-title>只有你一個人 — 要使用個人模式嗎？</ui-alert-dialog-title>
+          <ui-alert-dialog-description>
+            個人模式會隱藏分帳、邀請與成員管理，專心記錄你自己的花費。之後可以在行程設定切換成團體旅程。
+          </ui-alert-dialog-description>
+        </ui-alert-dialog-header>
+        <ui-alert-dialog-footer>
+          <ui-button type="button" variant="outline" @click="chooseTripMode(false)">
+            之後會邀請朋友
+          </ui-button>
+          <ui-button type="button" @click="chooseTripMode(true)">
+            個人模式
+          </ui-button>
+        </ui-alert-dialog-footer>
+      </ui-alert-dialog-content>
+    </ui-alert-dialog>
   </form>
 </template>
