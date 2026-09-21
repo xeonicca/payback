@@ -49,6 +49,7 @@ trips/{tripId}
   - name, tripCurrency, exchangeRate, defaultCurrency
   - totalExpenses, enabledTotalExpenses, disabledTotalExpenses
   - expenseCount
+  - soloMode (optional; true = single-traveler trip: no splitting, sharing, or member management)
   /members/{memberId}
     - name, avatarEmoji, spending, isHost
   /expenses/{expenseId}
