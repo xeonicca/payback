@@ -764,7 +764,7 @@ async function handleArchiveToggle() {
                   </p>
                 </div>
                 <alert-banner v-if="soloModeBroken" icon="lucide:triangle-alert" title="個人模式未生效" variant="warning">
-                  此行程有多位成員，已自動顯示團體功能。
+                  此行程有多位成員，已自動顯示團體功能。請切換為團體旅程以重新開放邀請。
                 </alert-banner>
                 <ui-button
                   v-if="trip?.soloMode"
@@ -777,21 +777,27 @@ async function handleArchiveToggle() {
                   <Icon name="lucide:users" :size="16" class="mr-2" />
                   切換為團體旅程
                 </ui-button>
-                <ui-button
-                  v-else-if="canEnterSolo"
-                  type="button"
-                  variant="outline"
-                  class="w-full"
-                  :disabled="isSwitchingMode"
-                  @click="handleSetSoloMode(true)"
-                >
-                  <Icon name="lucide:user" :size="16" class="mr-2" />
-                  切換為個人模式
-                </ui-button>
+                <template v-else-if="canEnterSolo">
+                  <ui-button
+                    type="button"
+                    variant="outline"
+                    class="w-full"
+                    :disabled="isSwitchingMode || hasUnsavedChanges"
+                    @click="handleSetSoloMode(true)"
+                  >
+                    <Icon name="lucide:user" :size="16" class="mr-2" />
+                    切換為個人模式
+                  </ui-button>
+                  <p v-if="hasUnsavedChanges" class="text-xs text-muted-foreground m-0">
+                    請先儲存或還原尚未儲存的變更。
+                  </p>
+                </template>
                 <p v-else class="text-xs text-muted-foreground m-0">
                   行程只有你一位成員、且沒有其他協作者時，才能切換為個人模式。
                 </p>
               </div>
+
+              <ui-separator v-if="isOwner" />
 
               <!-- Public Join Toggle -->
               <div v-if="isOwner && !isSolo" class="space-y-3">

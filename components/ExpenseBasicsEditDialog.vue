@@ -133,6 +133,8 @@ const canSave = computed(() => {
     return false
   if (!(exchangeRate.value > 0))
     return false
+  // On solo trips the payer picker is hidden, but paidByMemberId still holds
+  // the single member's id (set on load), so this check still applies.
   if (!paidByMemberId.value)
     return false
   if (!paidAtDateString.value)

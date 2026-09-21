@@ -920,7 +920,7 @@ async function reanalyzeReceipt() {
       :item="editingItem"
       :item-index="editingItemIndex"
       :currency="trip?.tripCurrency || ''"
-      :shareable-members="sharedWithMembers || []"
+      :shareable-members="isSolo ? [] : (sharedWithMembers || [])"
       :is-saving="isSavingItem"
       @update:open="(open) => { if (!open && !isSavingItem) closeItemEditDialog() }"
       @save="saveItem"
