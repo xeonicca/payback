@@ -1,7 +1,6 @@
 <script setup lang="ts">
-import type { Expense } from '@/types'
-import { Timestamp } from 'firebase/firestore'
 import { coerceCategory, getCategoryMeta } from '@/utils/categories'
+import { isSoloTrip } from '@/utils/tripMode'
 
 definePageMeta({
   middleware: ['auth'],
@@ -10,8 +9,9 @@ definePageMeta({
 
 const { tripId } = useRoute().params
 const { trip } = useTrip(tripId as string)
-const { tripExpenses, enabledExpenses } = useTripExpenses(tripId as string)
+const { enabledExpenses } = useTripExpenses(tripId as string)
 const { tripMembers } = useTripMembers(tripId as string)
+const isSolo = computed(() => isSoloTrip(trip.value, tripMembers.value.length))
 const { getMemberPaidAmount, getMemberOwedAmount, getMemberBalance } = useTripBalances(tripId as string)
 const { primaryCurrency, toPrimary } = useCurrencyToggle(tripId as string, trip)
 
@@ -94,8 +94,10 @@ const topDay = computed(() => dailySpending.value.reduce((max, d) => d.total > m
 
 function formatAmount(n: number) {
   const converted = toPrimary(n)
-  if (converted >= 10000) return `${(converted / 1000).toFixed(0)}k`
-  if (converted >= 1000) return `${(converted / 1000).toFixed(1)}k`
+  if (converted >= 10000)
+    return `${(converted / 1000).toFixed(0)}k`
+  if (converted >= 1000)
+    return `${(converted / 1000).toFixed(1)}k`
   return converted.toFixed(0)
 }
 </script>
@@ -113,7 +115,9 @@ function formatAmount(n: number) {
     <!-- Summary row -->
     <div class="grid grid-cols-2 gap-3">
       <div class="bg-card border rounded-xl p-4">
-        <p class="text-xs text-muted-foreground m-0">總支出</p>
+        <p class="text-xs text-muted-foreground m-0">
+          總支出
+        </p>
         <p class="text-lg font-bold font-mono text-foreground m-0 mt-1">
           {{ primaryCurrency }} {{ formatAmount(totalExpenses) }}
         </p>
@@ -122,7 +126,9 @@ function formatAmount(n: number) {
         </p>
       </div>
       <div class="bg-card border rounded-xl p-4">
-        <p class="text-xs text-muted-foreground m-0">日均支出</p>
+        <p class="text-xs text-muted-foreground m-0">
+          日均支出
+        </p>
         <p class="text-lg font-bold font-mono text-foreground m-0 mt-1">
           {{ primaryCurrency }} {{ formatAmount(avgPerDay) }}
         </p>
@@ -134,7 +140,9 @@ function formatAmount(n: number) {
 
     <!-- Daily spending bar chart (pure CSS) -->
     <section class="bg-card border rounded-xl p-4">
-      <h2 class="text-sm font-semibold text-foreground m-0 mb-4">每日支出</h2>
+      <h2 class="text-sm font-semibold text-foreground m-0 mb-4">
+        每日支出
+      </h2>
       <div class="space-y-2">
         <div
           v-for="day in dailySpending"
@@ -161,8 +169,10 @@ function formatAmount(n: number) {
     </section>
 
     <!-- Member breakdown -->
-    <section class="bg-card border rounded-xl p-4">
-      <h2 class="text-sm font-semibold text-foreground m-0 mb-4">成員支出</h2>
+    <section v-if="!isSolo" class="bg-card border rounded-xl p-4">
+      <h2 class="text-sm font-semibold text-foreground m-0 mb-4">
+        成員支出
+      </h2>
       <div class="space-y-3">
         <div
           v-for="member in memberSpending"
@@ -200,7 +210,9 @@ function formatAmount(n: number) {
 
     <!-- Spending by category doughnut (pure CSS) -->
     <section class="bg-card border rounded-xl p-4">
-      <h2 class="text-sm font-semibold text-foreground m-0 mb-4">消費分類</h2>
+      <h2 class="text-sm font-semibold text-foreground m-0 mb-4">
+        消費分類
+      </h2>
       <div class="flex items-center gap-5">
         <!-- Doughnut -->
         <div class="relative shrink-0" style="width: 7rem; height: 7rem;">
