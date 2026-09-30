@@ -27,8 +27,13 @@ const dailySpending = computed(() => {
   return Object.entries(grouped)
     .sort((a, b) => a[0].localeCompare(b[0]))
     .map(([key, total]) => {
-      const [, m, d] = key.split('/')
-      return { date: `${Number(m)}/${Number(d)}`, total: Math.round(total * 100) / 100 }
+      const [y, m, d] = key.split('/')
+      return {
+        date: `${Number(m)}/${Number(d)}`,
+        // Query-string form the expenses page filters on
+        key: `${y}-${m}-${d}`,
+        total: Math.round(total * 100) / 100,
+      }
     })
 })
 
@@ -144,10 +149,12 @@ function formatAmount(n: number) {
         每日支出
       </h2>
       <div class="space-y-2">
-        <div
+        <nuxt-link
           v-for="day in dailySpending"
-          :key="day.date"
-          class="flex items-center gap-3"
+          :key="day.key"
+          :to="`/trips/${tripId}/expenses?date=${day.key}`"
+          class="flex items-center gap-3 -mx-2 px-2 py-1 rounded-lg hover:bg-muted/60 transition-colors"
+          :aria-label="`查看 ${day.date} 的支出`"
         >
           <span class="text-xs text-muted-foreground font-mono w-12 shrink-0 text-right">{{ day.date }}</span>
           <div class="flex-1 h-6 bg-muted rounded-sm overflow-hidden">
@@ -159,7 +166,7 @@ function formatAmount(n: number) {
           <span class="text-xs font-mono font-semibold text-foreground w-16 shrink-0 text-right">
             {{ formatAmount(day.total) }}
           </span>
-        </div>
+        </nuxt-link>
       </div>
       <div v-if="topDay.total > 0" class="mt-3 pt-3 border-t border-border">
         <p class="text-xs text-muted-foreground m-0">

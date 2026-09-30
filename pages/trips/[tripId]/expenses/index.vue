@@ -18,6 +18,25 @@ const searchTerm = ref('')
 const sortBy = ref<'time' | 'total' | 'uploaded'>('time')
 const sortOrder = ref<'asc' | 'desc'>('desc')
 const router = useRouter()
+const route = useRoute()
+
+// ?date=YYYY-MM-DD, set by tapping a bar on the 統計 page. Anything else is ignored.
+const dateFilter = computed(() => {
+  const date = route.query.date
+  return typeof date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(date) ? date : null
+})
+
+const dateFilterLabel = computed(() => {
+  if (!dateFilter.value)
+    return ''
+  const [, month, day] = dateFilter.value.split('-')
+  return `${Number(month)}/${Number(day)}`
+})
+
+function clearDateFilter() {
+  const { date, ...rest } = route.query
+  router.replace({ query: rest })
+}
 
 function toggleSort(type: 'time' | 'total' | 'uploaded') {
   if (sortBy.value === type) {
@@ -63,6 +82,16 @@ async function handleAutoLabel() {
 
 const displayedExpenses = computed(() => {
   let expenses = showHiddenExpenses.value ? tripExpenses.value : enabledExpenses.value
+
+  // Apply single-day filter
+  if (dateFilter.value) {
+    expenses = expenses.filter((expense) => {
+      const { year, month, day } = expense.paidAtObject
+      if (!year || !month || !day)
+        return false
+      return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}` === dateFilter.value
+    })
+  }
 
   // Apply search filter
   if (searchTerm.value) {
@@ -139,6 +168,21 @@ const displayedExpenses = computed(() => {
           <Icon name="lucide:x" class="w-4 h-4" />
         </button>
       </div>
+    </div>
+
+    <!-- Active day filter, arriving from the 統計 page -->
+    <div v-if="dateFilter" class="flex items-center gap-2 max-w-3xl mx-auto">
+      <button
+        type="button"
+        class="flex items-center gap-1 pl-2.5 pr-2 py-1 rounded-full text-xs font-medium bg-primary text-primary-foreground transition-colors"
+        :aria-label="`清除 ${dateFilterLabel} 篩選`"
+        @click="clearDateFilter"
+      >
+        <Icon name="lucide:calendar" class="w-3 h-3" />
+        {{ dateFilterLabel }}
+        <Icon name="lucide:x" class="w-3 h-3" />
+      </button>
+      <span class="text-xs text-muted-foreground">{{ displayedExpenses.length }} 筆</span>
     </div>
 
     <!-- Row 2: Sort pills -->
