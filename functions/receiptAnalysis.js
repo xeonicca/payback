@@ -73,6 +73,7 @@ const receiptSchema = z.object({
   items: z.array(expenseItemSchema).describe('Real purchased items only. Do NOT include subtotals, tax lines, service charges, tips, discounts, vouchers, change due, loyalty points, free promotional items printed at 0, or store header/footer messages.'),
   description: z.string().nullable().describe('Concise 1-sentence summary in the TARGET output language only. Do not list every item. Do not provide bilingual output.'),
   category: categoryEnum.describe('The single best-fitting spending category for the whole receipt. food = restaurants/cafes/drinks/snacks; groceries = supermarkets/convenience stores; transport = taxi/train/flight/fuel/transit; lodging = hotels/lodging; activities = attractions/tours/tickets/entertainment; shopping = retail/clothing/souvenirs; other = anything that does not fit. Default to "other" if unsure.'),
+  pageBreakUncertain: z.boolean().nullable().describe('Multi-image receipts only. True if a line item was cut off at the boundary between two images and you could NOT reconstruct it from the adjacent image. False when every boundary resolved cleanly, or when there is only one image.'),
 })
 
 // Configure Google Gen AI
@@ -144,20 +145,40 @@ const dateFormatMap = {
  * Generate prompt text for receipt analysis
  * @param {string} receiptCurrency - the expected currency of the receipt (tripCurrency - where the trip is)
  * @param {string} outputLocale - the user's preferred locale for translations (defaultCurrency - user's home currency)
+ * @param {number} [pageCount] - number of images being sent for this receipt. Defaults to 1 (single image).
  * @returns {string} The generated prompt
  */
-function generatePrompt(receiptCurrency, outputLocale) {
+function generatePrompt(receiptCurrency, outputLocale, pageCount = 1) {
   const language = languageMap[outputLocale] || 'English'
   const dateFormat = dateFormatMap[receiptCurrency] || 'DD/MM/YYYY'
+  const isMultiPage = pageCount > 1
+
+  const opener = isMultiPage
+    ? `Analyze the ${pageCount} provided images — consecutive photographs of ONE single long receipt — and extract data into the specified JSON structure.`
+    : 'Analyze the provided receipt image and extract data into the specified JSON structure.'
+
+  const multiPageSection = isMultiPage
+    ? `
+### MULTI-IMAGE RECEIPT (${pageCount} IMAGES)
+
+The images are sections of ONE continuous receipt, ordered from top to bottom: IMAGE 1 is the top, IMAGE ${pageCount} is the bottom. They are NOT separate receipts. Produce ONE combined result.
+
+A. **OVERLAP** — the photographs deliberately overlap. A line fully visible in two consecutive images is ONE item. Never emit it twice.
+B. **CUT LINES** — the bottom edge of an image often CUTS a line in half: the product name is legible but its amount is off-frame, or the text is clipped mid-character. That line almost always appears complete at the top of the NEXT image. Emit it ONCE, taking name, price, quantity and lineTotal from whichever image shows the COMPLETE line — the one with a printed amount wins.
+C. **READ TOTALS ONCE** — grandTotal, subtotal, taxAmount, serviceCharge, discount, tip, the date and printedItemCount are each read ONCE, from wherever they are printed (usually the final image). A store header repeated across images is the same header, not new data.
+D. **ORDER** — items[] follows receipt order: every item from IMAGE 1, then IMAGE 2, and so on.
+E. **WHEN IN DOUBT** — if a line is cut at an image boundary and you CANNOT reconstruct it from the adjacent image, still emit your best reading of it and set "pageBreakUncertain": true. Set "pageBreakUncertain": false when every boundary resolved cleanly.
+`
+    : ''
 
   return `
-Analyze the provided receipt image and extract data into the specified JSON structure.
+${opener}
 
 ### CONTEXT
 - Receipt Region Hint: ${receiptCurrency} (informational only — NOT authoritative)
 - Expected Date Format: ${dateFormat}
 - Target Output Language: ${language}
-
+${multiPageSection}
 ### RULES
 
 1. **MULTI-LINE ITEM NAMES**
@@ -259,28 +280,54 @@ async function getImageAsBase64(bucketName, filePath) {
 }
 
 /**
- * Analyze receipt image using Gemini AI
- * @param {string} imageBase64 - Base64 encoded image data
- * @param {string} contentType - Image MIME type
+ * Build the text label that precedes one image in a multi-image request, so
+ * the model knows which edge of the receipt this image joins. Without labels,
+ * N inline images carry no ordering information at all.
+ * @param {number} index - 0-based image position
+ * @param {number} total - total number of images
+ * @returns {string|null} The label, or null when there is only one image.
+ */
+function pageLabel(index, total) {
+  if (total <= 1) {
+    return null
+  }
+  const position = `IMAGE ${index + 1} of ${total}`
+  if (index === 0) {
+    return `--- ${position} — top of the receipt, continues onto IMAGE 2 ---`
+  }
+  if (index === total - 1) {
+    return `--- ${position} — continues from IMAGE ${index}, final section ---`
+  }
+  return `--- ${position} — continues from IMAGE ${index}, continues onto IMAGE ${index + 2} ---`
+}
+
+/**
+ * Analyze one receipt using Gemini. Several images are read as consecutive
+ * sections of ONE long receipt in a single call — never as separate receipts.
+ * @param {Array<{base64: string, contentType: string}>} images - Pages in receipt order
  * @param {string} tripCurrency - The trip destination currency
  * @param {string} defaultCurrency - The user's default currency
- * @returns {Promise<{grandTotal: number|null, subtotal: number|null, taxAmount: number|null, serviceCharge: number|null, discount: number|null, tip: number|null, printedItemCount: number|null, paidAtString: string|null, currency: string, items: Array, description: string|null, needsReview: boolean, reviewReasons: string[]}>} Reconciled receipt data with needsReview flag and reviewReasons array
+ * @returns {Promise<object>} Reconciled receipt data with needsReview and reviewReasons
  */
-async function analyzeReceiptWithAI(imageBase64, contentType, tripCurrency, defaultCurrency) {
-  const imagePart = {
-    inlineData: {
-      mimeType: contentType,
-      data: imageBase64,
-    },
+async function analyzeReceiptWithAI(images, tripCurrency, defaultCurrency) {
+  const pages = Array.isArray(images) ? images : [images]
+  if (pages.length === 0) {
+    throw new Error('analyzeReceiptWithAI requires at least one image')
   }
 
-  logger.log('Sending request to Gemini API with structured schema...')
+  const contents = [{ text: generatePrompt(tripCurrency, defaultCurrency, pages.length) }]
+  pages.forEach((page, index) => {
+    const label = pageLabel(index, pages.length)
+    if (label) {
+      contents.push({ text: label })
+    }
+    contents.push({ inlineData: { mimeType: page.contentType, data: page.base64 } })
+  })
+
+  logger.log(`Sending request to Gemini API with structured schema (${pages.length} image(s))...`)
   const result = await ai.models.generateContent({
     model: 'gemini-2.5-flash',
-    contents: [
-      { text: generatePrompt(tripCurrency, defaultCurrency) },
-      imagePart,
-    ],
+    contents,
     config: {
       responseMimeType: 'application/json',
       responseJsonSchema: zodToJsonSchema(receiptSchema),
@@ -351,7 +398,9 @@ function prepareFirestoreUpdateData(parsedDataFromAI, tripCurrency, receiptImage
   //   tripCurrency; mismatches are surfaced via reviewReasons instead).
   // - category: never written verbatim; either re-derived (coerced) below or
   //   omitted entirely when preserveCategory keeps an existing value.
-  const { paidAtString, currency: _detectedCurrency, category: _rawCategory, ...restOfData } = parsedDataFromAI
+  // - pageBreakUncertain: consumed by reconcileReceipt, which converts it into
+  //   the page_break_uncertain review reason; the raw flag is not persisted.
+  const { paidAtString, currency: _detectedCurrency, category: _rawCategory, pageBreakUncertain: _pageBreakUncertain, ...restOfData } = parsedDataFromAI
 
   const firestoreUpdateData = {
     ...restOfData,
@@ -407,6 +456,7 @@ function getContentTypeFromPath(filePath) {
 
 module.exports = {
   generatePrompt,
+  pageLabel,
   getImageAsBase64,
   analyzeReceiptWithAI,
   convertToTimestamp,
