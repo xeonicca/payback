@@ -103,7 +103,7 @@ function removePage(index: number) {
       </ui-button>
 
       <p class="text-xs text-muted-foreground">
-        共 {{ pages.length }} 頁 · 依新增順序辨識；拍攝時請與上一張稍微重疊
+        共 {{ pages.length }} 頁 · 依新增順序辨識；請與上一張稍微重疊，最後一張要拍到合計金額
       </p>
     </template>
   </div>

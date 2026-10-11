@@ -6,6 +6,7 @@ const REASON_CODES = Object.freeze({
   CURRENCY_UNEXPECTED: 'currency_unexpected',
   ITEM_UNIT_PRICE_CORRECTED: 'item_unit_price_corrected',
   PAGE_BREAK_UNCERTAIN: 'page_break_uncertain',
+  GRAND_TOTAL_MISSING: 'grand_total_missing',
 })
 
 const WARNING_CODES = new Set([
@@ -15,6 +16,7 @@ const WARNING_CODES = new Set([
   REASON_CODES.ITEM_LINE_TOTAL_MISMATCH,
   REASON_CODES.CURRENCY_UNEXPECTED,
   REASON_CODES.PAGE_BREAK_UNCERTAIN,
+  REASON_CODES.GRAND_TOTAL_MISSING,
 ])
 
 function reconcileReceipt(parsedData, tripCurrency) {
@@ -93,6 +95,15 @@ function reconcileReceipt(parsedData, tripCurrency) {
   // Check 6: the AI could not reconstruct a line cut at a multi-image boundary
   if (parsedData.pageBreakUncertain === true) {
     reviewReasons.push(REASON_CODES.PAGE_BREAK_UNCERTAIN)
+  }
+
+  // Check 7: no grand total was found at all. Every other total check is
+  // guarded by `!= null`, so without this a missing total passes review
+  // silently and the expense counts as 0 in the trip's balances. The total sits
+  // at the very bottom of a receipt, which is exactly what gets left out of the
+  // last photo of a long one.
+  if (parsedData.grandTotal == null) {
+    reviewReasons.push(REASON_CODES.GRAND_TOTAL_MISSING)
   }
 
   const dedupedReasons = [...new Set(reviewReasons)]

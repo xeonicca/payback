@@ -320,6 +320,35 @@ test('Check 5: skipped when subtotal is null', () => {
   )
 })
 
+test('Check 7: flags a receipt whose grand total was never found', () => {
+  const input = {
+    grandTotal: null,
+    subtotal: 91592,
+    items: [{ name: 'a', price: 91592, quantity: 1, lineTotal: 91592 }],
+    currency: 'JPY',
+    printedItemCount: 1,
+  }
+  const result = reconcileReceipt(input, 'JPY')
+  assert.ok(result.reviewReasons.includes(REASON_CODES.GRAND_TOTAL_MISSING))
+  assert.equal(result.needsReview, true, 'a missing total must not pass silently')
+})
+
+test('Check 7: a receipt with a grand total is not flagged as missing', () => {
+  const input = {
+    grandTotal: 100,
+    items: [{ name: 'a', price: 100, quantity: 1, lineTotal: 100 }],
+    currency: 'JPY',
+  }
+  const result = reconcileReceipt(input, 'JPY')
+  assert.equal(result.reviewReasons.includes(REASON_CODES.GRAND_TOTAL_MISSING), false)
+})
+
+test('Check 7: a zero grand total is a real value, not a missing one', () => {
+  const input = { grandTotal: 0, items: [], currency: 'JPY' }
+  const result = reconcileReceipt(input, 'JPY')
+  assert.equal(result.reviewReasons.includes(REASON_CODES.GRAND_TOTAL_MISSING), false)
+})
+
 test('Check 6: flags an unresolved line at a multi-image page boundary', () => {
   const input = {
     grandTotal: 100,

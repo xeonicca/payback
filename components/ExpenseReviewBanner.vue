@@ -12,6 +12,7 @@ const WARNING_CODES = new Set([
   'item_line_total_mismatch',
   'currency_unexpected',
   'page_break_uncertain',
+  'grand_total_missing',
 ])
 
 const MESSAGES: Record<string, string> = {
@@ -21,6 +22,7 @@ const MESSAGES: Record<string, string> = {
   item_line_total_mismatch: '部分項目的單價 × 數量與該行金額不符',
   currency_unexpected: '偵測到的貨幣與此次行程貨幣不同',
   page_break_uncertain: '跨頁交接處可能有項目被截斷，請確認明細',
+  grand_total_missing: '收據上沒有辨識到總金額，可能是最後一頁沒拍到合計，請手動填入',
 }
 
 const warnings = computed(() =>
