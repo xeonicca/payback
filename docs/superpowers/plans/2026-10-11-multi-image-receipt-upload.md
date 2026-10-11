@@ -55,7 +55,7 @@ Measured baseline for the files this plan touches — all clean **except** one:
 |---|---|
 | `functions/receiptAnalysis.js`, `onReceiptUploaded.js`, `reanalyzeReceipt.js` | 0 |
 | `functions/reconcile.js` + its test | 2 (`antfu/if-newline`, `perfectionist/sort-imports`) |
-| `functions/regression-receipts.js` | **17** |
+| `functions/regression-receipts.js` | **15** |
 | `types/index.ts`, `utils/converter.ts` | 0 |
 | `components/AddExpenseDrawer.vue`, `ReceiptViewer.vue`, `ExpenseReviewBanner.vue` | 0 |
 | `pages/trips/[tripId]/expenses/[expenseId]/index.vue` | 0 |
@@ -1145,7 +1145,7 @@ Expected: clean.
 
 Run: `npx eslint functions/regression-receipts.js`
 
-Expected: **17 problems, all pre-existing** (this file was already failing lint before the plan started). Confirm your one-line change added none of them — the count must still be 17, not 18. Do not fix the pre-existing ones; that is unrelated scope.
+Expected: **15 problems, all pre-existing** (this file was already failing lint before the plan started). Confirm your one-line change added none of them — the count must still be 15, not 16. Do not fix the pre-existing ones; that is unrelated scope. Count by reading eslint's own `✖ N problems` line, not by grepping for the words "error"/"warning", which also match the summary line.
 
 Run: `grep -rn "analyzeReceiptWithAI(" functions/*.js`
 
@@ -1375,7 +1375,7 @@ export function pageFileName(index: number, originalName: string): string {
 
 Run: `pnpm vitest run __tests__/receiptPages.test.ts`
 
-Expected: PASS, 12 tests.
+Expected: PASS, 11 tests.
 
 - [ ] **Step 5: Commit**
 

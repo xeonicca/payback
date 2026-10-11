@@ -161,9 +161,18 @@ Unlabeled, N inline images are just N images and the model guesses which edge jo
    text clipped. That line usually appears complete at the top of the next image. Emit it
    **once**, taking values from whichever image shows it complete — the one with a printed
    amount wins.
+   When two readings disagree, **prefer the one whose `price x quantity` reconciles with
+   `lineTotal`**: a number clipped by a photo edge can still *look* like a valid amount, so
+   apparent completeness is not a reliable signal and arithmetic is. If neither reading
+   reconciles, `pageBreakUncertain` is set. This also covers an item whose name wraps onto
+   a second physical line with the boundary falling between name and continuation.
 3. A line fully visible in **both** images (the overlap region) is **one** item, not two.
 4. Totals, tax, and `printedItemCount` are read **once**, from wherever printed — usually
    the final image.
+   "Once" means never counting the same printed line twice because it appears in two
+   overlapping images. It does **not** mean ignoring a second, genuinely distinct charge:
+   a receipt printing separate GST and PST lines must still have them summed, as the
+   `taxAmount` field's own definition requires.
 
 #### Unresolvable seams
 
