@@ -7,6 +7,7 @@ const {
   prepareFirestoreUpdateData,
   getContentTypeFromPath,
 } = require('./receiptAnalysis')
+const { sortPagePaths } = require('./receiptPages')
 const { canModifyExpense } = require('./tripAccess')
 
 const db = admin.firestore()
@@ -71,9 +72,14 @@ exports.reanalyzeReceipt = onCall({
     }
 
     const expenseData = expenseDoc.data()
-    const receiptImageUrl = expenseData.receiptImageUrl
 
-    if (!receiptImageUrl) {
+    // Expenses created before multi-page upload have only receiptImageUrl.
+    const storedPages = Array.isArray(expenseData.imageUrls) ? expenseData.imageUrls : []
+    const pagePaths = storedPages.length > 0
+      ? sortPagePaths(storedPages)
+      : (expenseData.receiptImageUrl ? [expenseData.receiptImageUrl] : [])
+
+    if (pagePaths.length === 0) {
       throw new HttpsError('failed-precondition', 'Expense does not have a receipt image')
     }
 
@@ -88,19 +94,20 @@ exports.reanalyzeReceipt = onCall({
       processingError: null,
     })
 
-    logger.info(`Downloading image from: ${receiptImageUrl}`)
+    logger.info(`Downloading ${pagePaths.length} page(s): ${pagePaths.join(', ')}`)
 
-    // Download image from Storage using default bucket
+    // Download every page from Storage using default bucket
     const bucketName = storageBucket.name
-    const imageBase64 = await getImageAsBase64(bucketName, receiptImageUrl)
-    const contentType = getContentTypeFromPath(receiptImageUrl)
+    const pages = await Promise.all(pagePaths.map(async path => ({
+      base64: await getImageAsBase64(bucketName, path),
+      contentType: getContentTypeFromPath(path),
+    })))
 
-    logger.info(`Image downloaded, content type: ${contentType}`)
+    logger.info(`${pages.length} page(s) downloaded`)
 
-    // Analyze with AI
+    // Analyze with AI — several pages are read as one continuous receipt
     const parsedDataFromAI = await analyzeReceiptWithAI(
-      imageBase64,
-      contentType,
+      pages,
       tripCurrency,
       defaultCurrency,
     )
@@ -123,6 +130,7 @@ exports.reanalyzeReceipt = onCall({
       mode: 'reanalyze',
       tripId,
       expenseId,
+      pageCount: pages.length,
       itemCount: parsedDataFromAI.items?.length ?? 0,
       needsReview: parsedDataFromAI.needsReview ?? false,
       currency: parsedDataFromAI.currency ?? null,

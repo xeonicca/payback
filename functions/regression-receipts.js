@@ -61,7 +61,7 @@ async function main() {
     try {
       const imageBase64 = await getImageAsBase64(bucket.name, current.receiptImageUrl)
       const contentType = getContentTypeFromPath(current.receiptImageUrl)
-      const fresh = await analyzeReceiptWithAI(imageBase64, contentType, tripCurrency, defaultCurrency)
+      const fresh = await analyzeReceiptWithAI([{ base64: imageBase64, contentType }], tripCurrency, defaultCurrency)
 
       const oldSummary = summarize(current)
       const newSummary = summarize(fresh)
