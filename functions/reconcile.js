@@ -5,6 +5,7 @@ const REASON_CODES = Object.freeze({
   ITEM_LINE_TOTAL_MISMATCH: 'item_line_total_mismatch',
   CURRENCY_UNEXPECTED: 'currency_unexpected',
   ITEM_UNIT_PRICE_CORRECTED: 'item_unit_price_corrected',
+  PAGE_BREAK_UNCERTAIN: 'page_break_uncertain',
 })
 
 const WARNING_CODES = new Set([
@@ -13,6 +14,7 @@ const WARNING_CODES = new Set([
   REASON_CODES.SUBTOTAL_MISMATCH,
   REASON_CODES.ITEM_LINE_TOTAL_MISMATCH,
   REASON_CODES.CURRENCY_UNEXPECTED,
+  REASON_CODES.PAGE_BREAK_UNCERTAIN,
 ])
 
 function reconcileReceipt(parsedData, tripCurrency) {
@@ -86,6 +88,11 @@ function reconcileReceipt(parsedData, tripCurrency) {
     if (Math.abs(itemsTotal - parsedData.subtotal) > tolerance) {
       reviewReasons.push(REASON_CODES.SUBTOTAL_MISMATCH)
     }
+  }
+
+  // Check 6: the AI could not reconstruct a line cut at a multi-image boundary
+  if (parsedData.pageBreakUncertain === true) {
+    reviewReasons.push(REASON_CODES.PAGE_BREAK_UNCERTAIN)
   }
 
   const dedupedReasons = [...new Set(reviewReasons)]

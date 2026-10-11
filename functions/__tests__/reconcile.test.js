@@ -10,6 +10,7 @@ test('exports a function and reason-code constants', () => {
   assert.ok(REASON_CODES.ITEM_LINE_TOTAL_MISMATCH)
   assert.ok(REASON_CODES.CURRENCY_UNEXPECTED)
   assert.ok(REASON_CODES.ITEM_UNIT_PRICE_CORRECTED)
+  assert.ok(REASON_CODES.PAGE_BREAK_UNCERTAIN)
 })
 
 test('returns parsedData with needsReview false and empty reasons when nothing is wrong', () => {
@@ -317,4 +318,27 @@ test('Check 5: skipped when subtotal is null', () => {
     result.reviewReasons.includes(REASON_CODES.SUBTOTAL_MISMATCH),
     false,
   )
+})
+
+test('Check 6: flags an unresolved line at a multi-image page boundary', () => {
+  const input = {
+    grandTotal: 100,
+    items: [{ name: 'a', price: 100, quantity: 1, lineTotal: 100 }],
+    currency: 'JPY',
+    pageBreakUncertain: true,
+  }
+  const result = reconcileReceipt(input, 'JPY')
+  assert.ok(result.reviewReasons.includes(REASON_CODES.PAGE_BREAK_UNCERTAIN))
+  assert.equal(result.needsReview, true, 'an unreadable seam needs human review')
+})
+
+test('Check 6: a cleanly resolved or single-image receipt is not flagged', () => {
+  const clean = { grandTotal: 100, items: [], currency: 'JPY', pageBreakUncertain: false }
+  assert.equal(reconcileReceipt(clean, 'JPY').reviewReasons.includes(REASON_CODES.PAGE_BREAK_UNCERTAIN), false)
+
+  const absent = { grandTotal: 100, items: [], currency: 'JPY' }
+  assert.equal(reconcileReceipt(absent, 'JPY').reviewReasons.includes(REASON_CODES.PAGE_BREAK_UNCERTAIN), false)
+
+  const nulled = { grandTotal: 100, items: [], currency: 'JPY', pageBreakUncertain: null }
+  assert.equal(reconcileReceipt(nulled, 'JPY').reviewReasons.includes(REASON_CODES.PAGE_BREAK_UNCERTAIN), false)
 })
