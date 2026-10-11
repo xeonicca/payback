@@ -14,6 +14,8 @@ import { toast } from 'vue-sonner'
 import { useFirestore } from 'vuefire'
 import { z } from 'zod'
 import { cn } from '@/lib/utils'
+import { pageFileName } from '@/utils/receiptPages'
+import { withRetries } from '@/utils/retry'
 import { isSoloTrip } from '@/utils/tripMode'
 
 const props = defineProps<{
@@ -31,7 +33,7 @@ const sessionUser = useSessionUser()
 const isDesktop = useMediaQuery('(min-width: 1024px)')
 const activeTab = ref<'receipt' | 'manual'>(props.defaultTab ?? 'receipt')
 const isSubmitting = ref(false)
-const selectedFile = ref<File | null>(null)
+const selectedFiles = ref<File[]>([])
 const manualCategory = ref<string>('')
 const autoLabel = ref(false)
 
@@ -266,7 +268,7 @@ watch(showItemsPicker, (val) => {
 watch(open, (val) => {
   if (val) {
     activeTab.value = props.defaultTab ?? 'receipt'
-    selectedFile.value = null
+    selectedFiles.value = []
     currencyOverride.value = null
     showPayerPicker.value = false
     showSplitPicker.value = false
@@ -321,7 +323,7 @@ const onSubmit = handleSubmit(async (formValues) => {
 }, revealInvalidPicker)
 
 async function submitReceipt(formValues: { paidByMemberId: string, sharedWithMemberIds: string[] }) {
-  if (!selectedFile.value) {
+  if (selectedFiles.value.length === 0) {
     toast.error('請上傳收據')
     return
   }
@@ -330,6 +332,7 @@ async function submitReceipt(formValues: { paidByMemberId: string, sharedWithMem
   try {
     const db = useFirestore()
     const storage = getStorage()
+    const files = [...selectedFiles.value]
 
     const expense: NewExpense = {
       description: 'Receipt Uploaded, processing',
@@ -342,16 +345,20 @@ async function submitReceipt(formValues: { paidByMemberId: string, sharedWithMem
       enabled: true,
       createdByUserId: sessionUser.value?.uid,
       exchangeRate: expenseExchangeRate.value,
+      // The analysis gate waits for exactly this many pages before calling the AI.
+      imageCount: files.length,
     }
 
     const expenseDoc = await addDoc(collection(db, 'trips', props.trip.id, 'expenses'), expense)
 
-    const fileRef = storageRef(storage, `trips/${props.trip.id}/expenses/${expenseDoc.id}/${selectedFile.value.name}`)
-    uploadBytes(fileRef, selectedFile.value)
+    // Uploads continue after the drawer closes, as they always have.
+    void uploadReceiptPages(db, storage, expenseDoc.id, files)
 
     open.value = false
-    logEvent('add_expense', { method: 'receipt', trip_id: props.trip.id })
-    toast.success('收據上傳成功，正在解析收據中...')
+    logEvent('add_expense', { method: 'receipt', trip_id: props.trip.id, page_count: files.length })
+    toast.success(files.length > 1
+      ? `收據上傳成功（共 ${files.length} 頁），正在解析收據中...`
+      : '收據上傳成功，正在解析收據中...')
   }
   catch (error) {
     console.error('Error uploading receipt:', error)
@@ -360,6 +367,43 @@ async function submitReceipt(formValues: { paidByMemberId: string, sharedWithMem
   finally {
     isSubmitting.value = false
   }
+}
+
+/**
+ * Upload every page, retrying a flaky one before giving up.
+ *
+ * imageCount is never revised: if it were lowered, nothing would re-check the
+ * analysis gate — the last storage trigger has already fired and bailed — and
+ * the expense would sit in 處理中 forever. So a page that cannot be uploaded
+ * fails the whole expense, with a message the user can act on.
+ */
+async function uploadReceiptPages(
+  db: ReturnType<typeof useFirestore>,
+  storage: ReturnType<typeof getStorage>,
+  expenseId: string,
+  files: File[],
+) {
+  const results = await Promise.all(files.map((file, index) => {
+    const path = `trips/${props.trip.id}/expenses/${expenseId}/${pageFileName(index, file.name)}`
+    return withRetries(() => uploadBytes(storageRef(storage, path), file))
+  }))
+
+  const failed = results.filter(result => !result.ok).length
+  if (failed === 0) {
+    return
+  }
+
+  console.error('Receipt page upload failed', results.filter(result => !result.ok))
+  try {
+    await updateDoc(fsDoc(db, 'trips', props.trip.id, 'expenses', expenseId), {
+      isProcessing: false,
+      processingError: `${failed} 張收據圖片上傳失敗，請刪除這筆支出後重新上傳。`,
+    })
+  }
+  catch (error) {
+    console.error('Could not record the upload failure on the expense', error)
+  }
+  toast.error('收據圖片上傳失敗，請重新上傳')
 }
 
 async function submitManual(formValues: { description?: string, grandTotal?: number, paidAt?: string, paidByMemberId: string, sharedWithMemberIds: string[] }) {
@@ -469,17 +513,7 @@ async function submitManual(formValues: { description?: string, grandTotal?: num
           </ui-tabs-list>
 
           <ui-tabs-content value="receipt" class="mt-4 space-y-4">
-            <div class="grid w-full items-center gap-1.5">
-              <ui-label for="picture-desktop">
-                上傳收據（僅支援圖片格式）
-              </ui-label>
-              <ui-input
-                id="picture-desktop"
-                type="file"
-                accept="image/*"
-                @change="(e: Event) => selectedFile = (e.target as HTMLInputElement).files?.[0] ?? null"
-              />
-            </div>
+            <receipt-page-picker id="picture-desktop" v-model="selectedFiles" />
             <div v-if="hasDifferentCurrencies" class="flex items-center gap-2">
               <span class="text-xs text-muted-foreground whitespace-nowrap">1 {{ trip.tripCurrency }} =</span>
               <ui-input
@@ -966,17 +1000,7 @@ async function submitManual(formValues: { description?: string, grandTotal?: num
             </ui-tabs-list>
 
             <ui-tabs-content value="receipt" class="mt-4 space-y-4">
-              <div class="grid w-full items-center gap-1.5">
-                <ui-label for="picture-mobile">
-                  上傳收據（僅支援圖片格式）
-                </ui-label>
-                <ui-input
-                  id="picture-mobile"
-                  type="file"
-                  accept="image/*"
-                  @change="(e: Event) => selectedFile = (e.target as HTMLInputElement).files?.[0] ?? null"
-                />
-              </div>
+              <receipt-page-picker id="picture-mobile" v-model="selectedFiles" />
               <div v-if="hasDifferentCurrencies" class="flex items-center gap-2">
                 <span class="text-xs text-muted-foreground whitespace-nowrap">1 {{ trip.tripCurrency }} =</span>
                 <ui-input
