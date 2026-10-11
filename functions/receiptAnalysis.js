@@ -164,8 +164,8 @@ function generatePrompt(receiptCurrency, outputLocale, pageCount = 1) {
 The images are sections of ONE continuous receipt, ordered from top to bottom: IMAGE 1 is the top, IMAGE ${pageCount} is the bottom. They are NOT separate receipts. Produce ONE combined result.
 
 A. **OVERLAP** — the photographs deliberately overlap. A line fully visible in two consecutive images is ONE item. Never emit it twice.
-B. **CUT LINES** — the bottom edge of an image often CUTS a line in half: the product name is legible but its amount is off-frame, or the text is clipped mid-character. That line almost always appears complete at the top of the NEXT image. Emit it ONCE, taking name, price, quantity and lineTotal from whichever image shows the COMPLETE line — the one with a printed amount wins.
-C. **READ TOTALS ONCE** — grandTotal, subtotal, taxAmount, serviceCharge, discount, tip, the date and printedItemCount are each read ONCE, from wherever they are printed (usually the final image). A store header repeated across images is the same header, not new data.
+B. **CUT LINES** — the bottom edge of an image often CUTS a line in half: the product name is legible but its amount is off-frame, or the text is clipped mid-character. That line almost always appears complete at the top of the NEXT image. Emit it ONCE, taking name, price, quantity and lineTotal from whichever image shows the COMPLETE line — the one with a printed amount wins. When two readings of the same line disagree, prefer the one where price × quantity reconciles with lineTotal. A number clipped by a photo edge can still look like a valid amount, so arithmetic — not apparent completeness — is the reliable test. If neither reading reconciles, set "pageBreakUncertain": true. This includes an item whose name wraps onto a second physical line: if the boundary falls between the name and its continuation, join them across the two images and emit one item.
+C. **READ TOTALS ONCE** — grandTotal, subtotal, taxAmount, serviceCharge, discount, tip, the date and printedItemCount are each read ONCE, from wherever they are printed (usually the final image). A store header repeated across images is the same header, not new data. "ONCE" means never count the same printed line twice because it appears in two overlapping images. It does NOT mean ignore a second, genuinely different charge: if the receipt prints two distinct tax or service lines, sum them as that field's own definition requires.
 D. **ORDER** — items[] follows receipt order: every item from IMAGE 1, then IMAGE 2, and so on.
 E. **WHEN IN DOUBT** — if a line is cut at an image boundary and you CANNOT reconstruct it from the adjacent image, still emit your best reading of it and set "pageBreakUncertain": true. Set "pageBreakUncertain": false when every boundary resolved cleanly.
 `
@@ -302,6 +302,28 @@ function pageLabel(index, total) {
 }
 
 /**
+ * Normalize and validate the images argument. Exported for testing: it is the
+ * only part of analyzeReceiptWithAI that can be exercised without calling Gemini.
+ *
+ * Fails loudly on a malformed page rather than letting a request with
+ * `inlineData: { mimeType: undefined, data: undefined }` reach the paid API.
+ * @param {unknown} images
+ * @returns {Array<{base64: string, contentType: string}>} The validated pages, in order.
+ */
+function normalizePages(images) {
+  const pages = Array.isArray(images) ? images : [images]
+  if (pages.length === 0) {
+    throw new Error('analyzeReceiptWithAI requires at least one image')
+  }
+  pages.forEach((page, index) => {
+    if (typeof page?.base64 !== 'string' || typeof page?.contentType !== 'string') {
+      throw new TypeError(`analyzeReceiptWithAI: image ${index} must be { base64: string, contentType: string }`)
+    }
+  })
+  return pages
+}
+
+/**
  * Analyze one receipt using Gemini. Several images are read as consecutive
  * sections of ONE long receipt in a single call — never as separate receipts.
  * @param {Array<{base64: string, contentType: string}>} images - Pages in receipt order
@@ -310,10 +332,7 @@ function pageLabel(index, total) {
  * @returns {Promise<object>} Reconciled receipt data with needsReview and reviewReasons
  */
 async function analyzeReceiptWithAI(images, tripCurrency, defaultCurrency) {
-  const pages = Array.isArray(images) ? images : [images]
-  if (pages.length === 0) {
-    throw new Error('analyzeReceiptWithAI requires at least one image')
-  }
+  const pages = normalizePages(images)
 
   const contents = [{ text: generatePrompt(tripCurrency, defaultCurrency, pages.length) }]
   pages.forEach((page, index) => {
@@ -457,6 +476,7 @@ function getContentTypeFromPath(filePath) {
 module.exports = {
   generatePrompt,
   pageLabel,
+  normalizePages,
   getImageAsBase64,
   analyzeReceiptWithAI,
   convertToTimestamp,
