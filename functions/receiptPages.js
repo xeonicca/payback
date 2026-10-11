@@ -27,4 +27,47 @@ function sortPagePaths(paths) {
   })
 }
 
-module.exports = { pageIndexOf, sortPagePaths, PAGE_INDEX_REGEX }
+/**
+ * Append one uploaded page to an expense and decide whether this caller should
+ * run the AI analysis. Called once per storage-trigger invocation.
+ *
+ * Exactly one caller per expense receives 'analyze': the one whose write
+ * completes the set. The transaction serializes concurrent invocations, so the
+ * decision cannot be taken twice.
+ *
+ * Takes a DocumentReference rather than a db handle so this module never
+ * imports firebase-admin, which keeps it drivable from the emulator tests.
+ *
+ * @param {import('firebase-admin/firestore').DocumentReference} expenseRef
+ * @param {string} resizedPath - Storage path of the resized page that just landed
+ * @returns {Promise<{ status: 'analyze'|'waiting'|'duplicate'|'missing', paths: string[] }>}
+ *   paths is in receipt order and only meaningful for 'analyze'.
+ */
+async function claimPageForAnalysis(expenseRef, resizedPath) {
+  return expenseRef.firestore.runTransaction(async (tx) => {
+    const snapshot = await tx.get(expenseRef)
+    if (!snapshot.exists) {
+      return { status: 'missing', paths: [] }
+    }
+
+    const data = snapshot.data() || {}
+    const existing = Array.isArray(data.imageUrls) ? data.imageUrls : []
+
+    // The Resize Images extension retries on failure, so the same page can
+    // arrive twice. Counting it twice would analyze an incomplete receipt.
+    if (existing.includes(resizedPath)) {
+      return { status: 'duplicate', paths: sortPagePaths(existing) }
+    }
+
+    const paths = sortPagePaths([...existing, resizedPath])
+    tx.update(expenseRef, { imageUrls: paths })
+
+    const expected = Number.isInteger(data.imageCount) && data.imageCount > 0
+      ? data.imageCount
+      : 1
+
+    return { status: paths.length >= expected ? 'analyze' : 'waiting', paths }
+  })
+}
+
+module.exports = { pageIndexOf, sortPagePaths, claimPageForAnalysis, PAGE_INDEX_REGEX }
