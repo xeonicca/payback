@@ -87,6 +87,7 @@ export const expenseConverter: FirestoreDataConverter<Expense> = {
       paidAtString: formatFirebaseTimestamp(data.paidAt),
       paidAtObject: formatFirebaseDateAndTime(data.paidAt),
       imageUrls: data.imageUrls || [],
+      imageCount: data.imageCount,
       receiptImageUrl: data.receiptImageUrl,
       isProcessing: data.isProcessing,
       items: data.items || [],

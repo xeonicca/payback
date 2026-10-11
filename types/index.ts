@@ -83,7 +83,8 @@ export interface NewExpense {
   paidByMemberId: string
   sharedWithMemberIds: string[]
   createdAt: Timestamp | FieldValue
-  imageUrls?: string[] // URLs of uploaded images
+  imageUrls?: string[] // Storage paths of the uploaded receipt pages, in receipt order
+  imageCount?: number // Pages the client is uploading; the analysis gate waits for this many
   isProcessing: boolean
   enabled: boolean // New field with default value true
   items?: Array<ExpenseDetailItem>
