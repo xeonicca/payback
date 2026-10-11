@@ -301,11 +301,31 @@ const createdByName = computed(() => {
   return member?.name || null
 })
 
-const receiptImageUrl = computedAsync(async () => {
+// Storage paths of the receipt pages. Expenses created before multi-page
+// upload have only receiptImageUrl.
+const receiptPagePaths = computed<string[]>(() => {
+  const pages = expense.value?.imageUrls ?? []
+  if (pages.length > 0) {
+    return pages
+  }
+  return expense.value?.receiptImageUrl ? [expense.value.receiptImageUrl] : []
+})
+
+const receiptImageUrls = computedAsync<string[]>(async () => {
+  const paths = receiptPagePaths.value
+  if (paths.length === 0) {
+    return []
+  }
   const storage = useFirebaseStorage()
-  const ref = storageRef(storage, expense.value?.receiptImageUrl)
-  return await getDownloadURL(ref)
-}, null)
+  return Promise.all(paths.map(path => getDownloadURL(storageRef(storage, path))))
+}, [])
+
+const receiptViewerIndex = ref(0)
+
+function openReceiptViewer(index: number) {
+  receiptViewerIndex.value = index
+  isReceiptViewerOpen.value = true
+}
 
 const convertToDefaultCurrency = computed(() => {
   if (!expense.value?.grandTotal)
@@ -596,7 +616,7 @@ async function revertDiscount() {
 }
 
 async function reanalyzeReceipt() {
-  if (!expense.value?.receiptImageUrl || expense.value?.isProcessing)
+  if (receiptPagePaths.value.length === 0 || expense.value?.isProcessing)
     return
 
   try {
@@ -851,7 +871,7 @@ async function reanalyzeReceipt() {
           </p>
         </div>
 
-        <div v-if="receiptImageUrl" class="bg-card rounded-xl border p-4 space-y-2">
+        <div v-if="receiptImageUrls.length" class="bg-card rounded-xl border p-4 space-y-2">
           <div class="flex items-center justify-between">
             <div class="text-sm text-muted-foreground">
               收據圖片
@@ -876,19 +896,26 @@ async function reanalyzeReceipt() {
               處理中...
             </div>
           </div>
-          <button
-            type="button"
-            aria-label="放大檢視收據"
-            class="block w-full cursor-zoom-in rounded-lg overflow-hidden focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:ring-offset-2"
-            @click="isReceiptViewerOpen = true"
-          >
-            <img
-              :src="receiptImageUrl"
-              alt="收據圖片"
-              loading="lazy"
-              class="w-full max-h-96 object-contain rounded-lg"
-            >
-          </button>
+          <div class="space-y-3">
+            <div v-for="(src, index) in receiptImageUrls" :key="src" class="space-y-1">
+              <div v-if="receiptImageUrls.length > 1" class="text-xs text-muted-foreground">
+                第 {{ index + 1 }} 頁
+              </div>
+              <button
+                type="button"
+                :aria-label="receiptImageUrls.length > 1 ? `放大檢視收據第 ${index + 1} 頁` : '放大檢視收據'"
+                class="block w-full cursor-zoom-in rounded-lg overflow-hidden focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:ring-offset-2"
+                @click="openReceiptViewer(index)"
+              >
+                <img
+                  :src="src"
+                  :alt="receiptImageUrls.length > 1 ? `收據圖片第 ${index + 1} 頁` : '收據圖片'"
+                  loading="lazy"
+                  class="w-full max-h-96 object-contain rounded-lg"
+                >
+              </button>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -1043,9 +1070,10 @@ async function reanalyzeReceipt() {
     </ui-alert-dialog>
 
     <receipt-viewer
-      v-if="receiptImageUrl"
+      v-if="receiptImageUrls.length"
       v-model:open="isReceiptViewerOpen"
-      :src="receiptImageUrl"
+      :srcs="receiptImageUrls"
+      :start-index="receiptViewerIndex"
     />
   </template>
 </template>
