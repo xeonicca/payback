@@ -19,6 +19,10 @@ const storageBucket = admin.storage().bucket()
  */
 exports.reanalyzeReceipt = onCall({
   region: 'us-west1',
+  // Re-analysis reads every page, so it inherits the same multi-page latency as
+  // the upload trigger. See the note there on why a timeout is unrecoverable.
+  timeoutSeconds: 300,
+  memory: '512MiB',
 }, async (request) => {
   const { tripId, expenseId } = request.data
 
@@ -81,6 +85,15 @@ exports.reanalyzeReceipt = onCall({
 
     if (pagePaths.length === 0) {
       throw new HttpsError('failed-precondition', 'Expense does not have a receipt image')
+    }
+
+    // Some pages never uploaded. Re-analysing an incomplete receipt would emit a
+    // confidently wrong grand total, so refuse rather than guess.
+    if (Number.isInteger(expenseData.imageCount) && pagePaths.length < expenseData.imageCount) {
+      throw new HttpsError(
+        'failed-precondition',
+        `Receipt is incomplete: ${pagePaths.length} of ${expenseData.imageCount} pages uploaded`,
+      )
     }
 
     // Check if already processing

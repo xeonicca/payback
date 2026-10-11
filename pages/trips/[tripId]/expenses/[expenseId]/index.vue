@@ -320,6 +320,13 @@ const receiptImageUrls = computedAsync<string[]>(async () => {
   return Promise.all(paths.map(path => getDownloadURL(storageRef(storage, path))))
 }, [])
 
+// A partial upload leaves fewer pages than the client promised. Re-analysing
+// that set would produce a confidently wrong grand total from an incomplete
+// receipt, so the action is withheld and the failure is surfaced instead.
+const hasIncompletePages = computed(() =>
+  !!expense.value?.imageCount && receiptPagePaths.value.length < expense.value.imageCount,
+)
+
 const receiptViewerIndex = ref(0)
 
 function openReceiptViewer(index: number) {
@@ -622,7 +629,9 @@ async function reanalyzeReceipt() {
   try {
     isReanalyzing.value = true
     const functions = getFunctions(undefined, 'us-west1')
-    const reanalyze = httpsCallable(functions, 'reanalyzeReceipt-reanalyzeReceipt')
+    // Match the function's own 300s budget; the SDK default is ~70s, which a
+    // multi-page re-analysis can exceed even when the function succeeds.
+    const reanalyze = httpsCallable(functions, 'reanalyzeReceipt-reanalyzeReceipt', { timeout: 300000 })
     await reanalyze({ tripId, expenseId })
     logEvent('reanalyze_receipt', { trip_id: tripId as string })
     toast.success('收據重新分析完成')
@@ -877,7 +886,7 @@ async function reanalyzeReceipt() {
               收據圖片
             </div>
             <ui-button
-              v-if="canEditThisExpense && !expense?.isProcessing"
+              v-if="canEditThisExpense && !expense?.isProcessing && !hasIncompletePages"
               variant="outline"
               size="sm"
               :disabled="isReanalyzing"
@@ -895,7 +904,17 @@ async function reanalyzeReceipt() {
               <Icon name="lucide:loader-2" :size="14" class="animate-spin" />
               處理中...
             </div>
+            <div v-else-if="hasIncompletePages" class="flex items-center gap-2 text-sm text-destructive">
+              <Icon name="lucide:triangle-alert" :size="14" />
+              頁面不完整
+            </div>
           </div>
+          <p
+            v-if="hasIncompletePages"
+            class="text-xs text-destructive"
+          >
+            部分收據頁面上傳失敗（{{ receiptPagePaths.length }} / {{ expense?.imageCount }} 頁），無法正確辨識金額，請刪除這筆支出後重新上傳。
+          </p>
           <div class="space-y-3">
             <div v-for="(src, index) in receiptImageUrls" :key="src" class="space-y-1">
               <div v-if="receiptImageUrls.length > 1" class="text-xs text-muted-foreground">

@@ -15,6 +15,13 @@ const db = admin.firestore()
 exports.analyzeReceiptAndUpdateExpense = onObjectFinalized({
   bucket: process.env.GCLOUD_STORAGE_BUCKET,
   region: 'us-west1',
+  // A 5-page receipt is 3-5x the items and output tokens of a single photo, and
+  // the AI call runs with an unbounded thinking budget. The v2 default of 60s
+  // can be exceeded, and a timeout KILLS the container -- so the catch below
+  // never runs, no processingError is written, and the expense would sit in
+  // the processing state forever.
+  timeoutSeconds: 300,
+  memory: '512MiB',
 }, async (event) => {
   const fileBucket = event.data.bucket
   const filePath = event.data.name
