@@ -97,12 +97,31 @@ The existing resized-path regex already matches. A transaction is inserted betwe
 parsing and analysis:
 
 1. Read `imageUrls` (default `[]`) and `imageCount` (default `1`).
-2. If this path is already in `imageUrls`, return — the Resize Images extension retries,
-   and a re-fired file must not be counted twice.
+2. If a recorded path has the **same page number** as this one, return — the Resize Images
+   extension retries, and a re-fired file must not be counted twice. Page number rather
+   than exact path, because `IMG_SIZES` and `IMAGE_TYPE` in that extension are
+   comma-separated lists configured in the Firebase console and not versioned in this
+   repo: if either ever holds two values, one uploaded page yields two distinct resized
+   paths. Counting entries would then fire the analysis with a page still missing *and*
+   return `analyze` to every later arrival, duplicating Gemini spend. Counting distinct
+   page numbers is correct under either configuration, and leaves `imageUrls` holding at
+   most one path per page, so the analyzer can never feed the model the same page twice.
+   Paths with no `page-N` basename (pre-feature uploads) fall back to exact-path equality,
+   so two different legacy filenames are not mistaken for one page.
 3. Append the path.
-4. **The invocation whose write makes `imageUrls.length === imageCount` is the analyzer.**
-   The transaction guarantees exactly one such write. Every other invocation returns
-   having done nothing.
+4. **The invocation whose write brings the count of distinct page numbers up to
+   `imageCount` is the analyzer.** The transaction guarantees exactly one such write.
+   Every other invocation returns having done nothing. The comparison is `>=`, not `===`,
+   so an unexpected extra page cannot strand the receipt.
+
+The claim runs with `{ maxAttempts: 10 }` (the default 5 can be exhausted by a 5-page
+burst contending on one document) and **inside** error handling. A rejected transaction
+would otherwise escape the handler: the trigger is registered without `retry`, the other
+invocations have already bailed, and nothing re-evaluates the gate — so the expense would
+sit in 處理中 forever with no error recorded. The caller instead logs a `claim_error`
+outcome and writes `processingError`. Enabling `retry: true` on the trigger was considered
+and declined: redelivery is safe for the claim itself, but the same flag would also retry
+Gemini failures, multiplying AI spend on exactly the receipts that already failed.
 
 The analyzer sorts paths by the integer parsed out of `page-(\d+)` in the filename — not
 by arrival order, so a slow upload cannot scramble pages — downloads all pages, and makes

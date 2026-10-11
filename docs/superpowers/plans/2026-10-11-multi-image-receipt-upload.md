@@ -29,8 +29,23 @@ Read this before Task 1; it will save you an hour of confusion.
 | Cloud Functions tests | `cd functions; node --test` |
 | Frontend unit tests | `pnpm vitest run` |
 | Firestore emulator tests | `pnpm test:emulator` |
-| Lint | `npx eslint .` |
+| Lint (one file) | `npx eslint <path>` |
 | Dev server | `pnpm dev` |
+
+**Do not run `npx eslint .` and expect it to pass.** Although `CLAUDE.md` documents it, the project has ~10,100 pre-existing lint problems across 163 files (much of it in `docs/`, `.agents/` and generated output). **Lint only the files your task touches**, and compare against a baseline if that file already had problems.
+
+Measured baseline for the files this plan touches — all clean **except** one:
+
+| File | Pre-existing problems |
+|---|---|
+| `functions/receiptAnalysis.js`, `onReceiptUploaded.js`, `reanalyzeReceipt.js` | 0 |
+| `functions/reconcile.js` + its test | 2 (`antfu/if-newline`, `perfectionist/sort-imports`) |
+| `functions/regression-receipts.js` | **17** |
+| `types/index.ts`, `utils/converter.ts` | 0 |
+| `components/AddExpenseDrawer.vue`, `ReceiptViewer.vue`, `ExpenseReviewBanner.vue` | 0 |
+| `pages/trips/[tripId]/expenses/[expenseId]/index.vue` | 0 |
+
+Leave pre-existing problems alone — fixing them is unrelated scope that would bloat the diff. Just don't add new ones.
 
 **`pnpm dev` talks to the real Firebase project** (no emulator, see `memory/reference_dev_targets_production.md`). Any manual verification creates real trips and expenses and spends real Gemini calls. Use a throwaway trip.
 
@@ -845,9 +860,41 @@ Replace from `logger.info(\`Analyzing image: ...\`)` through that `await expense
   // Each page of a multi-image receipt fires this function separately. The
   // claim decides, atomically, whether this invocation is the one that has the
   // complete set and should run the analysis.
-  const claim = await claimPageForAnalysis(expenseDocRef, filePath)
+  //
+  // The claim must be inside error handling: runTransaction rejects on
+  // contention exhaustion or UNAVAILABLE, this trigger is registered without
+  // `retry`, and the other invocations have already bailed — so an unhandled
+  // rejection means the page is never recorded, nothing re-evaluates the gate,
+  // and the expense sits in 處理中 forever with no error written anywhere.
+  let claim
+  try {
+    claim = await claimPageForAnalysis(expenseDocRef, filePath)
+  }
+  catch (error) {
+    logger.error('Failed to record the uploaded page:', error)
+    logger.info('receipt_extraction', {
+      event: 'receipt_extraction',
+      status: 'fail',
+      reason: 'claim_error',
+      tripId,
+      expenseId,
+      error: error.message || 'Unknown error',
+    })
+    // An unrecorded page means the set can never complete, so fail the expense
+    // rather than leaving it processing indefinitely.
+    try {
+      await expenseDocRef.update({
+        isProcessing: false,
+        processingError: `Could not record an uploaded receipt page: ${error.message || 'Unknown error'}.`,
+        processedAt: admin.firestore.FieldValue.serverTimestamp(),
+      })
+    }
+    catch (updateError) { logger.error(updateError) }
+    return
+  }
+
   if (claim.status !== 'analyze') {
-    logger.info(`Page ${filePath} recorded with status '${claim.status}'; not analyzing in this invocation.`)
+    logger.info(`Page ${filePath} recorded with status '${claim.status}' (${claim.paths.length} of ${claim.expected}); not analyzing in this invocation.`)
     return
   }
 
@@ -1077,9 +1124,13 @@ Run: `cd functions; node --test`
 
 Expected: PASS, unchanged count.
 
-Run: `npx eslint functions/reanalyzeReceipt.js functions/regression-receipts.js`
+Run: `npx eslint functions/reanalyzeReceipt.js`
 
 Expected: clean.
+
+Run: `npx eslint functions/regression-receipts.js`
+
+Expected: **17 problems, all pre-existing** (this file was already failing lint before the plan started). Confirm your one-line change added none of them — the count must still be 17, not 18. Do not fix the pre-existing ones; that is unrelated scope.
 
 Run: `grep -rn "analyzeReceiptWithAI(" functions/*.js`
 
