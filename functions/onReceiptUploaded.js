@@ -5,7 +5,9 @@ const {
   getImageAsBase64,
   analyzeReceiptWithAI,
   prepareFirestoreUpdateData,
+  getContentTypeFromPath,
 } = require('./receiptAnalysis')
+const { claimPageForAnalysis } = require('./receiptPages')
 
 const db = admin.firestore()
 
@@ -75,28 +77,75 @@ exports.analyzeReceiptAndUpdateExpense = onObjectFinalized({
     return
   }
 
-  logger.info(`Analyzing image: ${filePath}`)
+  const expenseDocRef = db.doc(`trips/${tripId}/expenses/${expenseId}`)
+
+  // Each page of a multi-image receipt fires this function separately. The
+  // claim decides, atomically, whether this invocation is the one that has the
+  // complete set and should run the analysis.
+  //
+  // The claim must be inside error handling: runTransaction rejects on
+  // contention exhaustion or UNAVAILABLE, this trigger is registered without
+  // `retry`, and the other invocations have already bailed — so an unhandled
+  // rejection means the page is never recorded, nothing re-evaluates the gate,
+  // and the expense sits in 處理中 forever with no error written anywhere.
+  let claim
+  try {
+    claim = await claimPageForAnalysis(expenseDocRef, filePath)
+  }
+  catch (error) {
+    logger.error('Failed to record the uploaded page:', error)
+    logger.info('receipt_extraction', {
+      event: 'receipt_extraction',
+      status: 'fail',
+      reason: 'claim_error',
+      tripId,
+      expenseId,
+      error: error.message || 'Unknown error',
+    })
+    // An unrecorded page means the set can never complete, so fail the expense
+    // rather than leaving it processing indefinitely.
+    try {
+      await expenseDocRef.update({
+        isProcessing: false,
+        processingError: `Could not record an uploaded receipt page: ${error.message || 'Unknown error'}.`,
+        processedAt: admin.firestore.FieldValue.serverTimestamp(),
+      })
+    }
+    catch (updateError) { logger.error(updateError) }
+    return
+  }
+
+  if (claim.status !== 'analyze') {
+    logger.info(`Page ${filePath} recorded with status '${claim.status}' (${claim.paths.length} of ${claim.expected}); not analyzing in this invocation.`)
+    return
+  }
+
+  logger.info(`Analyzing ${claim.paths.length} page(s): ${claim.paths.join(', ')}`)
 
   try {
-    const imageBase64 = await getImageAsBase64(fileBucket, filePath)
+    const pages = await Promise.all(claim.paths.map(async path => ({
+      base64: await getImageAsBase64(fileBucket, path),
+      // The event's contentType describes only the page that triggered this
+      // invocation, so derive each page's type from its own extension.
+      contentType: getContentTypeFromPath(path),
+    })))
 
     // Analyze with AI (includes price sanitization)
     const parsedDataFromAI = await analyzeReceiptWithAI(
-      imageBase64,
-      contentType,
+      pages,
       tripCurrency,
       defaultCurrency,
     )
     logger.info('Successfully parsed receipt data:', parsedDataFromAI)
 
-    // Prepare Firestore update data
+    // Prepare Firestore update data. The first page in receipt order is the
+    // expense's representative image.
     const firestoreUpdateData = prepareFirestoreUpdateData(
       parsedDataFromAI,
       tripCurrency,
-      filePath, // receiptImageUrl
+      claim.paths[0], // receiptImageUrl
     )
 
-    const expenseDocRef = db.doc(`trips/${tripId}/expenses/${expenseId}`)
     await expenseDocRef.update(firestoreUpdateData)
     logger.info(`Successfully updated Firestore document: trips/${tripId}/expenses/${expenseId}`)
 
@@ -106,6 +155,7 @@ exports.analyzeReceiptAndUpdateExpense = onObjectFinalized({
       status: 'success',
       tripId,
       expenseId,
+      pageCount: claim.paths.length,
       itemCount: parsedDataFromAI.items?.length ?? 0,
       needsReview: parsedDataFromAI.needsReview ?? false,
       currency: parsedDataFromAI.currency ?? null,
@@ -119,6 +169,7 @@ exports.analyzeReceiptAndUpdateExpense = onObjectFinalized({
       reason: 'ai_error',
       tripId,
       expenseId,
+      pageCount: claim.paths.length,
       error: error.message || 'Unknown error',
     })
     const expenseDocRefGeneralError = db.doc(`trips/${tripId}/expenses/${expenseId}`)
