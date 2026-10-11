@@ -3,10 +3,14 @@ import type { PanzoomObject } from '@panzoom/panzoom'
 
 const props = withDefaults(defineProps<{
   open: boolean
-  src: string
+  /** Pages in receipt order. A single-page receipt passes one entry. */
+  srcs: string[]
+  /** Page to open on, 0-based. */
+  startIndex?: number
   alt?: string
 }>(), {
   alt: '收據圖片',
+  startIndex: 0,
 })
 
 const emit = defineEmits<{
@@ -17,6 +21,37 @@ const stage = ref<HTMLDivElement | null>(null)
 const image = ref<HTMLImageElement | null>(null)
 const isLoading = ref(false)
 const hasError = ref(false)
+const currentIndex = ref(props.startIndex)
+const pageCount = computed(() => props.srcs.length)
+const currentSrc = computed(() => props.srcs[currentIndex.value] ?? props.srcs[0] ?? '')
+const currentAlt = computed(() =>
+  pageCount.value > 1 ? `${props.alt}第 ${currentIndex.value + 1} 頁` : props.alt,
+)
+
+function goToPage(delta: number) {
+  const next = currentIndex.value + delta
+  if (next < 0 || next >= pageCount.value) {
+    return
+  }
+  // The <img> is keyed on src, so a new element mounts and `load` fires again,
+  // which re-runs onImageLoad → initPanzoom for the new page.
+  destroyPanzoom()
+  isLoading.value = true
+  hasError.value = false
+  currentIndex.value = next
+}
+
+function onKeydown(event: KeyboardEvent) {
+  if (!props.open || pageCount.value < 2) {
+    return
+  }
+  if (event.key === 'ArrowLeft') {
+    goToPage(-1)
+  }
+  else if (event.key === 'ArrowRight') {
+    goToPage(1)
+  }
+}
 
 let panzoom: PanzoomObject | null = null
 let prefersReducedMotion = false
@@ -134,19 +169,27 @@ function onImageError() {
 
 watch(() => props.open, (open) => {
   if (open) {
+    currentIndex.value = Math.min(Math.max(props.startIndex, 0), Math.max(pageCount.value - 1, 0))
     isLoading.value = true
     hasError.value = false
     if (typeof window !== 'undefined') {
       prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+      window.addEventListener('keydown', onKeydown)
     }
   }
   else {
     destroyPanzoom()
+    if (typeof window !== 'undefined') {
+      window.removeEventListener('keydown', onKeydown)
+    }
   }
 })
 
 onBeforeUnmount(() => {
   destroyPanzoom()
+  if (typeof window !== 'undefined') {
+    window.removeEventListener('keydown', onKeydown)
+  }
 })
 </script>
 
@@ -160,7 +203,7 @@ onBeforeUnmount(() => {
         收據圖片
       </ui-dialog-title>
       <ui-dialog-description class="sr-only">
-        使用手指縮放或滑鼠滾輪縮放收據圖片，可拖曳查看細節。
+        使用手指縮放或滑鼠滾輪縮放收據圖片，可拖曳查看細節；多頁收據可使用上一頁、下一頁按鈕或左右方向鍵切換。
       </ui-dialog-description>
 
       <button
@@ -192,13 +235,43 @@ onBeforeUnmount(() => {
       >
         <img
           ref="image"
-          :src="src"
-          :alt="alt"
+          :key="currentSrc"
+          :src="currentSrc"
+          :alt="currentAlt"
           class="block w-auto h-auto max-w-screen max-h-dvh"
           draggable="false"
           @load="onImageLoad"
           @error="onImageError"
         >
+      </div>
+
+      <div
+        v-if="pageCount > 1"
+        class="absolute z-10 bottom-safe-offset-4 left-0 right-0 flex items-center justify-center gap-3"
+      >
+        <button
+          type="button"
+          aria-label="上一頁"
+          :disabled="currentIndex === 0"
+          class="inline-flex items-center justify-center rounded-full bg-white/10 text-white w-11 h-11 backdrop-blur hover:bg-white/20 disabled:opacity-30 focus:outline-none focus:ring-2 focus:ring-white/50 transition-colors"
+          @click="goToPage(-1)"
+        >
+          <Icon name="lucide:chevron-left" :size="20" />
+        </button>
+
+        <span class="text-sm text-white/90 tabular-nums select-none">
+          {{ currentIndex + 1 }} / {{ pageCount }}
+        </span>
+
+        <button
+          type="button"
+          aria-label="下一頁"
+          :disabled="currentIndex === pageCount - 1"
+          class="inline-flex items-center justify-center rounded-full bg-white/10 text-white w-11 h-11 backdrop-blur hover:bg-white/20 disabled:opacity-30 focus:outline-none focus:ring-2 focus:ring-white/50 transition-colors"
+          @click="goToPage(1)"
+        >
+          <Icon name="lucide:chevron-right" :size="20" />
+        </button>
       </div>
     </ui-dialog-content>
   </ui-dialog>
