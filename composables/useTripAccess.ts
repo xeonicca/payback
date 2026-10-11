@@ -20,5 +20,12 @@ export function useTripAccess() {
     })
   }
 
-  return { setCollaboratorReadOnly, removeCollaborator, resetPublicLink }
+  function setSoloMode(tripId: string, enabled: boolean) {
+    return $fetch<{ success: boolean, soloMode: boolean, revokedInvitations: number }>(`/api/trips/${tripId}/solo-mode`, {
+      method: 'POST',
+      body: { enabled },
+    })
+  }
+
+  return { setCollaboratorReadOnly, removeCollaborator, resetPublicLink, setSoloMode }
 }

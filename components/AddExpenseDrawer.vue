@@ -14,6 +14,7 @@ import { toast } from 'vue-sonner'
 import { useFirestore } from 'vuefire'
 import { z } from 'zod'
 import { cn } from '@/lib/utils'
+import { isSoloTrip } from '@/utils/tripMode'
 
 const props = defineProps<{
   trip: Trip
@@ -69,6 +70,10 @@ function convertToTripCurrency(amount: number): number {
 
 const df = new DateFormatter('zh-TW', { dateStyle: 'long' })
 
+const isSolo = computed(() => isSoloTrip(props.trip, props.tripMembers.length))
+// Solo trips hide the pickers, so the only member is always payer and sharer
+const defaultMemberId = computed(() => isSolo.value ? props.tripMembers[0]?.id : props.defaultPayerMember?.id)
+
 const formSchema = toTypedSchema(z.object({
   description: z.string().min(2).max(200).optional(),
   grandTotal: z.coerce.number().positive().optional(),
@@ -84,11 +89,19 @@ const paidAtPlaceholder = ref()
 const { values, isFieldDirty, setFieldValue, handleSubmit, resetForm } = useForm({
   validationSchema: formSchema,
   initialValues: {
-    sharedWithMemberIds: props.defaultPayerMember?.id ? [props.defaultPayerMember.id] : [],
-    paidByMemberId: props.defaultPayerMember?.id,
+    sharedWithMemberIds: defaultMemberId.value ? [defaultMemberId.value] : [],
+    paidByMemberId: defaultMemberId.value,
     paidAt: today(timezone).toString(),
   },
 })
+
+// Members can load after the form initialises; keep solo expenses on the only member
+watch(() => isSolo.value ? props.tripMembers[0]?.id : undefined, (memberId) => {
+  if (!memberId)
+    return
+  setFieldValue('paidByMemberId', memberId)
+  setFieldValue('sharedWithMemberIds', [memberId])
+}, { immediate: true })
 
 // Accordion picker state — only one open at a time
 const showPayerPicker = ref(false)
@@ -265,8 +278,8 @@ watch(open, (val) => {
     paidAtTime.value = new Date().toTimeString().slice(0, 5)
     resetForm({
       values: {
-        sharedWithMemberIds: props.defaultPayerMember?.id ? [props.defaultPayerMember.id] : [],
-        paidByMemberId: props.defaultPayerMember?.id,
+        sharedWithMemberIds: defaultMemberId.value ? [defaultMemberId.value] : [],
+        paidByMemberId: defaultMemberId.value,
         paidAt: today(timezone).toString(),
       },
     })
@@ -489,10 +502,10 @@ async function submitManual(formValues: { description?: string, grandTotal?: num
               </ui-button>
             </div>
 
-            <ui-separator />
+            <ui-separator v-if="!isSolo" />
 
             <!-- Payer: compact accordion row -->
-            <div data-accordion="payer">
+            <div v-if="!isSolo" data-accordion="payer">
               <button
                 type="button"
                 class="flex w-full items-center gap-3 py-1.5 rounded-md hover:bg-muted/50 transition-colors"
@@ -525,7 +538,7 @@ async function submitManual(formValues: { description?: string, grandTotal?: num
             </div>
 
             <!-- Splitters: compact accordion row -->
-            <div data-accordion="split">
+            <div v-if="!isSolo" data-accordion="split">
               <button
                 type="button"
                 class="flex w-full items-center gap-3 py-1.5 rounded-md hover:bg-muted/50 transition-colors"
@@ -824,10 +837,10 @@ async function submitManual(formValues: { description?: string, grandTotal?: num
               </ui-form-item>
             </ui-form-field>
 
-            <ui-separator />
+            <ui-separator v-if="!isSolo" />
 
             <!-- Payer: compact accordion row -->
-            <div data-accordion="payer">
+            <div v-if="!isSolo" data-accordion="payer">
               <button
                 type="button"
                 class="flex w-full items-center gap-3 py-1.5 rounded-md hover:bg-muted/50 transition-colors"
@@ -860,7 +873,7 @@ async function submitManual(formValues: { description?: string, grandTotal?: num
             </div>
 
             <!-- Splitters: compact accordion row -->
-            <div data-accordion="split">
+            <div v-if="!isSolo" data-accordion="split">
               <button
                 type="button"
                 class="flex w-full items-center gap-3 py-1.5 rounded-md hover:bg-muted/50 transition-colors"
@@ -986,10 +999,10 @@ async function submitManual(formValues: { description?: string, grandTotal?: num
                 </ui-button>
               </div>
 
-              <ui-separator />
+              <ui-separator v-if="!isSolo" />
 
               <!-- Payer: compact accordion row -->
-              <div data-accordion="payer">
+              <div v-if="!isSolo" data-accordion="payer">
                 <button
                   type="button"
                   class="flex w-full items-center gap-3 py-1.5 rounded-md hover:bg-muted/50 transition-colors"
@@ -1022,7 +1035,7 @@ async function submitManual(formValues: { description?: string, grandTotal?: num
               </div>
 
               <!-- Splitters: compact accordion row -->
-              <div data-accordion="split">
+              <div v-if="!isSolo" data-accordion="split">
                 <button
                   type="button"
                   class="flex w-full items-center gap-3 py-1.5 rounded-md hover:bg-muted/50 transition-colors"
@@ -1321,10 +1334,10 @@ async function submitManual(formValues: { description?: string, grandTotal?: num
                 </ui-form-item>
               </ui-form-field>
 
-              <ui-separator />
+              <ui-separator v-if="!isSolo" />
 
               <!-- Payer: compact accordion row -->
-              <div data-accordion="payer">
+              <div v-if="!isSolo" data-accordion="payer">
                 <button
                   type="button"
                   class="flex w-full items-center gap-3 py-1.5 rounded-md hover:bg-muted/50 transition-colors"
@@ -1357,7 +1370,7 @@ async function submitManual(formValues: { description?: string, grandTotal?: num
               </div>
 
               <!-- Splitters: compact accordion row -->
-              <div data-accordion="split">
+              <div v-if="!isSolo" data-accordion="split">
                 <button
                   type="button"
                   class="flex w-full items-center gap-3 py-1.5 rounded-md hover:bg-muted/50 transition-colors"

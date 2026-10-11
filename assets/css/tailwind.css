@@ -135,6 +135,13 @@
   body {
     @apply bg-slate-700 text-foreground;
   }
+  /* Tapping or long-pressing a control shouldn't highlight its label */
+  button,
+  [role="button"],
+  summary,
+  a[href] {
+    @apply select-none;
+  }
 }
 
 input[type="time"]::-webkit-calendar-picker-indicator {

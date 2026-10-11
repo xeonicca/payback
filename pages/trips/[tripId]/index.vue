@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { toast } from 'vue-sonner'
 import { calculateSettlements } from '@/utils/debt'
+import { isSoloTrip } from '@/utils/tripMode'
 
 definePageMeta({
   middleware: ['auth'],
@@ -11,6 +12,7 @@ const { tripId } = useRoute().params
 
 const { trip } = useTrip(tripId as string)
 const { tripMembers, hostMember, currentUserMember } = useTripMembers(tripId as string)
+const isSolo = computed(() => isSoloTrip(trip.value, tripMembers.value.length))
 const { enabledExpenses: recentExpenses } = useTripExpenses(tripId as string, 5)
 const { canAddExpenses, isReadOnly } = useTripCollaborators(tripId as string)
 
@@ -97,7 +99,9 @@ function formatSecondary(amount: number) {
         </ui-badge>
       </h1>
       <p class="text-sm text-muted-foreground">
-        {{ trip.expenseCount }} 筆支出 · {{ tripMembers.length }} 位成員
+        {{ trip.expenseCount }} 筆支出<template v-if="!isSolo">
+          · {{ tripMembers.length }} 位成員
+        </template>
       </p>
     </div>
 
@@ -106,7 +110,8 @@ function formatSecondary(amount: number) {
       <!-- Left column: Personal summary + Overview -->
       <div class="lg:col-span-2 space-y-4">
         <!-- Personal Summary Card (shown when user is a linked member) -->
-        <ui-card v-if="currentUserMember && memberBalances[currentUserMember.id]" class="border-primary/20">
+        <trip-solo-summary v-if="isSolo" :trip="trip" />
+        <ui-card v-if="!isSolo && currentUserMember && memberBalances[currentUserMember.id]" class="border-primary/20">
           <ui-card-header>
             <div class="flex items-center gap-2">
               <member-avatar :emoji="currentUserMember.avatarEmoji" size="lg" />
@@ -209,7 +214,7 @@ function formatSecondary(amount: number) {
         </ui-card>
 
         <!-- Trip Overview — collapsible on mobile, always open on desktop -->
-        <ui-accordion type="single" collapsible default-value="overview">
+        <ui-accordion v-if="!isSolo" type="single" collapsible default-value="overview">
           <ui-accordion-item value="overview">
             <ui-accordion-trigger class="text-base font-bold text-foreground py-3 px-2 lg:pointer-events-none lg:[&>svg]:hidden">
               旅程總覽

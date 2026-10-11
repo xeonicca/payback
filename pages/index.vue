@@ -145,9 +145,14 @@ definePageMeta({
         >
           <div class="p-5">
             <!-- Trip name -->
-            <h3 class="text-base font-semibold text-foreground truncate mb-1 leading-snug">
-              {{ trip.name }}
-            </h3>
+            <div class="flex items-center gap-2 mb-1">
+              <h3 class="text-base font-semibold text-foreground truncate leading-snug">
+                {{ trip.name }}
+              </h3>
+              <ui-badge v-if="trip.soloMode" variant="secondary" class="text-[10px] px-1.5 shrink-0">
+                個人
+              </ui-badge>
+            </div>
 
             <!-- Owner for shared trips -->
             <p v-if="trip.userId !== sessionUser?.uid && trip.ownerDisplayName" class="text-xs text-muted-foreground mb-3">

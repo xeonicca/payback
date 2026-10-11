@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { Expense, Trip, TripMember } from '@/types'
+import { isSoloTrip } from '@/utils/tripMode'
 
 const props = defineProps<{
   expense: Expense
@@ -12,6 +13,7 @@ const props = defineProps<{
 
 const sharedMembers = computed(() => props.tripMembers.filter(member => props.expense.sharedWithMemberIds.includes(member.id)))
 const paidByMember = computed(() => props.tripMembers.find(member => member.id === props.expense.paidByMemberId))
+const isSolo = computed(() => isSoloTrip(props.trip, props.tripMembers.length))
 
 // Check if expense was entered in home currency
 const usedHomeCurrency = computed(() =>
@@ -57,7 +59,7 @@ const displaySecondary = computed(() => {
     class="flex items-center gap-3 py-3 px-2"
   >
     <!-- Payer avatar -->
-    <member-avatar v-if="paidByMember" :emoji="paidByMember.avatarEmoji" size="md" />
+    <member-avatar v-if="paidByMember && !isSolo" :emoji="paidByMember.avatarEmoji" size="md" />
 
     <!-- Description + meta -->
     <div class="flex-1 min-w-0">
@@ -68,14 +70,16 @@ const displaySecondary = computed(() => {
       </p>
       <p class="text-xs text-muted-foreground m-0 mt-0.5">
         {{ expense.paidAtObject.month }}/{{ expense.paidAtObject.day }} {{ expense.paidAtObject.hour }}:{{ expense.paidAtObject.minute }}
-        <span class="mx-1">·</span>
-        <span v-if="paidByMember" class="hidden lg:inline">{{ paidByMember.name }} 付款 · </span>
-        {{ sharedMembers.length }}人分攤
+        <template v-if="!isSolo">
+          <span class="mx-1">·</span>
+          <span v-if="paidByMember" class="hidden lg:inline">{{ paidByMember.name }} 付款 · </span>
+          {{ sharedMembers.length }}人分攤
+        </template>
       </p>
     </div>
 
     <!-- Shared member avatars — desktop only -->
-    <div class="hidden lg:flex items-center gap-0.5 shrink-0">
+    <div v-if="!isSolo" class="hidden lg:flex items-center gap-0.5 shrink-0">
       <member-avatar
         v-for="member in sharedMembers.slice(0, 4)"
         :key="member.id"

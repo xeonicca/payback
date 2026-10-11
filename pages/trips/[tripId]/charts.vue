@@ -1,7 +1,6 @@
 <script setup lang="ts">
-import type { Expense } from '@/types'
-import { Timestamp } from 'firebase/firestore'
 import { coerceCategory, getCategoryMeta } from '@/utils/categories'
+import { isSoloTrip } from '@/utils/tripMode'
 
 definePageMeta({
   middleware: ['auth'],
@@ -10,8 +9,9 @@ definePageMeta({
 
 const { tripId } = useRoute().params
 const { trip } = useTrip(tripId as string)
-const { tripExpenses, enabledExpenses } = useTripExpenses(tripId as string)
+const { enabledExpenses } = useTripExpenses(tripId as string)
 const { tripMembers } = useTripMembers(tripId as string)
+const isSolo = computed(() => isSoloTrip(trip.value, tripMembers.value.length))
 const { getMemberPaidAmount, getMemberOwedAmount, getMemberBalance } = useTripBalances(tripId as string)
 const { primaryCurrency, toPrimary } = useCurrencyToggle(tripId as string, trip)
 
@@ -27,8 +27,13 @@ const dailySpending = computed(() => {
   return Object.entries(grouped)
     .sort((a, b) => a[0].localeCompare(b[0]))
     .map(([key, total]) => {
-      const [, m, d] = key.split('/')
-      return { date: `${Number(m)}/${Number(d)}`, total: Math.round(total * 100) / 100 }
+      const [y, m, d] = key.split('/')
+      return {
+        date: `${Number(m)}/${Number(d)}`,
+        // Query-string form the expenses page filters on
+        key: `${y}-${m}-${d}`,
+        total: Math.round(total * 100) / 100,
+      }
     })
 })
 
@@ -94,8 +99,10 @@ const topDay = computed(() => dailySpending.value.reduce((max, d) => d.total > m
 
 function formatAmount(n: number) {
   const converted = toPrimary(n)
-  if (converted >= 10000) return `${(converted / 1000).toFixed(0)}k`
-  if (converted >= 1000) return `${(converted / 1000).toFixed(1)}k`
+  if (converted >= 10000)
+    return `${(converted / 1000).toFixed(0)}k`
+  if (converted >= 1000)
+    return `${(converted / 1000).toFixed(1)}k`
   return converted.toFixed(0)
 }
 </script>
@@ -113,7 +120,9 @@ function formatAmount(n: number) {
     <!-- Summary row -->
     <div class="grid grid-cols-2 gap-3">
       <div class="bg-card border rounded-xl p-4">
-        <p class="text-xs text-muted-foreground m-0">總支出</p>
+        <p class="text-xs text-muted-foreground m-0">
+          總支出
+        </p>
         <p class="text-lg font-bold font-mono text-foreground m-0 mt-1">
           {{ primaryCurrency }} {{ formatAmount(totalExpenses) }}
         </p>
@@ -122,7 +131,9 @@ function formatAmount(n: number) {
         </p>
       </div>
       <div class="bg-card border rounded-xl p-4">
-        <p class="text-xs text-muted-foreground m-0">日均支出</p>
+        <p class="text-xs text-muted-foreground m-0">
+          日均支出
+        </p>
         <p class="text-lg font-bold font-mono text-foreground m-0 mt-1">
           {{ primaryCurrency }} {{ formatAmount(avgPerDay) }}
         </p>
@@ -134,12 +145,16 @@ function formatAmount(n: number) {
 
     <!-- Daily spending bar chart (pure CSS) -->
     <section class="bg-card border rounded-xl p-4">
-      <h2 class="text-sm font-semibold text-foreground m-0 mb-4">每日支出</h2>
+      <h2 class="text-sm font-semibold text-foreground m-0 mb-4">
+        每日支出
+      </h2>
       <div class="space-y-2">
-        <div
+        <nuxt-link
           v-for="day in dailySpending"
-          :key="day.date"
-          class="flex items-center gap-3"
+          :key="day.key"
+          :to="`/trips/${tripId}/expenses?date=${day.key}`"
+          class="flex items-center gap-3 -mx-2 px-2 py-1 rounded-lg hover:bg-muted/60 transition-colors"
+          :aria-label="`查看 ${day.date} 的支出`"
         >
           <span class="text-xs text-muted-foreground font-mono w-12 shrink-0 text-right">{{ day.date }}</span>
           <div class="flex-1 h-6 bg-muted rounded-sm overflow-hidden">
@@ -151,7 +166,7 @@ function formatAmount(n: number) {
           <span class="text-xs font-mono font-semibold text-foreground w-16 shrink-0 text-right">
             {{ formatAmount(day.total) }}
           </span>
-        </div>
+        </nuxt-link>
       </div>
       <div v-if="topDay.total > 0" class="mt-3 pt-3 border-t border-border">
         <p class="text-xs text-muted-foreground m-0">
@@ -161,8 +176,10 @@ function formatAmount(n: number) {
     </section>
 
     <!-- Member breakdown -->
-    <section class="bg-card border rounded-xl p-4">
-      <h2 class="text-sm font-semibold text-foreground m-0 mb-4">成員支出</h2>
+    <section v-if="!isSolo" class="bg-card border rounded-xl p-4">
+      <h2 class="text-sm font-semibold text-foreground m-0 mb-4">
+        成員支出
+      </h2>
       <div class="space-y-3">
         <div
           v-for="member in memberSpending"
@@ -200,7 +217,9 @@ function formatAmount(n: number) {
 
     <!-- Spending by category doughnut (pure CSS) -->
     <section class="bg-card border rounded-xl p-4">
-      <h2 class="text-sm font-semibold text-foreground m-0 mb-4">消費分類</h2>
+      <h2 class="text-sm font-semibold text-foreground m-0 mb-4">
+        消費分類
+      </h2>
       <div class="flex items-center gap-5">
         <!-- Doughnut -->
         <div class="relative shrink-0" style="width: 7rem; height: 7rem;">

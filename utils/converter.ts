@@ -39,6 +39,7 @@ export const tripConverter: FirestoreDataConverter<Trip> = {
       ownerDisplayName: data.ownerDisplayName || '',
       memberEmojis: data.memberEmojis || [],
       lastExpenseDescription: data.lastExpenseDescription || '',
+      soloMode: data.soloMode === true,
     } as Trip
   },
 }

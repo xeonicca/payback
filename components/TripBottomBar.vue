@@ -13,14 +13,18 @@ const openExpenseDrawer = ref(false)
 const canAddExpense = computed(() => trip.value && !trip.value.archived && canAddExpenses.value)
 
 const navItems = computed(() => [
-  { to: `/trips/${props.tripId}`, icon: 'lucide:house', label: '總覽', match: 'trips-tripId' },
+  // Every trip route name starts with trips-tripId, so 總覽 only counts as active on an exact match
+  { to: `/trips/${props.tripId}`, icon: 'lucide:house', label: '總覽', match: 'trips-tripId', exact: true },
   { to: `/trips/${props.tripId}/charts`, icon: 'lucide:chart-column-big', label: '統計', match: 'trips-tripId-charts' },
   { to: `/trips/${props.tripId}/expenses`, icon: 'lucide:scroll-text', label: '支出', match: 'trips-tripId-expenses' },
   { to: `/trips/${props.tripId}/edit`, icon: 'lucide:settings', label: '設定', match: 'trips-tripId-edit' },
 ])
 
-function isActive(match: string) {
-  return String(route.name) === match || String(route.name)?.startsWith(`${match}-`)
+function isActive(item: { match: string, exact?: boolean }) {
+  const name = String(route.name)
+  if (item.exact)
+    return name === item.match
+  return name === item.match || name.startsWith(`${item.match}-`)
 }
 </script>
 
@@ -29,11 +33,11 @@ function isActive(match: string) {
   <div class="lg:hidden relative">
     <div class="fixed bottom-safe-offset-4 left-1/2 -translate-x-1/2 bg-slate-700 rounded-2xl shadow-lg flex items-center justify-between px-6 py-2 w-[calc(100vw_-_4rem)] z-10">
       <nuxt-link
-        v-for="(item, idx) in navItems.slice(0, 2)"
+        v-for="item in navItems.slice(0, 2)"
         :key="item.to"
         :to="item.to"
         class="size-10 flex items-center justify-center rounded-lg transition-colors"
-        :class="isActive(item.match) ? 'text-white bg-slate-600' : 'text-slate-400'"
+        :class="isActive(item) ? 'text-white bg-slate-600' : 'text-slate-400'"
       >
         <Icon :name="item.icon" :size="20" />
       </nuxt-link>
@@ -58,7 +62,7 @@ function isActive(match: string) {
         :key="item.to"
         :to="item.to"
         class="size-10 flex items-center justify-center rounded-lg transition-colors"
-        :class="isActive(item.match) ? 'text-white bg-slate-600' : 'text-slate-400'"
+        :class="isActive(item) ? 'text-white bg-slate-600' : 'text-slate-400'"
       >
         <Icon :name="item.icon" :size="20" />
       </nuxt-link>
@@ -76,7 +80,7 @@ function isActive(match: string) {
         :key="item.to"
         :to="item.to"
         class="flex items-center gap-2 pl-3 pr-2.5 py-1.5 rounded-full shadow-md border transition-colors"
-        :class="isActive(item.match)
+        :class="isActive(item)
           ? 'bg-primary text-primary-foreground border-primary'
           : 'bg-card text-foreground border-border hover:bg-muted'"
       >

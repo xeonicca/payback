@@ -4,6 +4,7 @@ import { DateFormatter, getLocalTimeZone, parseDate } from '@internationalized/d
 import { toDate } from 'reka-ui/date'
 import { useExchangeRate } from '@/composables/useExchangeRate'
 import { cn } from '@/lib/utils'
+import { isSoloTrip } from '@/utils/tripMode'
 
 const props = defineProps<{
   open: boolean
@@ -25,6 +26,8 @@ const emit = defineEmits<{
     category: string
   }): void
 }>()
+
+const isSolo = computed(() => isSoloTrip(props.trip, props.tripMembers.length))
 
 const timezone = getLocalTimeZone()
 const df = new DateFormatter('zh-TW', { dateStyle: 'long' })
@@ -130,6 +133,8 @@ const canSave = computed(() => {
     return false
   if (!(exchangeRate.value > 0))
     return false
+  // On solo trips the payer picker is hidden, but paidByMemberId still holds
+  // the single member's id (set on load), so this check still applies.
   if (!paidByMemberId.value)
     return false
   if (!paidAtDateString.value)
@@ -324,7 +329,7 @@ function handleClose() {
       </div>
 
       <!-- Payer -->
-      <div v-if="tripMembers.length > 0">
+      <div v-if="tripMembers.length > 0 && !isSolo">
         <ui-label class="text-sm font-medium text-foreground">
           付款人
         </ui-label>
