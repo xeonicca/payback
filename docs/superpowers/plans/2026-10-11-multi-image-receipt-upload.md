@@ -22,6 +22,21 @@ Read this before Task 1; it will save you an hour of confusion.
 
 **Paths stored in Firestore are storage paths, not URLs**, despite the `imageUrls` / `receiptImageUrl` names. The client turns them into displayable URLs with `getDownloadURL(storageRef(storage, path))`.
 
+**The Resize Images extension's actual configuration**, measured against the production bucket on 2026-10-11 (279 expense folders inspected, every one identical). Nothing in this repo records it, and the gate's correctness depends on it, so it is written down here:
+
+| Observed | Value |
+|---|---|
+| Resized objects per original | Exactly **1** |
+| Output name | `{original basename}_{size}.{ext}` — e.g. `image_800x800.jpg` |
+| Size | `800x800` (bounding box) |
+| Original file | **Deleted** after a successful resize |
+
+Consequences for this plan:
+- Uploading `page-2.jpg` produces `resized/page-2_800x800.jpg`, so `pageIndexOf` reads the page number off the basename as intended.
+- Every existing receipt is named `image_800x800.jpg` because mobile camera capture names its file `image.jpg`. Legacy paths therefore carry no page number — which is exactly the `Number.MAX_SAFE_INTEGER` fallback case, and why unnumbered paths must dedupe by exact path rather than by page number.
+- One output per original means counting array entries would have worked today. The gate counts distinct page numbers anyway, so a console change to `IMG_SIZES` or `IMAGE_TYPE` cannot later cause a half-parsed receipt.
+- 800x800 is a tight bound for a long receipt in one frame. Each page of a multi-page capture is a closer photo, so per-line resolution improves relative to a single zoomed-out shot — a quality argument in this feature's favour, not just a completeness one.
+
 **Commands** (run from the repo root unless stated):
 
 | What | Command |
