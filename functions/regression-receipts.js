@@ -3,12 +3,13 @@
  * images and prints a side-by-side diff vs. what's currently stored.
  *
  * Usage: node regression-receipts.js [limit]
- * Costs: ~$0.005 per receipt at gemini-3.5-flash-lite pricing.
+ * Costs: ~$0.012 per receipt page at gemini-3.8-flash pricing.
  */
 
 const admin = require('firebase-admin')
 const path = require('path')
 const { analyzeReceiptWithAI, getImageAsBase64, getContentTypeFromPath } = require('./receiptAnalysis')
+const { sortPagePaths } = require('./receiptPages')
 
 const limit = Number.parseInt(process.argv[2] || '20', 10)
 const serviceAccount = require(path.resolve(__dirname, '../service-account.json'))
@@ -18,6 +19,15 @@ admin.initializeApp({ credential: admin.credential.cert(serviceAccount), storage
 const db = admin.firestore()
 const bucket = admin.storage().bucket()
 
+// Same page selection as reanalyzeReceipt: every page in page order, or the
+// single receiptImageUrl for expenses from before multi-page upload
+function receiptPagePaths(expense) {
+  const storedPages = Array.isArray(expense.imageUrls) ? expense.imageUrls : []
+  if (storedPages.length > 0)
+    return sortPagePaths(storedPages)
+  return expense.receiptImageUrl ? [expense.receiptImageUrl] : []
+}
+
 async function fetchSample() {
   const trips = await db.collection('trips').orderBy('createdAt', 'desc').limit(20).get()
   const out = []
@@ -25,8 +35,11 @@ async function fetchSample() {
     const exps = await t.ref.collection('expenses').orderBy('createdAt', 'desc').limit(10).get()
     for (const e of exps.docs) {
       const d = e.data()
-      if (!d.receiptImageUrl) continue
-      out.push({ tripId: t.id, expenseId: e.id, current: d, tripCurrency: t.data().tripCurrency, defaultCurrency: t.data().defaultCurrency || 'TWD' })
+      const pagePaths = receiptPagePaths(d)
+      if (pagePaths.length === 0) continue
+      // Skip receipts with pages that never uploaded, as reanalyzeReceipt does
+      if (Number.isInteger(d.imageCount) && pagePaths.length < d.imageCount) continue
+      out.push({ tripId: t.id, expenseId: e.id, current: d, pagePaths, tripCurrency: t.data().tripCurrency, defaultCurrency: t.data().defaultCurrency || 'TWD' })
     }
   }
   return out
@@ -57,13 +70,15 @@ async function main() {
   const sample = await fetchSample()
   console.log(`Running regression on ${sample.length} receipts...\n`)
 
-  for (const { tripId, expenseId, current, tripCurrency, defaultCurrency } of sample) {
+  for (const { tripId, expenseId, current, pagePaths, tripCurrency, defaultCurrency } of sample) {
     console.log('='.repeat(80))
-    console.log(`${tripId}/${expenseId}  (trip ${tripCurrency})`)
+    console.log(`${tripId}/${expenseId}  (trip ${tripCurrency}, ${pagePaths.length} page${pagePaths.length === 1 ? '' : 's'})`)
     try {
-      const imageBase64 = await getImageAsBase64(bucket.name, current.receiptImageUrl)
-      const contentType = getContentTypeFromPath(current.receiptImageUrl)
-      const fresh = await analyzeReceiptWithAI([{ base64: imageBase64, contentType }], tripCurrency, defaultCurrency)
+      const pages = await Promise.all(pagePaths.map(async pagePath => ({
+        base64: await getImageAsBase64(bucket.name, pagePath),
+        contentType: getContentTypeFromPath(pagePath),
+      })))
+      const fresh = await analyzeReceiptWithAI(pages, tripCurrency, defaultCurrency)
 
       const oldSummary = summarize(current)
       const newSummary = summarize(fresh)
