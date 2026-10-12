@@ -2,55 +2,26 @@
  * Recomputes trip totals (totalExpenses, enabledTotalExpenses,
  * disabledTotalExpenses, expenseCount) and member `spending` from the expense
  * documents — the source of truth — and repairs the incrementally-maintained
- * caches where they have drifted. The member math mirrors
- * calculateMemberSpending in onExpenseChange.js.
+ * caches where they have drifted. It uses contribution() from expenseTotals.js,
+ * the same rule the onExpenseChange triggers apply, so a repaired trip stays
+ * in step with them.
  *
  * Usage: node repair-totals.mjs            # dry run, prints the drift
  *        node repair-totals.mjs --apply    # writes the corrections
  */
 import { readFileSync } from 'node:fs'
 import path from 'node:path'
+import { createRequire } from 'node:module'
 import { fileURLToPath } from 'node:url'
 import { cert, initializeApp } from 'firebase-admin/app'
 import { getFirestore } from 'firebase-admin/firestore'
 
 const APPLY = process.argv.includes('--apply')
+const { contribution } = createRequire(import.meta.url)('./expenseTotals.js')
 const here = path.dirname(fileURLToPath(import.meta.url))
 const sa = JSON.parse(readFileSync(path.resolve(here, '../service-account.json'), 'utf8'))
 initializeApp({ credential: cert(sa) })
 const db = getFirestore()
-
-// Mirrors calculateMemberSpending in functions/onExpenseChange.js
-function memberSpendingFor(expense, memberIds) {
-  const spending = Object.fromEntries(memberIds.map(id => [id, 0]))
-  if (expense.items && expense.items.length > 0) {
-    for (const item of expense.items) {
-      const sharing = (!item.sharedByMemberIds || item.sharedByMemberIds.length === 0)
-        ? memberIds
-        : item.sharedByMemberIds
-      if (sharing.length === 0)
-        continue
-      const per = item.price / sharing.length
-      for (const id of sharing) {
-        if (spending[id] !== undefined)
-          spending[id] += per
-      }
-    }
-  }
-  else {
-    const sharing = (!expense.sharedWithMemberIds || expense.sharedWithMemberIds.length === 0)
-      ? memberIds
-      : expense.sharedWithMemberIds
-    if (sharing.length === 0)
-      return spending
-    const per = expense.grandTotal / sharing.length
-    for (const id of sharing) {
-      if (spending[id] !== undefined)
-        spending[id] += per
-    }
-  }
-  return spending
-}
 
 const near = (a, b) => Math.abs((a ?? 0) - (b ?? 0)) < 0.01
 
@@ -67,26 +38,24 @@ for (const tripDoc of trips.docs) {
   const expenses = expensesSnap.docs.map(d => d.data())
   const memberIds = membersSnap.docs.map(d => d.id)
 
-  let total = 0, enabled = 0, disabled = 0
+  // Same per-expense rule the triggers apply, summed over the trip
+  const members = memberIds.map(id => ({ id }))
+  let total = 0, enabled = 0, disabled = 0, count = 0
   const spending = Object.fromEntries(memberIds.map(id => [id, 0]))
   for (const e of expenses) {
-    const amount = e.grandTotal ?? 0
-    total += amount
-    if (e.enabled) {
-      enabled += amount
-      const per = memberSpendingFor(e, memberIds)
-      for (const id of memberIds) spending[id] += per[id]
-    }
-    else {
-      disabled += amount
-    }
+    const c = contribution(e, members)
+    total += c.trip.totalExpenses
+    enabled += c.trip.enabledTotalExpenses
+    disabled += c.trip.disabledTotalExpenses
+    count += c.trip.expenseCount
+    for (const id of memberIds) spending[id] += c.spending[id]
   }
 
   const fixes = {}
   if (!near(trip.totalExpenses, total)) fixes.totalExpenses = total
   if (!near(trip.enabledTotalExpenses, enabled)) fixes.enabledTotalExpenses = enabled
   if (!near(trip.disabledTotalExpenses, disabled)) fixes.disabledTotalExpenses = disabled
-  if ((trip.expenseCount ?? 0) !== expenses.length) fixes.expenseCount = expenses.length
+  if ((trip.expenseCount ?? 0) !== count) fixes.expenseCount = count
 
   const memberFixes = membersSnap.docs
     .filter(m => !near(m.data().spending, spending[m.id]))

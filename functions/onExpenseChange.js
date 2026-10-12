@@ -1,78 +1,11 @@
-const admin = require('firebase-admin')
 const { Storage } = require('@google-cloud/storage')
+const admin = require('firebase-admin')
 const logger = require('firebase-functions/logger')
 const { onDocumentCreated, onDocumentUpdated, onDocumentDeleted } = require('firebase-functions/v2/firestore')
+const { totalsDelta } = require('./expenseTotals')
 
 const db = admin.firestore()
 const storage = new Storage()
-
-// Helper function to calculate member spending for an expense
-function calculateMemberSpending(expenseData, tripMembers) {
-  const memberSpending = {}
-
-  // Initialize all members with 0 spending
-  tripMembers.forEach((member) => {
-    memberSpending[member.id] = 0
-  })
-
-  // If expense has items, calculate based on item-level sharing
-  if (expenseData.items && expenseData.items.length > 0) {
-    expenseData.items.forEach((item) => {
-      let sharingMembers = []
-
-      // If item has no specific sharedByMemberIds, all members share it
-      if (!item.sharedByMemberIds || item.sharedByMemberIds.length === 0) {
-        sharingMembers = tripMembers.map(member => member.id)
-      }
-      else {
-        sharingMembers = item.sharedByMemberIds
-      }
-
-      // Skip if no members are sharing this item
-      if (sharingMembers.length === 0)
-        return
-
-      // Calculate price per member for this item
-      const pricePerMember = item.price / sharingMembers.length
-
-      // Add the price to each sharing member's total
-      sharingMembers.forEach((memberId) => {
-        if (memberSpending[memberId] !== undefined) {
-          memberSpending[memberId] += pricePerMember
-        }
-      })
-    })
-  }
-  else {
-    // If no items, use sharedWithMemberIds from expense level
-    let sharingMembers = []
-
-    // If expense has no specific sharedWithMemberIds, all members share it
-    if (!expenseData.sharedWithMemberIds || expenseData.sharedWithMemberIds.length === 0) {
-      sharingMembers = tripMembers.map(member => member.id)
-    }
-    else {
-      sharingMembers = expenseData.sharedWithMemberIds
-    }
-
-    // Skip if no members are sharing this expense
-    if (sharingMembers.length === 0) {
-      return memberSpending
-    }
-
-    // Calculate price per member for the entire expense
-    const pricePerMember = expenseData.grandTotal / sharingMembers.length
-
-    // Add the price to each sharing member's total
-    sharingMembers.forEach((memberId) => {
-      if (memberSpending[memberId] !== undefined) {
-        memberSpending[memberId] = pricePerMember
-      }
-    })
-  }
-
-  return memberSpending
-}
 
 // Helper function to get trip members
 async function getTripMembers(tripId) {
@@ -142,101 +75,34 @@ async function updateTripAndMembers(tripId, tripUpdates, memberSpendingChanges) 
   }
 }
 
+// Apply one expense write to its trip's totals and member spending. Every
+// trigger goes through here: the change is what the expense counts for after
+// the write minus what it counted for before, so the cached totals stay equal
+// to the sum over the trip's expenses (see expenseTotals.js).
+async function applyExpenseWrite(tripId, before, after) {
+  const tripMembers = await getTripMembers(tripId)
+  const delta = totalsDelta(before, after, tripMembers)
+  if (delta.isZero)
+    return
+  await updateTripAndMembers(tripId, delta.trip, delta.spending)
+}
+
 // Trigger on expense creation
 exports.onExpenseCreated = onDocumentCreated('trips/{tripId}/expenses/{expenseId}', async (event) => {
   const { tripId } = event.params
-  const expenseData = event.data.data()
-
-  // Only update if the expense is not in processing state
-  if (!expenseData.isProcessing) {
-    try {
-      const tripMembers = await getTripMembers(tripId)
-      const memberSpending = calculateMemberSpending(expenseData, tripMembers)
-
-      // Consolidate all updates into a single transaction
-      await updateTripAndMembers(tripId, {
-        totalExpenses: expenseData.grandTotal,
-        enabledTotalExpenses: expenseData.enabled ? expenseData.grandTotal : 0,
-        disabledTotalExpenses: expenseData.enabled ? 0 : expenseData.grandTotal,
-        expenseCount: 1,
-      }, memberSpending)
-    }
-    catch (error) {
-      logger.error(`Error processing expense creation: ${error}`)
-    }
+  try {
+    await applyExpenseWrite(tripId, null, event.data.data())
+  }
+  catch (error) {
+    logger.error(`Error processing expense creation: ${error}`)
   }
 })
 
 // Trigger on expense update
 exports.onExpenseUpdated = onDocumentUpdated('trips/{tripId}/expenses/{expenseId}', async (event) => {
   const { tripId } = event.params
-  const oldData = event.data.before.data()
-  const newData = event.data.after.data()
-
   try {
-    // Only process if the expense is no longer in processing state
-    if (oldData.isProcessing && !newData.isProcessing) {
-      const tripMembers = await getTripMembers(tripId)
-      const memberSpending = calculateMemberSpending(newData, tripMembers)
-
-      // Consolidate all updates into a single transaction
-      await updateTripAndMembers(tripId, {
-        totalExpenses: newData.grandTotal,
-        enabledTotalExpenses: newData.enabled ? newData.grandTotal : 0,
-        disabledTotalExpenses: newData.enabled ? 0 : newData.grandTotal,
-        expenseCount: 1,
-      }, memberSpending)
-    }
-    // Handle amount changes and enabled state changes for non-processing expenses
-    else if (!oldData.isProcessing && !newData.isProcessing) {
-      const amountChange = newData.grandTotal - oldData.grandTotal
-      const enabledStateChanged = oldData.enabled !== newData.enabled
-      const itemsChanged = JSON.stringify(oldData.items) !== JSON.stringify(newData.items)
-
-      if (amountChange !== 0 || enabledStateChanged || itemsChanged) {
-        const tripMembers = await getTripMembers(tripId)
-
-        // Calculate the difference in member spending
-        const oldMemberSpending = calculateMemberSpending(oldData, tripMembers)
-        const newMemberSpending = calculateMemberSpending(newData, tripMembers)
-
-        const memberSpendingChanges = {}
-        tripMembers.forEach((member) => {
-          const oldSpending = oldData.enabled ? oldMemberSpending[member.id] : 0
-          const newSpending = newData.enabled ? newMemberSpending[member.id] : 0
-          memberSpendingChanges[member.id] = newSpending - oldSpending
-        })
-
-        // Calculate trip total changes
-        const tripUpdates = {}
-
-        // Handle enabled state changes
-        if (enabledStateChanged) {
-          if (oldData.enabled) {
-            tripUpdates.enabledTotalExpenses = -oldData.grandTotal
-            tripUpdates.disabledTotalExpenses = oldData.grandTotal
-          }
-          else {
-            tripUpdates.enabledTotalExpenses = oldData.grandTotal
-            tripUpdates.disabledTotalExpenses = -oldData.grandTotal
-          }
-        }
-
-        // Handle amount changes
-        if (amountChange !== 0) {
-          tripUpdates.totalExpenses = amountChange
-          if (newData.enabled) {
-            tripUpdates.enabledTotalExpenses = (tripUpdates.enabledTotalExpenses || 0) + amountChange
-          }
-          else {
-            tripUpdates.disabledTotalExpenses = (tripUpdates.disabledTotalExpenses || 0) + amountChange
-          }
-        }
-
-        // Consolidate all updates into a single transaction
-        await updateTripAndMembers(tripId, tripUpdates, memberSpendingChanges)
-      }
-    }
+    await applyExpenseWrite(tripId, event.data.before.data(), event.data.after.data())
   }
   catch (error) {
     logger.error(`Error processing expense update: ${error}`)
@@ -246,31 +112,11 @@ exports.onExpenseUpdated = onDocumentUpdated('trips/{tripId}/expenses/{expenseId
 // Trigger on expense deletion
 exports.onExpenseDeleted = onDocumentDeleted('trips/{tripId}/expenses/{expenseId}', async (event) => {
   const { tripId, expenseId } = event.params
-  const expenseData = event.data.data()
-
-  // Only subtract if the expense was not in processing state
-  if (!expenseData.isProcessing) {
-    try {
-      const tripMembers = await getTripMembers(tripId)
-      const memberSpending = calculateMemberSpending(expenseData, tripMembers)
-
-      // Negate the spending amounts for deletion
-      const negativeMemberSpending = {}
-      Object.keys(memberSpending).forEach((memberId) => {
-        negativeMemberSpending[memberId] = -memberSpending[memberId]
-      })
-
-      // Consolidate all updates into a single transaction
-      await updateTripAndMembers(tripId, {
-        totalExpenses: -expenseData.grandTotal,
-        enabledTotalExpenses: expenseData.enabled ? -expenseData.grandTotal : 0,
-        disabledTotalExpenses: expenseData.enabled ? 0 : -expenseData.grandTotal,
-        expenseCount: -1,
-      }, negativeMemberSpending)
-    }
-    catch (error) {
-      logger.error(`Error processing expense deletion: ${error}`)
-    }
+  try {
+    await applyExpenseWrite(tripId, event.data.data(), null)
+  }
+  catch (error) {
+    logger.error(`Error processing expense deletion: ${error}`)
   }
 
   // Delete associated images from Storage
