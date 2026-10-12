@@ -199,6 +199,9 @@ ${multiPageSection}
    - If qty 1 and only one amount is printed, lineTotal === price.
    - **PER-LINE DISCOUNTS** — some receipts discount each item and print all three figures: a pre-discount unit amount (本体, "regular", "list"), the deduction (値引, -100, 10%引), and the amount actually charged (値引後, "after", the final rightmost figure). Use the amount ACTUALLY CHARGED: 'lineTotal' is the post-discount line amount, and 'price' is that figure divided by quantity — NOT the pre-discount amount, which would break the price * quantity = lineTotal check above.
      Example: \`本体 ¥1,240 / 値引 -¥124 / 値引後 ¥1,116\` with qty 1 → price 1116, lineTotal 1116. NOT price 1240.
+   - **UNDISCOUNTED LINES** — a line printing only a single amount, with NO 値引 and NO 値引後 beneath it, is charged at that amount IN FULL. Do not apply a discount to it because the lines around it have one, and never copy an adjacent line's figure onto it. On Japanese receipts these are often marked ☆ or ($) to show they are excluded from the promotion.
+     Example: \`☆KT フェイスPZオイルB2B / 本体 ¥1,200 (免税額 ¥120) / ¥1,200\` → price 1200, lineTotal 1200. NOT 1080.
+   - A parenthesised 免税額 / tax-exempt figure is reported for customs, NOT a deduction. Never subtract it from an item.
    - Per-line discounts are already reflected in those line totals, so do NOT also add them up into the top-level 'discount' field — that would subtract them a second time. See rule 4.
 
 4. **NON-ITEM LINES — DO NOT PUT IN items[]**

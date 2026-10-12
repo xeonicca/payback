@@ -42,6 +42,26 @@ test('both prompts teach the per-line discount convention', () => {
   }
 })
 
+test('both prompts say an undiscounted line is charged in full', () => {
+  // Found in the field: three ☆-marked items with no 値引 line were given a
+  // phantom 10% off, and one had the neighbouring line's amount copied onto it.
+  for (const pageCount of [1, 3]) {
+    const prompt = generatePrompt('JPY', 'TWD', pageCount)
+    assert.ok(prompt.includes('UNDISCOUNTED LINES'), `pageCount ${pageCount} lost the undiscounted-line rule`)
+    assert.ok(prompt.includes('IN FULL'), `pageCount ${pageCount} lost the charged-in-full wording`)
+    assert.ok(prompt.includes('never copy an adjacent line'), `pageCount ${pageCount} lost the copied-figure warning`)
+    assert.ok(prompt.includes('NOT 1080'), `pageCount ${pageCount} lost the worked example`)
+  }
+})
+
+test('both prompts warn that 免税額 is not a deduction', () => {
+  for (const pageCount of [1, 3]) {
+    const prompt = generatePrompt('JPY', 'TWD', pageCount)
+    assert.ok(prompt.includes('免税額'), `pageCount ${pageCount} lost the 免税額 cue`)
+    assert.ok(prompt.includes('Never subtract it'), `pageCount ${pageCount} lost the do-not-subtract warning`)
+  }
+})
+
 test('both prompts restrict the discount field to bill-level discounts', () => {
   for (const pageCount of [1, 3]) {
     const prompt = generatePrompt('JPY', 'TWD', pageCount)
