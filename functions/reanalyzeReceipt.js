@@ -1,6 +1,7 @@
 const admin = require('firebase-admin')
 const { logger } = require('firebase-functions/v2')
 const { onCall, HttpsError } = require('firebase-functions/v2/https')
+const { carryOverItemSplits } = require('./itemSplits')
 const {
   getImageAsBase64,
   analyzeReceiptWithAI,
@@ -132,6 +133,11 @@ exports.reanalyzeReceipt = onCall({
       preserveCategory: !!expenseData.category,
     })
 
+    // The fresh item list has no splits; keep the ones people set by hand
+    const splits = carryOverItemSplits(expenseData.items, firestoreUpdateData.items)
+    if (Array.isArray(firestoreUpdateData.items))
+      firestoreUpdateData.items = splits.items
+
     // Update Firestore
     await expenseDocRef.update(firestoreUpdateData)
     logger.info(`Successfully updated expense: trips/${tripId}/expenses/${expenseId}`)
@@ -145,6 +151,8 @@ exports.reanalyzeReceipt = onCall({
       expenseId,
       pageCount: pages.length,
       itemCount: parsedDataFromAI.items?.length ?? 0,
+      splitsCarried: splits.carried,
+      splitsLost: splits.lost,
       needsReview: parsedDataFromAI.needsReview ?? false,
       currency: parsedDataFromAI.currency ?? null,
     })
