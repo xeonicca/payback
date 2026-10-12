@@ -350,7 +350,7 @@ async function analyzeReceiptWithAI(images, tripCurrency, defaultCurrency) {
 
   logger.log(`Sending request to Gemini API with structured schema (${pages.length} image(s))...`)
   const result = await ai.models.generateContent({
-    model: 'gemini-2.5-flash',
+    model: 'gemini-3.8-flash',
     contents,
     config: {
       responseMimeType: 'application/json',

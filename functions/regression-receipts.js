@@ -3,7 +3,7 @@
  * images and prints a side-by-side diff vs. what's currently stored.
  *
  * Usage: node regression-receipts.js [limit]
- * Costs: ~$0.005 per receipt at gemini-2.5-flash pricing.
+ * Costs: ~$0.005 per receipt at gemini-3.5-flash-lite pricing.
  */
 
 const admin = require('firebase-admin')
@@ -12,7 +12,9 @@ const { analyzeReceiptWithAI, getImageAsBase64, getContentTypeFromPath } = requi
 
 const limit = Number.parseInt(process.argv[2] || '20', 10)
 const serviceAccount = require(path.resolve(__dirname, '../service-account.json'))
-admin.initializeApp({ credential: admin.credential.cert(serviceAccount) })
+// STORAGE_BUCKET overrides; otherwise the project's default bucket
+const storageBucket = process.env.STORAGE_BUCKET || `${serviceAccount.project_id}.firebasestorage.app`
+admin.initializeApp({ credential: admin.credential.cert(serviceAccount), storageBucket })
 const db = admin.firestore()
 const bucket = admin.storage().bucket()
 

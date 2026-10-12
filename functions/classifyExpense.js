@@ -16,7 +16,7 @@ async function classifyItems(items) {
   if (items.length === 0)
     return []
   const result = await ai.models.generateContent({
-    model: 'gemini-2.5-flash',
+    model: 'gemini-3.5-flash-lite',
     contents: [{ text: buildClassifyPrompt(items) }],
     config: {
       responseMimeType: 'application/json',
