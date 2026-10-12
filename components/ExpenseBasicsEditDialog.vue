@@ -4,6 +4,7 @@ import { DateFormatter, getLocalTimeZone, parseDate } from '@internationalized/d
 import { toDate } from 'reka-ui/date'
 import { useExchangeRate } from '@/composables/useExchangeRate'
 import { cn } from '@/lib/utils'
+import { normalizeDecimalInput } from '@/utils/decimalInput'
 import { isSoloTrip } from '@/utils/tripMode'
 
 const props = defineProps<{
@@ -231,6 +232,7 @@ function handleClose() {
             inputmode="decimal"
             placeholder="0.00"
             class="pl-14 font-mono"
+            @input="normalizeDecimalInput"
           />
           <ui-badge class="absolute start-0 inset-y-0 flex items-center ml-1 my-1 px-2 pointer-events-none">
             {{ selectedCurrency }}

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { ExpenseDetailItem } from '@/types'
+import { normalizeDecimalInput } from '@/utils/decimalInput'
 
 const props = defineProps<{
   open: boolean
@@ -122,6 +123,7 @@ function handleSave() {
               inputmode="decimal"
               placeholder="0.00"
               class="pl-14 font-mono"
+              @input="normalizeDecimalInput"
             />
             <ui-badge class="absolute start-0 inset-y-0 flex items-center ml-1 my-1 px-2 pointer-events-none">
               {{ currency }}

@@ -14,6 +14,7 @@ import { toast } from 'vue-sonner'
 import { useFirestore } from 'vuefire'
 import { z } from 'zod'
 import { cn } from '@/lib/utils'
+import { normalizeDecimalInput } from '@/utils/decimalInput'
 import { pageFileName } from '@/utils/receiptPages'
 import { withRetries } from '@/utils/retry'
 import { isSoloTrip } from '@/utils/tripMode'
@@ -636,11 +637,12 @@ async function submitManual(formValues: { description?: string, grandTotal?: num
                     <ui-input
                       id="grandTotalInput"
                       class="pl-17 h-12 text-lg font-mono" :class="[{ 'bg-muted cursor-default': hasItems }]"
-                      type="tel"
+                      type="text"
+                      inputmode="decimal"
                       placeholder="0.00"
                       v-bind="componentField"
                       :readonly="hasItems"
-                      step="0.01"
+                      @input="normalizeDecimalInput"
                     />
                     <!-- Clickable badge toggles currency when trip has two currencies -->
                     <button
@@ -780,12 +782,12 @@ async function submitManual(formValues: { description?: string, grandTotal?: num
                   </div>
                   <input
                     :id="`item-price-d-${item.id}`"
-                    type="tel"
+                    type="text"
                     inputmode="decimal"
                     placeholder="0"
                     :value="item.price"
                     class="w-full h-8 px-1.5 border border-border rounded bg-white text-[13px] font-mono text-right tabular-nums outline-none focus:border-ring placeholder:text-muted-foreground"
-                    @input="updateItem(item.id, { price: ($event.target as HTMLInputElement).value })"
+                    @input="normalizeDecimalInput($event); updateItem(item.id, { price: ($event.target as HTMLInputElement).value })"
                     @keydown.enter.prevent="($event.target as HTMLInputElement).blur()"
                     @blur="onItemBlur(item.id)"
                   >
@@ -1123,11 +1125,12 @@ async function submitManual(formValues: { description?: string, grandTotal?: num
                       <ui-input
                         id="grandTotalInput"
                         class="pl-17 h-12 text-lg font-mono" :class="[{ 'bg-muted cursor-default': hasItems }]"
-                        type="tel"
+                        type="text"
+                        inputmode="decimal"
                         placeholder="0.00"
                         v-bind="componentField"
                         :readonly="hasItems"
-                        step="0.01"
+                        @input="normalizeDecimalInput"
                       />
                       <!-- Clickable badge toggles currency when trip has two currencies -->
                       <button
@@ -1267,12 +1270,12 @@ async function submitManual(formValues: { description?: string, grandTotal?: num
                     </div>
                     <input
                       :id="`item-price-m-${item.id}`"
-                      type="tel"
+                      type="text"
                       inputmode="decimal"
                       placeholder="0"
                       :value="item.price"
                       class="w-full h-8 px-1.5 border border-border rounded bg-white text-[13px] font-mono text-right tabular-nums outline-none focus:border-ring placeholder:text-muted-foreground"
-                      @input="updateItem(item.id, { price: ($event.target as HTMLInputElement).value })"
+                      @input="normalizeDecimalInput($event); updateItem(item.id, { price: ($event.target as HTMLInputElement).value })"
                       @keydown.enter.prevent="($event.target as HTMLInputElement).blur()"
                       @blur="onItemBlur(item.id)"
                     >

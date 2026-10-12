@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { ExpenseDetailItem } from '@/types'
+import { normalizeDecimalInput } from '@/utils/decimalInput'
 import { applyTaxDeduction } from '@/utils/tax'
 
 const props = defineProps<{
@@ -101,6 +102,7 @@ function handleConfirm() {
               placeholder="自訂百分比"
               :disabled="isSaving"
               class="pr-10 font-mono"
+              @input="normalizeDecimalInput"
             />
             <span class="absolute end-3 inset-y-0 flex items-center text-sm text-muted-foreground pointer-events-none">
               %
