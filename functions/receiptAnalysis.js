@@ -63,7 +63,7 @@ const receiptSchema = z.object({
   subtotal: z.number().nullable().describe('Pre-tax/service amount printed on the receipt (e.g. 小計, Subtotal). Null if not printed.'),
   taxAmount: z.number().nullable().describe('Sum of all tax lines on the receipt (内税, 外税, 消費税, VAT, GST, Tax). Null if not printed. Stored as a positive number.'),
   serviceCharge: z.number().nullable().describe('Service-charge line if printed (e.g. Phí dịch vụ, Service Charge, 服務費). Null if not printed.'),
-  discount: z.number().nullable().describe('Total of discounts / vouchers / promotions deducted from the bill, as a POSITIVE number. Null if no discount.'),
+  discount: z.number().nullable().describe('BILL-LEVEL discounts only (a coupon, member discount or total-level promotion printed as its own line near the totals), as a POSITIVE number. Discounts applied to individual items are already reflected in each item lineTotal and must NOT be summed here as well, or they are deducted twice. Null if no bill-level discount.'),
   tip: z.number().nullable().describe('Gratuity / tip if printed. Null if not printed.'),
   printedItemCount: z.number().nullable().describe('The total-item-count printed on the receipt (e.g. 点数, 合計点数, Qty Total, Items: N). This is the receipt\'s own count — do not invent it from items.length. Null if not printed.'),
   paidAtString: z.string().nullable().describe('Date and time of purchase in YYYY-MM-DD HH:mm format. Null if not present.'),
@@ -195,11 +195,14 @@ ${multiPageSection}
 3. **PRICING LOGIC — UNIT PRICE vs LINE TOTAL**
    - 'price' is the UNIT price (price for ONE item).
    - 'lineTotal' is the line-total amount printed (rightmost amount on the line).
-   - Check: price * quantity should equal lineTotal.
+   - Check: price * quantity should equal lineTotal. This must hold for EVERY item.
    - If qty 1 and only one amount is printed, lineTotal === price.
+   - **PER-LINE DISCOUNTS** — some receipts discount each item and print all three figures: a pre-discount unit amount (本体, "regular", "list"), the deduction (値引, -100, 10%引), and the amount actually charged (値引後, "after", the final rightmost figure). Use the amount ACTUALLY CHARGED: 'lineTotal' is the post-discount line amount, and 'price' is that figure divided by quantity — NOT the pre-discount amount, which would break the price * quantity = lineTotal check above.
+     Example: \`本体 ¥1,240 / 値引 -¥124 / 値引後 ¥1,116\` with qty 1 → price 1116, lineTotal 1116. NOT price 1240.
+   - Per-line discounts are already reflected in those line totals, so do NOT also add them up into the top-level 'discount' field — that would subtract them a second time. See rule 4.
 
 4. **NON-ITEM LINES — DO NOT PUT IN items[]**
-   Do NOT include in items[]: subtotal/小計, tax/税/VAT/GST/消費税, service charge/Phí dịch vụ/服務費, tip/gratuity, discount/voucher/promotion, change due, points/loyalty, store header/footer messages, free promotional items printed at 0. Tax → 'taxAmount'. Service → 'serviceCharge'. Discount/voucher → 'discount' (positive number). Tip → 'tip'. Subtotal → 'subtotal'. Everything else: omit.
+   Do NOT include in items[]: subtotal/小計, tax/税/VAT/GST/消費税, service charge/Phí dịch vụ/服務費, tip/gratuity, discount/voucher/promotion, change due, points/loyalty, store header/footer messages, free promotional items printed at 0. Tax → 'taxAmount'. Service → 'serviceCharge'. Discount/voucher → 'discount' (positive number), but ONLY for a discount applied to the WHOLE BILL (a coupon, a member discount, a total-level promotion) printed as its own line near the totals. A discount attached to an individual item belongs in that item's lineTotal per rule 3 and must NOT be counted here as well. Tip → 'tip'. Subtotal → 'subtotal'. Everything else: omit.
 
 5. **printedItemCount**
    If the receipt prints a total item count line (点数, 合計点数, Qty Total, Items: N), extract it as printedItemCount. Otherwise null. Do NOT invent this from items.length.
@@ -212,6 +215,8 @@ ${multiPageSection}
 
 8. **DATES**
    Parse ambiguous dates (e.g. 05/04/2024) using the regional format: ${dateFormat}. Output in YYYY-MM-DD HH:mm. Null if invalid or absent.
+   A TWO-DIGIT year means 20YY, and on a receipt printed YY/MM/DD the first field is the year, not the day: \`26/10/10\` is 2026-10-10, never 2010-10-26. Japanese receipts commonly print the date this way, often followed by the weekday and time (\`26/10/10/ 土16:10\`).
+   A Japanese era year (令和7年, R7) converts to the Gregorian year (令和 began in 2019, so 令和7年 = 2025).
 
 9. **DESCRIPTION**
    One short sentence in ${language} summarizing the receipt (e.g. "7-Eleven, snacks and drinks"). Do not list every item.

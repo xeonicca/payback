@@ -32,6 +32,37 @@ test('a multi-image prompt keeps all ten single-image rules', () => {
   }
 })
 
+test('both prompts teach the per-line discount convention', () => {
+  // Shared rule: applies to single photos too, not just multi-page.
+  for (const pageCount of [1, 3]) {
+    const prompt = generatePrompt('JPY', 'TWD', pageCount)
+    assert.ok(prompt.includes('PER-LINE DISCOUNTS'), `pageCount ${pageCount} lost the per-line discount rule`)
+    assert.ok(prompt.includes('値引後'), `pageCount ${pageCount} lost the 値引後 cue`)
+    assert.ok(prompt.includes('subtract them a second time'), `pageCount ${pageCount} lost the double-count warning`)
+  }
+})
+
+test('both prompts restrict the discount field to bill-level discounts', () => {
+  for (const pageCount of [1, 3]) {
+    const prompt = generatePrompt('JPY', 'TWD', pageCount)
+    assert.ok(prompt.includes('WHOLE BILL'), `pageCount ${pageCount} lost the bill-level restriction`)
+  }
+})
+
+test('both prompts resolve a two-digit year as 20YY in YY/MM/DD order', () => {
+  for (const pageCount of [1, 3]) {
+    const prompt = generatePrompt('JPY', 'TWD', pageCount)
+    assert.ok(prompt.includes('TWO-DIGIT year'), `pageCount ${pageCount} lost the two-digit year rule`)
+    assert.ok(prompt.includes('2026-10-10, never 2010-10-26'), `pageCount ${pageCount} lost the worked example`)
+    assert.ok(prompt.includes('令和'), `pageCount ${pageCount} lost the Japanese era rule`)
+  }
+})
+
+test('the discount schema field warns against double-counting', () => {
+  assert.ok(receiptSchema.shape.discount.description.includes('BILL-LEVEL'))
+  assert.ok(receiptSchema.shape.discount.description.includes('deducted twice'))
+})
+
 test('pageLabel returns null for a single image', () => {
   assert.equal(pageLabel(0, 1), null)
 })
