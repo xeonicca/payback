@@ -53,7 +53,8 @@ const memberSpending = computed(() => {
     .sort((a, b) => b.paid - a.paid)
 })
 
-const maxMemberPaid = computed(() => Math.max(...memberSpending.value.map(m => m.paid), 1))
+// Paid and owed share one scale so the two sides of each bar compare directly
+const maxMemberAmount = computed(() => Math.max(...memberSpending.value.flatMap(m => [m.paid, m.owed]), 1))
 
 // ── Category distribution ──
 const categorySpending = computed(() => {
@@ -99,11 +100,13 @@ const topDay = computed(() => dailySpending.value.reduce((max, d) => d.total > m
 
 function formatAmount(n: number) {
   const converted = toPrimary(n)
-  if (converted >= 10000)
-    return `${(converted / 1000).toFixed(0)}k`
-  if (converted >= 1000)
-    return `${(converted / 1000).toFixed(1)}k`
-  return converted.toFixed(0)
+  const sign = converted < 0 ? '-' : ''
+  const size = Math.abs(converted)
+  if (size >= 10000)
+    return `${sign}${(size / 1000).toFixed(0)}k`
+  if (size >= 1000)
+    return `${sign}${(size / 1000).toFixed(1)}k`
+  return `${sign}${size.toFixed(0)}`
 }
 </script>
 
@@ -175,41 +178,57 @@ function formatAmount(n: number) {
       </div>
     </section>
 
-    <!-- Member breakdown -->
+    <!-- Member breakdown: owed share grows left, paid grows right -->
     <section v-if="!isSolo" class="bg-card border rounded-xl p-4">
-      <h2 class="text-sm font-semibold text-foreground m-0 mb-4">
-        成員支出
-      </h2>
-      <div class="space-y-3">
+      <div class="flex items-center justify-between mb-4">
+        <h2 class="text-sm font-semibold text-foreground m-0">
+          成員支出
+        </h2>
+        <div class="flex items-center gap-3 text-xs text-muted-foreground">
+          <span class="flex items-center gap-1"><span class="size-2 rounded-full bg-red-500/60 dark:bg-red-400/60" />應付</span>
+          <span class="flex items-center gap-1"><span class="size-2 rounded-full bg-primary/70" />已付</span>
+        </div>
+      </div>
+      <div class="space-y-4">
         <div
           v-for="member in memberSpending"
           :key="member.id"
           class="space-y-1.5"
         >
           <div class="flex items-center justify-between">
-            <div class="flex items-center gap-2">
+            <div class="flex items-center gap-2 min-w-0">
               <span class="text-lg">{{ member.emoji }}</span>
-              <span class="text-sm font-medium text-foreground">{{ member.name }}</span>
+              <span class="text-sm font-medium text-foreground truncate">{{ member.name }}</span>
             </div>
-            <div class="text-right">
-              <span class="text-sm font-mono font-semibold text-foreground">{{ formatAmount(member.paid) }}</span>
-              <span
-                class="text-xs font-mono ml-2"
-                :class="{
-                  'text-green-600 dark:text-green-400': member.balance > 0.01,
-                  'text-red-600 dark:text-red-400': member.balance < -0.01,
-                  'text-muted-foreground': Math.abs(member.balance) <= 0.01,
-                }"
-              >
-                {{ member.balance > 0.01 ? '+' : '' }}{{ formatAmount(member.balance) }}
-              </span>
-            </div>
+            <span
+              class="text-xs font-mono shrink-0"
+              :class="{
+                'text-green-600 dark:text-green-400': member.balance > 0.01,
+                'text-red-600 dark:text-red-400': member.balance < -0.01,
+                'text-muted-foreground': Math.abs(member.balance) <= 0.01,
+              }"
+            >
+              {{ member.balance > 0.01 ? '+' : '' }}{{ formatAmount(member.balance) }}
+            </span>
           </div>
-          <div class="h-2 bg-muted rounded-full overflow-hidden">
-            <div
-              class="h-full bg-primary/70 rounded-full transition-all duration-300"
-              :style="{ width: `${(member.paid / maxMemberPaid) * 100}%` }"
-            />
+          <div class="flex items-center gap-2">
+            <span class="text-xs font-mono text-muted-foreground w-11 shrink-0 text-right">{{ formatAmount(member.owed) }}</span>
+            <div class="flex-1 flex h-3" :aria-label="`${member.name} 應付 ${formatAmount(member.owed)}，已付 ${formatAmount(member.paid)}`">
+              <div class="flex-1 flex justify-end bg-muted rounded-l-full overflow-hidden">
+                <div
+                  class="h-full bg-red-500/60 dark:bg-red-400/60 rounded-l-full transition-all duration-300"
+                  :style="{ width: `${(member.owed / maxMemberAmount) * 100}%` }"
+                />
+              </div>
+              <div class="w-px bg-border shrink-0" />
+              <div class="flex-1 bg-muted rounded-r-full overflow-hidden">
+                <div
+                  class="h-full bg-primary/70 rounded-r-full transition-all duration-300"
+                  :style="{ width: `${(member.paid / maxMemberAmount) * 100}%` }"
+                />
+              </div>
+            </div>
+            <span class="text-xs font-mono font-semibold text-foreground w-11 shrink-0">{{ formatAmount(member.paid) }}</span>
           </div>
         </div>
       </div>
