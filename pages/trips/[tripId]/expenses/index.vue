@@ -4,6 +4,7 @@ import type { Trip } from '@/types'
 import { doc, Timestamp } from 'firebase/firestore'
 import { toast } from 'vue-sonner'
 import { useDocument, useFirestore } from 'vuefire'
+import { CATEGORY_KEYS, coerceCategory, getCategoryMeta } from '@/utils/categories'
 import { tripConverter } from '@/utils/converter'
 
 definePageMeta({
@@ -35,6 +36,19 @@ const dateFilterLabel = computed(() => {
 
 function clearDateFilter() {
   const { date, ...rest } = route.query
+  router.replace({ query: rest })
+}
+
+// ?category=<key>, set by tapping a category on the 統計 page. Unknown keys are ignored.
+const categoryFilter = computed(() => {
+  const category = route.query.category
+  return typeof category === 'string' && (CATEGORY_KEYS as readonly string[]).includes(category) ? category : null
+})
+
+const categoryFilterMeta = computed(() => categoryFilter.value ? getCategoryMeta(categoryFilter.value) : null)
+
+function clearCategoryFilter() {
+  const { category, ...rest } = route.query
   router.replace({ query: rest })
 }
 
@@ -92,6 +106,10 @@ const displayedExpenses = computed(() => {
       return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}` === dateFilter.value
     })
   }
+
+  // Apply category filter; uncategorised expenses count as 其他, as on the chart
+  if (categoryFilter.value)
+    expenses = expenses.filter(expense => coerceCategory(expense.category) === categoryFilter.value)
 
   // Apply search filter
   if (searchTerm.value) {
@@ -170,9 +188,10 @@ const displayedExpenses = computed(() => {
       </div>
     </div>
 
-    <!-- Active day filter, arriving from the 統計 page -->
-    <div v-if="dateFilter" class="flex items-center gap-2 max-w-3xl mx-auto">
+    <!-- Active day / category filters, arriving from the 統計 page -->
+    <div v-if="dateFilter || categoryFilterMeta" class="flex items-center gap-2 max-w-3xl mx-auto">
       <button
+        v-if="dateFilter"
         type="button"
         class="flex items-center gap-1 pl-2.5 pr-2 py-1 rounded-full text-xs font-medium bg-primary text-primary-foreground transition-colors"
         :aria-label="`清除 ${dateFilterLabel} 篩選`"
@@ -180,6 +199,17 @@ const displayedExpenses = computed(() => {
       >
         <Icon name="lucide:calendar" class="w-3 h-3" />
         {{ dateFilterLabel }}
+        <Icon name="lucide:x" class="w-3 h-3" />
+      </button>
+      <button
+        v-if="categoryFilterMeta"
+        type="button"
+        class="flex items-center gap-1 pl-2.5 pr-2 py-1 rounded-full text-xs font-medium bg-primary text-primary-foreground transition-colors"
+        :aria-label="`清除 ${categoryFilterMeta.label} 篩選`"
+        @click="clearCategoryFilter"
+      >
+        <Icon :name="categoryFilterMeta.icon" class="w-3 h-3" />
+        {{ categoryFilterMeta.label }}
         <Icon name="lucide:x" class="w-3 h-3" />
       </button>
       <span class="text-xs text-muted-foreground">{{ displayedExpenses.length }} 筆</span>

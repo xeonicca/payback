@@ -255,11 +255,13 @@ function formatAmount(n: number) {
         </div>
 
         <!-- Legend -->
-        <div class="flex-1 min-w-0 space-y-2">
-          <div
+        <div class="flex-1 min-w-0 space-y-0.5">
+          <nuxt-link
             v-for="cat in categorySpending"
             :key="cat.key"
-            class="flex items-center gap-2"
+            :to="`/trips/${tripId}/expenses?category=${cat.key}`"
+            class="flex items-center gap-2 -mx-2 px-2 py-1 rounded-lg hover:bg-muted/60 transition-colors"
+            :aria-label="`查看${cat.label}的支出`"
           >
             <span class="size-2.5 rounded-full shrink-0" :style="{ backgroundColor: cat.color }" />
             <Icon :name="cat.icon" class="h-3.5 w-3.5 text-muted-foreground shrink-0" />
@@ -268,7 +270,7 @@ function formatAmount(n: number) {
             <span class="text-xs font-mono font-semibold text-foreground w-14 shrink-0 text-right">
               {{ formatAmount(cat.amount) }}
             </span>
-          </div>
+          </nuxt-link>
         </div>
       </div>
       <div v-if="topCategory" class="mt-3 pt-3 border-t border-border">
