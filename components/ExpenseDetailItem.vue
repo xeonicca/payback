@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { ExpenseDetailItem } from '@/types'
+import { useMediaQuery } from '@vueuse/core'
 
 interface Props {
   item: ExpenseDetailItem
@@ -88,8 +89,29 @@ const googleSearchUrl = computed(() => {
   const query = (props.item.name || '').trim()
   if (!query)
     return null
-  return `https://www.google.com/search?q=${encodeURIComponent(query)}`
+  // udm=14 pins the Web tab; without it Google sometimes opens Images for product-like queries
+  return `https://www.google.com/search?q=${encodeURIComponent(query)}&udm=14`
 })
+
+// The desktop modal shows Images (udm=2). igu=1 is an undocumented flag that makes Google drop
+// X-Frame-Options so results can load in an iframe
+const googleEmbedUrl = computed(() => {
+  const query = (props.item.name || '').trim()
+  if (!query)
+    return null
+  return `https://www.google.com/search?q=${encodeURIComponent(query)}&udm=2&igu=1`
+})
+
+const isDesktop = useMediaQuery('(min-width: 1024px)')
+const isSearchOpen = ref(false)
+
+function handleSearchClick(event: MouseEvent) {
+  // Keep modifier-clicks (open in new tab/window) working as plain links
+  if (!isDesktop.value || event.metaKey || event.ctrlKey || event.shiftKey)
+    return
+  event.preventDefault()
+  isSearchOpen.value = true
+}
 </script>
 
 <template>
@@ -112,10 +134,37 @@ const googleSearchUrl = computed(() => {
             class="text-muted-foreground hover:text-indigo-600 transition-colors inline-flex items-center"
             :aria-label="`在 Google 搜尋 ${item.name}`"
             :title="`在 Google 搜尋 ${item.name}`"
-            @click.stop
+            @click.stop="handleSearchClick"
           >
             <Icon name="lucide:search" :size="12" />
           </a>
+          <ui-dialog v-if="isDesktop && googleEmbedUrl" v-model:open="isSearchOpen">
+            <ui-dialog-content class="sm:max-w-5xl h-[85dvh] flex flex-col gap-0 p-0 overflow-hidden">
+              <ui-dialog-header class="flex-row items-center gap-3 px-4 py-3 pr-12 border-b">
+                <ui-dialog-title class="text-sm font-medium truncate">
+                  在 Google 搜尋「{{ item.name }}」
+                </ui-dialog-title>
+                <ui-dialog-description class="sr-only">
+                  Google 搜尋結果
+                </ui-dialog-description>
+                <a
+                  :href="googleSearchUrl!"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  class="ml-auto shrink-0 inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-indigo-600 transition-colors"
+                >
+                  在新分頁開啟
+                  <Icon name="lucide:external-link" :size="12" />
+                </a>
+              </ui-dialog-header>
+              <iframe
+                :src="googleEmbedUrl"
+                :title="`Google 搜尋 ${item.name}`"
+                class="flex-1 w-full border-0"
+                referrerpolicy="no-referrer"
+              />
+            </ui-dialog-content>
+          </ui-dialog>
         </div>
         <div class="font-mono text-xs text-muted-foreground">
           <span v-if="item.price !== 0">
