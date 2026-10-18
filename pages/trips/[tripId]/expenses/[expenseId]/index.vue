@@ -888,7 +888,7 @@ async function reanalyzeReceipt() {
             <expense-detail-item
               v-for="(item, index) in expense.items"
               :id="`expense-item-${index}`"
-              :key="item.name"
+              :key="index"
               class="-mx-2 px-2 scroll-mt-24 rounded-md transition-colors duration-300"
               :class="{ 'bg-amber-100 dark:bg-amber-500/20': highlightedItemIndex === index }"
               :item="item"
