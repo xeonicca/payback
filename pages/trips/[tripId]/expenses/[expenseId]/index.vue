@@ -49,6 +49,18 @@ const isSavingItem = ref(false)
 const isAddingItem = ref(false)
 const splittingItemIndex = ref<number | null>(null)
 const isSplittingItem = ref(false)
+const highlightedItemIndex = ref<number | null>(null)
+let highlightTimer: ReturnType<typeof setTimeout> | undefined
+
+function highlightItem(index: number) {
+  document.getElementById(`expense-item-${index}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  highlightedItemIndex.value = index
+  clearTimeout(highlightTimer)
+  highlightTimer = setTimeout(() => {
+    highlightedItemIndex.value = null
+  }, 2000)
+}
+onBeforeUnmount(() => clearTimeout(highlightTimer))
 const isEditingBasics = ref(false)
 const isSavingBasics = ref(false)
 const isEditingSharers = ref(false)
@@ -405,7 +417,9 @@ const sharedTotalByMember = computed(() => {
 const memberItemBreakdown = computed(() => {
   const sharedWithMemberIds = expense.value?.sharedWithMemberIds ?? []
   const breakdown: Record<string, Array<{
+    itemIndex?: number
     itemName: string
+    translatedName?: string
     itemPrice: number
     itemQuantity: number
     totalItemCost: number
@@ -459,7 +473,9 @@ const memberItemBreakdown = computed(() => {
     // Add this item breakdown to each sharing member
     sharingMembers.forEach((memberId) => {
       breakdown[memberId].push({
+        itemIndex: index,
         itemName: item.name || `項目 ${index + 1}`,
+        translatedName: item.translatedName,
         itemPrice: item.price,
         itemQuantity: item.quantity ?? 1,
         totalItemCost,
@@ -814,6 +830,17 @@ async function reanalyzeReceipt() {
                   >
                     <div class="flex-1">
                       <span class="font-mono text-foreground">{{ item.itemName }}</span>
+                      <span v-if="item.translatedName" class="ml-1.5 text-muted-foreground">{{ item.translatedName }}</span>
+                      <button
+                        v-if="item.itemIndex !== undefined"
+                        type="button"
+                        class="ml-1 -my-1 p-1 align-middle text-muted-foreground hover:text-indigo-600 transition-colors"
+                        :aria-label="`在購買明細中顯示 ${item.itemName}`"
+                        :title="`在購買明細中顯示 ${item.itemName}`"
+                        @click="highlightItem(item.itemIndex)"
+                      >
+                        <Icon name="lucide:locate-fixed" :size="12" class="block" />
+                      </button>
                       <p class="text-muted-foreground">
                         ({{ usedHomeCurrency ? trip?.defaultCurrency : primaryCurrency }} {{ (usedHomeCurrency ? item.itemPrice * (expense?.exchangeRate || trip?.exchangeRate || 1) : toPrimary(item.itemPrice, expense?.exchangeRate)).toFixed(2) }} × {{ item.itemQuantity }} ÷ {{ item.sharingMembers.length }}人)
                       </p>
@@ -860,7 +887,10 @@ async function reanalyzeReceipt() {
           <div v-if="expense?.items?.length" class="space-y-1">
             <expense-detail-item
               v-for="(item, index) in expense.items"
+              :id="`expense-item-${index}`"
               :key="item.name"
+              class="-mx-2 px-2 scroll-mt-24 rounded-md transition-colors duration-300"
+              :class="{ 'bg-amber-100 dark:bg-amber-500/20': highlightedItemIndex === index }"
               :item="item"
               :currency="trip?.tripCurrency || ''"
               :exchange-rate="expense?.exchangeRate ?? trip?.exchangeRate ?? 1"
