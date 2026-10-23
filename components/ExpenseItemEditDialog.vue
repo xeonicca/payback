@@ -7,6 +7,9 @@ const props = defineProps<{
   item: ExpenseDetailItem | null
   itemIndex: number | null
   currency: string
+  // Multiplier from stored (trip-currency) prices to the displayed `currency`.
+  // Set when the expense was entered in home currency; defaults to 1.
+  exchangeRate?: number
   shareableMembers: Array<{ id: string, name: string, avatarEmoji: string }>
   isSaving?: boolean
 }>()
@@ -40,6 +43,9 @@ const priceRaw = ref('')
 const quantity = ref(1)
 const translatedName = ref('')
 const sharedByMemberIds = ref<string[]>([])
+const initialPriceRaw = ref('')
+
+const rate = computed(() => props.exchangeRate && props.exchangeRate > 0 ? props.exchangeRate : 1)
 
 const price = computed(() => {
   const n = Number.parseFloat(priceRaw.value)
@@ -54,7 +60,7 @@ watch(() => props.open, (open) => {
   // handleSave normalizes back to [] when every member is selected.
   if (props.item) {
     name.value = props.item.name
-    priceRaw.value = String(props.item.price)
+    priceRaw.value = String(Math.round(props.item.price * rate.value * 100) / 100)
     quantity.value = props.item.quantity ?? 1
     translatedName.value = props.item.translatedName ?? ''
     sharedByMemberIds.value = props.item.sharedByMemberIds && props.item.sharedByMemberIds.length > 0
@@ -68,6 +74,7 @@ watch(() => props.open, (open) => {
     translatedName.value = ''
     sharedByMemberIds.value = props.shareableMembers.map(m => m.id)
   }
+  initialPriceRaw.value = priceRaw.value
 }, { immediate: true })
 
 function handleOpenChange(val: boolean) {
@@ -81,9 +88,16 @@ function handleClose() {
 function handleSave() {
   const ids = sharedByMemberIds.value
   const normalizedIds = ids.length === props.shareableMembers.length ? [] : ids
+  // Stored prices are always in trip currency. Keep the original value when the
+  // price wasn't touched so a round-trip through the converted display doesn't drift.
+  const tripCurrencyPrice = props.item && priceRaw.value === initialPriceRaw.value
+    ? props.item.price
+    : rate.value === 1
+      ? price.value
+      : Math.round((price.value / rate.value) * 100) / 100
   const payload: ExpenseDetailItem = {
     name: name.value,
-    price: price.value,
+    price: tripCurrencyPrice,
     quantity: quantity.value,
     ...(translatedName.value ? { translatedName: translatedName.value } : {}),
     sharedByMemberIds: normalizedIds,
