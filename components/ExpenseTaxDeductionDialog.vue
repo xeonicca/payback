@@ -6,6 +6,9 @@ import { applyTaxDeduction } from '@/utils/tax'
 const props = defineProps<{
   open: boolean
   currency: string
+  // Multiplier from stored (trip-currency) amounts to the displayed `currency`.
+  // Set when the expense was entered in home currency; defaults to 1.
+  exchangeRate?: number
   currentGrandTotal: number
   currentItems: Array<ExpenseDetailItem>
   isSaving?: boolean
@@ -17,6 +20,8 @@ const emit = defineEmits<{
 }>()
 
 const presetOptions = [5, 7, 8, 10]
+
+const rate = computed(() => props.exchangeRate && props.exchangeRate > 0 ? props.exchangeRate : 1)
 const percentageRaw = ref('')
 
 watch(() => props.open, (open) => {
@@ -118,15 +123,15 @@ function handleConfirm() {
         </div>
         <div class="flex items-center justify-between text-sm">
           <span class="text-muted-foreground">原總金額</span>
-          <span class="font-mono text-foreground">{{ currency }} {{ currentGrandTotal.toFixed(2) }}</span>
+          <span class="font-mono text-foreground">{{ currency }} {{ (currentGrandTotal * rate).toFixed(2) }}</span>
         </div>
         <div class="flex items-center justify-between text-sm">
           <span class="text-muted-foreground">扣除 {{ percentage }}%</span>
-          <span class="font-mono text-red-600 dark:text-red-400">- {{ currency }} {{ reduction.toFixed(2) }}</span>
+          <span class="font-mono text-red-600 dark:text-red-400">- {{ currency }} {{ (reduction * rate).toFixed(2) }}</span>
         </div>
         <div class="border-t border-border pt-2 flex items-center justify-between">
           <span class="text-sm font-medium text-foreground">扣稅後總金額</span>
-          <span class="font-mono text-base font-bold text-primary">{{ currency }} {{ preview.grandTotal.toFixed(2) }}</span>
+          <span class="font-mono text-base font-bold text-primary">{{ currency }} {{ (preview.grandTotal * rate).toFixed(2) }}</span>
         </div>
       </div>
     </div>

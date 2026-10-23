@@ -358,6 +358,15 @@ const usedHomeCurrency = computed(() =>
   expense.value?.inputCurrency && expense.value.inputCurrency === trip.value?.defaultCurrency,
 )
 
+// Currency/rate for dialogs that show amounts in the expense's input currency.
+// Stored amounts are in trip currency; multiply by inputRate to display.
+const inputCurrency = computed(() =>
+  (usedHomeCurrency.value ? trip.value?.defaultCurrency : trip.value?.tripCurrency) || '',
+)
+const inputRate = computed(() =>
+  usedHomeCurrency.value ? (expense.value?.exchangeRate ?? trip.value?.exchangeRate ?? 1) : 1,
+)
+
 const sharedTotalByMember = computed(() => {
   const sharedWithMemberIds = expense.value?.sharedWithMemberIds ?? []
   const rate = expense.value?.exchangeRate ?? trip.value?.exchangeRate ?? 1
@@ -995,8 +1004,8 @@ async function reanalyzeReceipt() {
       :open="editingItemIndex !== null || isAddingItem"
       :item="editingItem"
       :item-index="editingItemIndex"
-      :currency="(usedHomeCurrency ? trip?.defaultCurrency : trip?.tripCurrency) || ''"
-      :exchange-rate="usedHomeCurrency ? (expense?.exchangeRate ?? trip?.exchangeRate ?? 1) : 1"
+      :currency="inputCurrency"
+      :exchange-rate="inputRate"
       :shareable-members="isSolo ? [] : (sharedWithMembers || [])"
       :is-saving="isSavingItem"
       @update:open="(open) => { if (!open && !isSavingItem) closeItemEditDialog() }"
@@ -1010,7 +1019,8 @@ async function reanalyzeReceipt() {
       :open="splittingItemIndex !== null"
       :item="splittingItem"
       :item-index="splittingItemIndex"
-      :currency="trip?.tripCurrency || ''"
+      :currency="inputCurrency"
+      :exchange-rate="inputRate"
       :shareable-members="sharedWithMembers || []"
       @update:open="(open) => { if (!open && !isSplittingItem) splittingItemIndex = null }"
       @split="splitItem"
@@ -1019,7 +1029,8 @@ async function reanalyzeReceipt() {
     <!-- Tax Deduction Dialog -->
     <expense-tax-deduction-dialog
       v-model:open="showTaxDeductionDialog"
-      :currency="trip?.tripCurrency || ''"
+      :currency="inputCurrency"
+      :exchange-rate="inputRate"
       :current-grand-total="expense?.grandTotal || 0"
       :current-items="expense?.items || []"
       :is-saving="isApplyingTax"
@@ -1038,11 +1049,11 @@ async function reanalyzeReceipt() {
         <div class="rounded-lg border bg-muted/40 p-3 space-y-2">
           <div class="flex items-center justify-between text-sm">
             <span class="text-muted-foreground">目前金額</span>
-            <span class="font-mono text-foreground">{{ trip?.tripCurrency }} {{ (expense?.grandTotal || 0).toFixed(2) }}</span>
+            <span class="font-mono text-foreground">{{ inputCurrency }} {{ ((expense?.grandTotal || 0) * inputRate).toFixed(2) }}</span>
           </div>
           <div class="border-t border-border pt-2 flex items-center justify-between">
             <span class="text-sm font-medium text-foreground">還原後金額</span>
-            <span class="font-mono text-base font-bold text-primary">{{ trip?.tripCurrency }} {{ (expense?.originalGrandTotal || 0).toFixed(2) }}</span>
+            <span class="font-mono text-base font-bold text-primary">{{ inputCurrency }} {{ ((expense?.originalGrandTotal || 0) * inputRate).toFixed(2) }}</span>
           </div>
         </div>
         <ui-alert-dialog-footer>

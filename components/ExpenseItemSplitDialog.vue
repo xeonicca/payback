@@ -6,6 +6,9 @@ const props = defineProps<{
   item: ExpenseDetailItem | null
   itemIndex: number | null
   currency: string
+  // Multiplier from stored (trip-currency) amounts to the displayed `currency`.
+  // Set when the expense was entered in home currency; defaults to 1.
+  exchangeRate?: number
   shareableMembers: Array<{ id: string, name: string, avatarEmoji: string }>
 }>()
 
@@ -16,6 +19,8 @@ const emit = defineEmits<{
 
 const splitQuantity = ref(1)
 const splitMemberIds = ref<string[]>([])
+
+const rate = computed(() => props.exchangeRate && props.exchangeRate > 0 ? props.exchangeRate : 1)
 
 const originalQuantity = computed(() => props.item?.quantity ?? 1)
 const maxSplitQuantity = computed(() => Math.max(0, originalQuantity.value - 1))
@@ -85,7 +90,7 @@ function handleClose() {
           {{ item.name || '未命名' }}
         </div>
         <div class="text-xs text-muted-foreground font-mono">
-          {{ currency }} {{ item.price.toFixed(2) }} × {{ originalQuantity }}
+          {{ currency }} {{ (item.price * rate).toFixed(2) }} × {{ originalQuantity }}
         </div>
       </div>
 
