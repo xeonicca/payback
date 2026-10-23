@@ -414,8 +414,11 @@ const sharedTotalByMember = computed(() => {
 
     // Add the price to each sharing member's total
     sharingMembers.forEach((memberId) => {
-      memberTotals[memberId].total += pricePerMember
-      memberTotals[memberId].convertedTotal += pricePerMember * rate
+      const totals = memberTotals[memberId]
+      if (!totals)
+        return
+      totals.total += pricePerMember
+      totals.convertedTotal += pricePerMember * rate
     })
   })
 
@@ -445,7 +448,7 @@ const memberItemBreakdown = computed(() => {
     // If no items, split grand total equally
     const sharePerMember = expense.value!.grandTotal / sharedWithMemberIds.length
     sharedWithMemberIds.forEach((memberId) => {
-      breakdown[memberId].push({
+      breakdown[memberId]?.push({
         itemName: '總金額平分',
         itemPrice: expense.value!.grandTotal,
         itemQuantity: 1,
@@ -481,7 +484,7 @@ const memberItemBreakdown = computed(() => {
 
     // Add this item breakdown to each sharing member
     sharingMembers.forEach((memberId) => {
-      breakdown[memberId].push({
+      breakdown[memberId]?.push({
         itemIndex: index,
         itemName: item.name || `項目 ${index + 1}`,
         translatedName: item.translatedName,
@@ -816,15 +819,15 @@ async function reanalyzeReceipt() {
                   </div>
                   <div class="text-right mr-4">
                     <div v-if="usedHomeCurrency" class="text-sm font-mono text-primary">
-                      {{ trip?.defaultCurrency }} {{ sharedTotalByMember[member.id].convertedTotal.toFixed(2) || '0.00' }}
+                      {{ trip?.defaultCurrency }} {{ (sharedTotalByMember[member.id]?.convertedTotal ?? 0).toFixed(2) }}
                     </div>
                     <template v-else>
                       <div class="text-sm font-mono text-green-600 dark:text-green-400">
-                        {{ primaryCurrency }} {{ toPrimary(sharedTotalByMember[member.id].total, expense?.exchangeRate).toFixed(2) || '0.00' }}
+                        {{ primaryCurrency }} {{ toPrimary(sharedTotalByMember[member.id]?.total ?? 0, expense?.exchangeRate).toFixed(2) }}
                       </div>
                       <div v-if="hasDualCurrency" class="text-xs text-muted-foreground inline-flex items-center gap-1">
                         <Icon name="lucide:equal-approximately" class="text-muted-foreground" size="12" />
-                        <span>{{ secondaryCurrency }} {{ toSecondary(sharedTotalByMember[member.id].total, expense?.exchangeRate).toFixed(2) }}</span>
+                        <span>{{ secondaryCurrency }} {{ toSecondary(sharedTotalByMember[member.id]?.total ?? 0, expense?.exchangeRate).toFixed(2) }}</span>
                       </div>
                     </template>
                   </div>
