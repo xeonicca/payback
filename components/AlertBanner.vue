@@ -7,7 +7,7 @@ withDefaults(defineProps<{
   variant: 'info',
 })
 
-const variantClasses: Record<string, { container: string, icon: string, title: string, body: string }> = {
+const variantClasses: Record<'error' | 'info' | 'warning', { container: string, icon: string, title: string, body: string }> = {
   error: {
     container: 'bg-red-50 border-red-200',
     icon: 'text-red-600',

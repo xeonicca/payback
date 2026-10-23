@@ -57,11 +57,11 @@ export default defineEventHandler(async (event) => {
       const tripsSnapshot = await tx.get(
         db.collection('trips').where('publicJoinCode', '==', joinCode).limit(1),
       )
-      if (tripsSnapshot.empty) {
+      const [tripDoc] = tripsSnapshot.docs
+      if (!tripDoc) {
         throw createError({ statusCode: 404, statusMessage: 'Trip not found' })
       }
 
-      const tripDoc = tripsSnapshot.docs[0]
       const tripData = tripDoc.data()
       const collaboratorRef = tripDoc.ref.collection('collaborators').doc(user.uid)
       const memberRef = memberId ? tripDoc.ref.collection('members').doc(memberId) : null

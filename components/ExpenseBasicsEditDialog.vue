@@ -47,7 +47,7 @@ const paidAtPlaceholder = ref()
 const paidAtDate = computed({
   get: () => paidAtDateString.value
     ? parseDate(paidAtDateString.value)
-    : parseDate(new Date().toISOString().split('T')[0]),
+    : parseDate(new Date().toISOString().slice(0, 10)),
   set: val => val,
 })
 
@@ -112,7 +112,7 @@ watch(() => props.open, (open) => {
   const { year, month, day, hour, minute } = exp.paidAtObject
   paidAtDateString.value = year && month && day
     ? `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`
-    : new Date().toISOString().split('T')[0]
+    : new Date().toISOString().slice(0, 10)
   paidAtTime.value = hour && minute
     ? `${hour.padStart(2, '0')}:${minute.padStart(2, '0')}`
     : new Date().toTimeString().slice(0, 5)
@@ -155,7 +155,7 @@ function handleSave() {
 
   const selectedDate = parseDate(paidAtDateString.value).toDate(timezone)
   if (paidAtTime.value) {
-    const [h, m] = paidAtTime.value.split(':').map(Number)
+    const [h = 0, m = 0] = paidAtTime.value.split(':').map(Number)
     selectedDate.setHours(h, m, 0, 0)
   }
   else {

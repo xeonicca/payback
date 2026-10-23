@@ -42,11 +42,11 @@ export default defineEventHandler(async (event) => {
     .limit(1)
     .get()
 
-  if (membersSnapshot.empty) {
+  const [memberDoc] = membersSnapshot.docs
+  if (!memberDoc) {
     throw createError({ statusCode: 404, statusMessage: 'No member linked to your account' })
   }
 
-  const memberDoc = membersSnapshot.docs[0]
   const trimmedName = name.trim()
 
   // Check for name collision with other members

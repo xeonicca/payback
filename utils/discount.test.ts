@@ -8,7 +8,7 @@ describe('applyDiscount', () => {
       { name: 'a', price: 100, quantity: 1 },
     ]
     const result = applyDiscount(items, 10)
-    expect(result.items[0].price).toBe(90)
+    expect(result.items[0]?.price).toBe(90)
     expect(result.grandTotal).toBe(90)
   })
 
@@ -26,8 +26,8 @@ describe('applyDiscount', () => {
       { name: 'b', price: 50, quantity: 1 },
     ]
     const result = applyDiscount(items, 20)
-    expect(result.items[0].price).toBe(80)
-    expect(result.items[1].price).toBe(40)
+    expect(result.items[0]?.price).toBe(80)
+    expect(result.items[1]?.price).toBe(40)
     expect(result.grandTotal).toBe(200)
   })
 
@@ -37,7 +37,7 @@ describe('applyDiscount', () => {
     ]
     const result = applyDiscount(items, 15)
     // 99.99 × 0.85 = 84.9915 → 84.99
-    expect(result.items[0].price).toBe(84.99)
+    expect(result.items[0]?.price).toBe(84.99)
   })
 
   it('preserves item metadata (name, quantity, sharedByMemberIds, translatedName)', () => {

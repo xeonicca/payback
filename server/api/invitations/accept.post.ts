@@ -1,3 +1,4 @@
+import type { InvitationStateFields } from '~/server/utils/invitations'
 import { FieldValue } from 'firebase-admin/firestore'
 import { getInvitationState, normalizeMaxUses } from '~/server/utils/invitations'
 import { getFirebaseAdminFirestore, getUserFromSession } from '~/server/utils/session'
@@ -51,11 +52,11 @@ export default defineEventHandler(async (event) => {
       const invitationSnapshot = await tx.get(
         db.collection('invitations').where('invitationCode', '==', invitationCode).limit(1),
       )
-      if (invitationSnapshot.empty) {
+      const [invitationDoc] = invitationSnapshot.docs
+      if (!invitationDoc) {
         throw createError({ statusCode: 404, statusMessage: 'Invitation not found' })
       }
 
-      const invitationDoc = invitationSnapshot.docs[0]
       const invitation = invitationDoc.data()
       const tripRef = db.collection('trips').doc(invitation.tripId)
       const collaboratorRef = tripRef.collection('collaborators').doc(user.uid)
@@ -69,7 +70,7 @@ export default defineEventHandler(async (event) => {
         tx.get(departedRef),
       ])
 
-      const state = getInvitationState(invitation)
+      const state = getInvitationState(invitation as InvitationStateFields)
       if (state === 'revoked') {
         throw createError({ statusCode: 400, statusMessage: 'Invitation has been revoked' })
       }

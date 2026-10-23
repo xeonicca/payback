@@ -1,3 +1,4 @@
+import type { InvitationStateFields } from '~/server/utils/invitations'
 import { getInvitationState } from '~/server/utils/invitations'
 import { getFirebaseAdminFirestore, getUserFromSession } from '~/server/utils/session'
 
@@ -31,17 +32,18 @@ export default defineEventHandler(async (event) => {
       .limit(1)
       .get()
 
-    if (invitationsSnapshot.empty) {
+    const [invitationDoc] = invitationsSnapshot.docs
+    if (!invitationDoc) {
       throw createError({
         statusCode: 404,
         statusMessage: 'Invitation not found',
       })
     }
 
-    const invitation = invitationsSnapshot.docs[0].data()
+    const invitation = invitationDoc.data()
 
     // Same validity rules as accept: unlimited links stay open after their first use
-    const state = getInvitationState(invitation)
+    const state = getInvitationState(invitation as InvitationStateFields)
     if (state !== 'valid') {
       throw createError({
         statusCode: 400,

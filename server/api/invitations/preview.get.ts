@@ -1,3 +1,4 @@
+import type { InvitationStateFields } from '~/server/utils/invitations'
 import type { InvitationPreview } from '~/types'
 import { getInvitationState } from '~/server/utils/invitations'
 import { getFirebaseAdminFirestore } from '~/server/utils/session'
@@ -16,13 +17,14 @@ export default defineEventHandler(async (event): Promise<InvitationPreview> => {
     .limit(1)
     .get()
 
-  if (snapshot.empty) {
+  const [invitationDoc] = snapshot.docs
+  if (!invitationDoc) {
     throw createError({ statusCode: 404, statusMessage: 'Invitation not found' })
   }
 
-  const invitation = snapshot.docs[0].data()
+  const invitation = invitationDoc.data()
   return {
-    state: getInvitationState(invitation),
+    state: getInvitationState(invitation as InvitationStateFields),
     type: invitation.type === 'guest' ? 'guest' : 'personal',
     viewOnly: invitation.viewOnly === true,
     tripName: invitation.tripName || '',

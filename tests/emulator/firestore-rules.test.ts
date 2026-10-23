@@ -7,7 +7,7 @@ import { PROJECT_ID } from './helpers'
 
 let env: RulesTestEnvironment
 
-function as(uid: string, provider = 'google.com') {
+function as(uid: string, provider: 'google.com' | 'anonymous' = 'google.com') {
   return env.authenticatedContext(uid, { firebase: { sign_in_provider: provider } }).firestore()
 }
 

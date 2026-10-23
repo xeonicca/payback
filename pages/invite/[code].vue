@@ -131,7 +131,7 @@ async function handleAccept() {
     const { acceptInvitation } = useInvitation()
 
     const memberChoice = joinAsNew.value
-      ? { newMember: { name: newMemberName.value.trim(), avatarEmoji: newMemberEmoji.value } }
+      ? { newMember: { name: newMemberName.value.trim(), avatarEmoji: newMemberEmoji.value! } }
       : { memberId: selectedMemberId.value! }
 
     const result = await acceptInvitation(invitationCode, memberChoice)

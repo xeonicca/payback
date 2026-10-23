@@ -1,11 +1,12 @@
+import type { SoloSummaryExpense } from './soloSummary'
 import { describe, expect, it } from 'vitest'
 import { computeSoloSummary } from './soloSummary'
 
 // Local noon on 2026-09-21, so every date below is interpreted in local time
 const now = new Date(2026, 8, 21, 12, 0)
 
-function expense(grandTotal: number, date: string, category?: string) {
-  const [year, month, day] = date.split('-')
+function expense(grandTotal: number, date: string, category?: string): SoloSummaryExpense {
+  const [year = '', month = '', day = ''] = date.split('-')
   return { grandTotal, category, paidAtObject: { year, month, day } }
 }
 

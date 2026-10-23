@@ -56,7 +56,10 @@ const exchangeRateFromTwd = computed(() => {
   const currency = values.tripCurrency?.toLowerCase() || CurrencyCode.TWD
   if (!twdCurrency?.value)
     return 1
-  return Math.round(twdCurrency.value[currency] * 10000) / 10000
+  const rate = twdCurrency.value[currency]
+  if (rate === undefined)
+    return 1
+  return Math.round(rate * 10000) / 10000
 })
 
 const exchangeRateToTwd = computed(() => {

@@ -34,7 +34,9 @@ export function useRemovedFromTripRedirect(tripId: MaybeRefOrGetter<string | und
     (key, _previous, onCleanup) => {
       if (!key)
         return
-      const [id, uid] = key.split('|')
+      const [id = '', uid = ''] = key.split('|')
+      if (!id || !uid)
+        return
       let hadAccess = false
       let handled = false
       let unsubscribe: (() => void) | undefined

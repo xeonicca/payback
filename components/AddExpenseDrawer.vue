@@ -124,7 +124,7 @@ const splitSummary = computed(() => {
     return '未選擇'
   if (n === props.tripMembers.length)
     return `所有 ${n} 人`
-  if (n === 1)
+  if (n === 1 && selectedSplitters.value[0])
     return selectedSplitters.value[0].name
   return `${n} 人`
 })
@@ -200,8 +200,9 @@ function addItem() {
 
 function updateItem(id: string, patch: Partial<ExpenseItem>) {
   const idx = expenseItems.value.findIndex(it => it.id === id)
-  if (idx !== -1)
-    expenseItems.value[idx] = { ...expenseItems.value[idx], ...patch }
+  const current = expenseItems.value[idx]
+  if (current)
+    expenseItems.value[idx] = { ...current, ...patch }
 }
 
 function removeItem(id: string) {
@@ -419,7 +420,7 @@ async function submitManual(formValues: { description?: string, grandTotal?: num
 
     const selectedDate = parseDate(formValues.paidAt).toDate(timezone)
     if (paidAtTime.value) {
-      const [h, m] = paidAtTime.value.split(':').map(Number)
+      const [h = 0, m = 0] = paidAtTime.value.split(':').map(Number)
       selectedDate.setHours(h, m, 0, 0)
     }
     else {
@@ -567,7 +568,7 @@ async function submitManual(formValues: { description?: string, grandTotal?: num
                   :members="tripMembers"
                   label="付款人"
                   :invalid="!!payerError"
-                  @update:model-value="(id: string) => { setFieldValue('paidByMemberId', id); showPayerPicker = false }"
+                  @update:model-value="(id) => { setFieldValue('paidByMemberId', id); showPayerPicker = false }"
                 />
               </div>
             </div>
@@ -612,7 +613,7 @@ async function submitManual(formValues: { description?: string, grandTotal?: num
                   select-all
                   label="分攤成員"
                   :invalid="!!sharerError"
-                  @update:model-value="(ids: string[]) => setFieldValue('sharedWithMemberIds', ids)"
+                  @update:model-value="(ids) => setFieldValue('sharedWithMemberIds', ids)"
                 />
               </div>
             </div>
@@ -903,7 +904,7 @@ async function submitManual(formValues: { description?: string, grandTotal?: num
                   :members="tripMembers"
                   label="付款人"
                   :invalid="!!payerError"
-                  @update:model-value="(id: string) => { setFieldValue('paidByMemberId', id); showPayerPicker = false }"
+                  @update:model-value="(id) => { setFieldValue('paidByMemberId', id); showPayerPicker = false }"
                 />
               </div>
             </div>
@@ -948,7 +949,7 @@ async function submitManual(formValues: { description?: string, grandTotal?: num
                   select-all
                   label="分攤成員"
                   :invalid="!!sharerError"
-                  @update:model-value="(ids: string[]) => setFieldValue('sharedWithMemberIds', ids)"
+                  @update:model-value="(ids) => setFieldValue('sharedWithMemberIds', ids)"
                 />
                 <div v-if="hasItems" class="flex items-center gap-1 mt-1.5 px-2 py-1.5 bg-muted rounded text-[11px] text-muted-foreground">
                   <Icon name="lucide:info" class="h-2.5 w-2.5 shrink-0" />
@@ -1055,7 +1056,7 @@ async function submitManual(formValues: { description?: string, grandTotal?: num
                     :members="tripMembers"
                     label="付款人"
                     :invalid="!!payerError"
-                    @update:model-value="(id: string) => { setFieldValue('paidByMemberId', id); showPayerPicker = false }"
+                    @update:model-value="(id) => { setFieldValue('paidByMemberId', id); showPayerPicker = false }"
                   />
                 </div>
               </div>
@@ -1100,7 +1101,7 @@ async function submitManual(formValues: { description?: string, grandTotal?: num
                     select-all
                     label="分攤成員"
                     :invalid="!!sharerError"
-                    @update:model-value="(ids: string[]) => setFieldValue('sharedWithMemberIds', ids)"
+                    @update:model-value="(ids) => setFieldValue('sharedWithMemberIds', ids)"
                   />
                 </div>
               </div>
@@ -1391,7 +1392,7 @@ async function submitManual(formValues: { description?: string, grandTotal?: num
                     :members="tripMembers"
                     label="付款人"
                     :invalid="!!payerError"
-                    @update:model-value="(id: string) => { setFieldValue('paidByMemberId', id); showPayerPicker = false }"
+                    @update:model-value="(id) => { setFieldValue('paidByMemberId', id); showPayerPicker = false }"
                   />
                 </div>
               </div>
@@ -1436,7 +1437,7 @@ async function submitManual(formValues: { description?: string, grandTotal?: num
                     select-all
                     label="分攤成員"
                     :invalid="!!sharerError"
-                    @update:model-value="(ids: string[]) => setFieldValue('sharedWithMemberIds', ids)"
+                    @update:model-value="(ids) => setFieldValue('sharedWithMemberIds', ids)"
                   />
                   <div v-if="hasItems" class="flex items-center gap-1 mt-1.5 px-2 py-1.5 bg-muted rounded text-[11px] text-muted-foreground">
                     <Icon name="lucide:info" class="h-2.5 w-2.5 shrink-0" />

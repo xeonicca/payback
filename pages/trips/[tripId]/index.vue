@@ -35,6 +35,10 @@ const memberBalances = computed(() => {
   return map
 })
 
+const myBalance = computed(() =>
+  currentUserMember.value ? memberBalances.value[currentUserMember.value.id] : undefined,
+)
+
 // Settlement suggestions: directed payments to settle all debts
 const settlements = computed(() => {
   const members = tripMembers.value.map(m => ({
@@ -111,7 +115,7 @@ function formatSecondary(amount: number) {
       <div class="lg:col-span-2 space-y-4">
         <!-- Personal Summary Card (shown when user is a linked member) -->
         <trip-solo-summary v-if="isSolo" :trip="trip" />
-        <ui-card v-if="!isSolo && currentUserMember && memberBalances[currentUserMember.id]" class="border-primary/20">
+        <ui-card v-if="!isSolo && currentUserMember && myBalance" class="border-primary/20">
           <ui-card-header>
             <div class="flex items-center gap-2">
               <member-avatar :emoji="currentUserMember.avatarEmoji" size="lg" />
@@ -125,13 +129,13 @@ function formatSecondary(amount: number) {
             <ui-card-action>
               <ui-badge
                 :class="{
-                  'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400': memberBalances[currentUserMember.id].balance > 0.01,
-                  'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400': memberBalances[currentUserMember.id].balance < -0.01,
+                  'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400': myBalance.balance > 0.01,
+                  'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400': myBalance.balance < -0.01,
                 }"
-                :variant="Math.abs(memberBalances[currentUserMember.id].balance) <= 0.01 ? 'secondary' : undefined"
+                :variant="Math.abs(myBalance.balance) <= 0.01 ? 'secondary' : undefined"
               >
-                <span v-if="memberBalances[currentUserMember.id].balance > 0.01">應收款</span>
-                <span v-else-if="memberBalances[currentUserMember.id].balance < -0.01">應付款</span>
+                <span v-if="myBalance.balance > 0.01">應收款</span>
+                <span v-else-if="myBalance.balance < -0.01">應付款</span>
                 <span v-else>已結清</span>
               </ui-badge>
             </ui-card-action>
@@ -141,16 +145,16 @@ function formatSecondary(amount: number) {
             <div class="mb-4">
               <p
                 :class="{
-                  'text-green-600 dark:text-green-400': memberBalances[currentUserMember.id].balance > 0.01,
-                  'text-red-600 dark:text-red-400': memberBalances[currentUserMember.id].balance < -0.01,
-                  'text-muted-foreground': Math.abs(memberBalances[currentUserMember.id].balance) <= 0.01,
+                  'text-green-600 dark:text-green-400': myBalance.balance > 0.01,
+                  'text-red-600 dark:text-red-400': myBalance.balance < -0.01,
+                  'text-muted-foreground': Math.abs(myBalance.balance) <= 0.01,
                 }"
                 class="text-2xl font-bold font-mono"
               >
-                {{ memberBalances[currentUserMember.id].balance > 0.01 ? '+' : memberBalances[currentUserMember.id].balance < -0.01 ? '-' : '' }}{{ primaryCurrency }} {{ formatAmount(memberBalances[currentUserMember.id].balance) }}
+                {{ myBalance.balance > 0.01 ? '+' : myBalance.balance < -0.01 ? '-' : '' }}{{ primaryCurrency }} {{ formatAmount(myBalance.balance) }}
               </p>
-              <p v-if="formatSecondary(memberBalances[currentUserMember.id].balance)" class="text-xs text-muted-foreground font-mono mt-0.5">
-                ≈ {{ secondaryCurrency }} {{ formatSecondary(memberBalances[currentUserMember.id].balance) }}
+              <p v-if="formatSecondary(myBalance.balance)" class="text-xs text-muted-foreground font-mono mt-0.5">
+                ≈ {{ secondaryCurrency }} {{ formatSecondary(myBalance.balance) }}
               </p>
             </div>
 
@@ -165,7 +169,7 @@ function formatSecondary(amount: number) {
                   <Icon name="lucide:chevron-right" :size="12" class="text-muted-foreground/60 group-hover:text-muted-foreground transition-colors" />
                 </p>
                 <p class="font-mono font-semibold text-foreground text-sm">
-                  {{ primaryCurrency }} {{ toPrimary(memberBalances[currentUserMember.id].paid).toFixed(2) }}
+                  {{ primaryCurrency }} {{ toPrimary(myBalance.paid).toFixed(2) }}
                 </p>
               </nuxt-link>
               <nuxt-link
@@ -177,7 +181,7 @@ function formatSecondary(amount: number) {
                   <Icon name="lucide:chevron-right" :size="12" class="text-muted-foreground/60 group-hover:text-muted-foreground transition-colors" />
                 </p>
                 <p class="font-mono font-semibold text-foreground text-sm">
-                  {{ primaryCurrency }} {{ toPrimary(memberBalances[currentUserMember.id].owed).toFixed(2) }}
+                  {{ primaryCurrency }} {{ toPrimary(myBalance.owed).toFixed(2) }}
                 </p>
               </nuxt-link>
             </div>

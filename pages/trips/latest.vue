@@ -23,7 +23,7 @@ watch(trips, (tripsList) => {
   if (tripsList.length === 0) {
     router.push('/trips/new')
   }
-  else if (tripsList.length > 0) {
+  else if (tripsList[0]) {
     router.push(`/trips/${tripsList[0].id}`)
   }
 }, { immediate: true })

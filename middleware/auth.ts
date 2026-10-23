@@ -21,8 +21,9 @@ export default defineNuxtRouteMiddleware(async (to) => {
       where('collaboratorUserIds', 'array-contains', sessionUser.value.uid),
     )
     const snapshot = await getDocs(tripsQuery)
-    if (snapshot.size === 1) {
-      return navigateTo(`/trips/${snapshot.docs[0].id}`)
+    const [onlyTrip] = snapshot.docs
+    if (snapshot.size === 1 && onlyTrip) {
+      return navigateTo(`/trips/${onlyTrip.id}`)
     }
     else if (snapshot.size === 0) {
       return navigateTo('/login')

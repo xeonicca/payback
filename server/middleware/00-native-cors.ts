@@ -10,7 +10,7 @@ export default defineEventHandler((event) => {
   setHeader(event, 'Access-Control-Allow-Origin', 'capacitor://localhost')
   setHeader(event, 'Access-Control-Allow-Methods', allowedMethods.join(', '))
   setHeader(event, 'Access-Control-Allow-Headers', 'Authorization, Content-Type')
-  setHeader(event, 'Access-Control-Max-Age', '600')
+  setHeader(event, 'Access-Control-Max-Age', 600)
 
   if (event.method === 'OPTIONS') {
     const method = getHeader(event, 'access-control-request-method')

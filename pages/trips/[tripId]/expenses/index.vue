@@ -118,11 +118,11 @@ const displayedExpenses = computed(() => {
       const gtMatch = search.match(/^>\s*(\d+(?:\.\d*)?)$/)
       const ltMatch = search.match(/^<\s*(\d+(?:\.\d*)?)$/)
 
-      if (gtMatch) {
+      if (gtMatch?.[1]) {
         const threshold = Number.parseFloat(gtMatch[1])
         return expense.grandTotal > threshold
       }
-      else if (ltMatch) {
+      else if (ltMatch?.[1]) {
         const threshold = Number.parseFloat(ltMatch[1])
         return expense.grandTotal < threshold
       }

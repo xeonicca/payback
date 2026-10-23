@@ -34,7 +34,7 @@ describe('applyTaxDeduction', () => {
       { name: 'a', price: 110, quantity: 1 },
     ]
     const result = applyTaxDeduction(items, 10)
-    expect(result.items[0].price).toBe(100)
+    expect(result.items[0]?.price).toBe(100)
     expect(result.grandTotal).toBe(100)
   })
 
@@ -44,8 +44,8 @@ describe('applyTaxDeduction', () => {
       { name: 'b', price: 54, quantity: 1 },
     ]
     const result = applyTaxDeduction(items, 8)
-    expect(result.items[0].price).toBe(100)
-    expect(result.items[1].price).toBe(50)
+    expect(result.items[0]?.price).toBe(100)
+    expect(result.items[1]?.price).toBe(50)
     expect(result.grandTotal).toBe(250)
   })
 
@@ -55,7 +55,7 @@ describe('applyTaxDeduction', () => {
     ]
     const result = applyTaxDeduction(items, 7)
     // 100 / 1.07 ≈ 93.4579... → 93.46
-    expect(result.items[0].price).toBe(93.46)
+    expect(result.items[0]?.price).toBe(93.46)
     expect(result.grandTotal).toBe(93.46)
   })
 

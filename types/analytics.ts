@@ -8,11 +8,12 @@ export interface AnalyticsEventMap {
   login: { method: string }
   logout: undefined
 
-  create_trip: { trip_id: string }
+  create_trip: { trip_id: string, solo: boolean }
   edit_trip: { trip_id: string, members_added: number, members_removed: number }
   join_trip: { method: 'invitation' | 'public_link', trip_id: string }
+  toggle_solo_mode: { trip_id: string, enabled: boolean }
 
-  add_expense: { method: 'receipt' | 'manual', trip_id: string }
+  add_expense: { method: 'receipt' | 'manual', trip_id: string, page_count?: number }
   edit_expense: { trip_id: string, section: 'basics' | 'sharers' }
   delete_expense: { trip_id: string }
   toggle_expense: { trip_id: string, enabled: boolean }

@@ -1,6 +1,6 @@
 import type { InvitationPreviewState } from '~/types'
 
-interface InvitationStateFields {
+export interface InvitationStateFields {
   status?: string
   expiresAt: { toMillis: () => number }
   maxUses?: number | null

@@ -19,14 +19,14 @@ export default defineEventHandler(async (event) => {
       .limit(1)
       .get()
 
-    if (tripsSnapshot.empty) {
+    const [tripDoc] = tripsSnapshot.docs
+    if (!tripDoc) {
       throw createError({
         statusCode: 404,
         statusMessage: 'Trip not found',
       })
     }
 
-    const tripDoc = tripsSnapshot.docs[0]
     const tripData = tripDoc.data()
 
     if (!tripData.isPublicInviteEnabled) {
