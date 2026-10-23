@@ -1071,7 +1071,8 @@ async function reanalyzeReceipt() {
     <!-- Discount Dialog -->
     <expense-discount-dialog
       v-model:open="showDiscountDialog"
-      :currency="trip?.tripCurrency || ''"
+      :currency="inputCurrency"
+      :exchange-rate="inputRate"
       :current-grand-total="expense?.grandTotal || 0"
       :current-items="expense?.items || []"
       :is-saving="isApplyingDiscount"
@@ -1090,11 +1091,11 @@ async function reanalyzeReceipt() {
         <div class="rounded-lg border bg-muted/40 p-3 space-y-2">
           <div class="flex items-center justify-between text-sm">
             <span class="text-muted-foreground">目前金額</span>
-            <span class="font-mono text-foreground">{{ trip?.tripCurrency }} {{ (expense?.grandTotal || 0).toFixed(2) }}</span>
+            <span class="font-mono text-foreground">{{ inputCurrency }} {{ ((expense?.grandTotal || 0) * inputRate).toFixed(2) }}</span>
           </div>
           <div class="border-t border-border pt-2 flex items-center justify-between">
             <span class="text-sm font-medium text-foreground">還原後金額</span>
-            <span class="font-mono text-base font-bold text-primary">{{ trip?.tripCurrency }} {{ (expense?.discountOriginalGrandTotal || 0).toFixed(2) }}</span>
+            <span class="font-mono text-base font-bold text-primary">{{ inputCurrency }} {{ ((expense?.discountOriginalGrandTotal || 0) * inputRate).toFixed(2) }}</span>
           </div>
         </div>
         <ui-alert-dialog-footer>
