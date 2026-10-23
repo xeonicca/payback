@@ -122,14 +122,18 @@ function handleSave() {
     <div class="space-y-4">
       <!-- Name -->
       <div>
-        <ui-label class="text-sm font-medium text-foreground">名稱</ui-label>
+        <ui-label class="text-sm font-medium text-foreground">
+          名稱
+        </ui-label>
         <ui-input v-model="name" placeholder="項目名稱" autocomplete="off" class="mt-1" />
       </div>
 
       <!-- Price + Quantity -->
       <div class="flex gap-3">
         <div class="flex-1 min-w-0">
-          <ui-label class="text-sm font-medium text-foreground">價格</ui-label>
+          <ui-label class="text-sm font-medium text-foreground">
+            價格
+          </ui-label>
           <div class="relative mt-1">
             <ui-input
               v-model="priceRaw"
@@ -145,7 +149,9 @@ function handleSave() {
           </div>
         </div>
         <div class="w-20 shrink-0">
-          <ui-label class="text-sm font-medium text-foreground">數量</ui-label>
+          <ui-label class="text-sm font-medium text-foreground">
+            數量
+          </ui-label>
           <ui-input v-model.number="quantity" type="number" min="1" placeholder="1" class="mt-1 text-center" />
         </div>
       </div>
