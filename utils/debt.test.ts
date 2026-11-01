@@ -1,5 +1,5 @@
-import { describe, expect, it } from 'vitest'
 import type { Expense } from '@/types'
+import { describe, expect, it } from 'vitest'
 import {
   calculateDebtAmount,
   calculateMemberBalance,
@@ -586,6 +586,165 @@ describe('debt calculations', () => {
 
       expect(bobTotal).toBeCloseTo(80)
       expect(charlieTotal).toBeCloseTo(70)
+    })
+
+    describe('smarter matching (each debtor pays one person when possible)', () => {
+      function expectFullySettled(members: Array<{ id: string, balance: number }>, result: ReturnType<typeof calculateSettlements>) {
+        for (const m of members) {
+          const paid = result.filter(s => s.fromId === m.id).reduce((sum, s) => sum + s.amount, 0)
+          const received = result.filter(s => s.toId === m.id).reduce((sum, s) => sum + s.amount, 0)
+          expect(received - paid).toBeCloseTo(m.balance, 1)
+        }
+      }
+
+      function paymentsPerDebtor(result: ReturnType<typeof calculateSettlements>) {
+        const counts = new Map<string, number>()
+        for (const s of result)
+          counts.set(s.fromId, (counts.get(s.fromId) ?? 0) + 1)
+        return counts
+      }
+
+      it('matches the large debtor to the creditor they exactly cover instead of splitting', () => {
+        // Plain greedy would send A and B to X first, forcing C to split between X and Y.
+        // Better: C → X (70), A → Y (20), B → Y (30).
+        const members = [
+          { id: 'X', balance: 70 },
+          { id: 'Y', balance: 50 },
+          { id: 'A', balance: -20 },
+          { id: 'B', balance: -30 },
+          { id: 'C', balance: -70 },
+        ]
+        const result = calculateSettlements(members)
+
+        expect(result).toHaveLength(3)
+        expect(result).toContainEqual({ fromId: 'C', toId: 'X', amount: 70 })
+        expect(result).toContainEqual({ fromId: 'A', toId: 'Y', amount: 20 })
+        expect(result).toContainEqual({ fromId: 'B', toId: 'Y', amount: 30 })
+        expectFullySettled(members, result)
+      })
+
+      it('finds a clean grouping across three creditors', () => {
+        // X(+100) ← D(-60) + E(-40); Y(+45) ← A(-15) + C(-30); Z(+25) ← B(-25)
+        const members = [
+          { id: 'X', balance: 100 },
+          { id: 'Y', balance: 45 },
+          { id: 'Z', balance: 25 },
+          { id: 'A', balance: -15 },
+          { id: 'B', balance: -25 },
+          { id: 'C', balance: -30 },
+          { id: 'D', balance: -60 },
+          { id: 'E', balance: -40 },
+        ]
+        const result = calculateSettlements(members)
+
+        expect(result).toHaveLength(5)
+        expect([...paymentsPerDebtor(result).values()].every(c => c === 1)).toBe(true)
+        expectFullySettled(members, result)
+      })
+
+      it('prefers exact one-to-one pairs', () => {
+        const members = [
+          { id: 'X', balance: 80 },
+          { id: 'Y', balance: 20 },
+          { id: 'A', balance: -20 },
+          { id: 'B', balance: -80 },
+        ]
+        const result = calculateSettlements(members)
+
+        expect(result).toEqual(expect.arrayContaining([
+          { fromId: 'B', toId: 'X', amount: 80 },
+          { fromId: 'A', toId: 'Y', amount: 20 },
+        ]))
+        expect(result).toHaveLength(2)
+      })
+
+      it('still splits exactly once when no clean grouping exists', () => {
+        // C(-150) cannot be covered by a single creditor; D(-50) pays one person.
+        const members = [
+          { id: 'X', balance: 100 },
+          { id: 'Y', balance: 100 },
+          { id: 'C', balance: -150 },
+          { id: 'D', balance: -50 },
+        ]
+        const result = calculateSettlements(members)
+
+        expect(result).toHaveLength(3)
+        const counts = paymentsPerDebtor(result)
+        expect(counts.get('C')).toBe(2)
+        expect(counts.get('D')).toBe(1)
+        expectFullySettled(members, result)
+      })
+
+      it('only splits inside the group that needs it', () => {
+        // Group 1 is clean: A(-40) → X(+40). Group 2 needs one split: B(-50), C(-50) vs Y(+30), Z(+70).
+        const members = [
+          { id: 'X', balance: 40 },
+          { id: 'Y', balance: 30 },
+          { id: 'Z', balance: 70 },
+          { id: 'A', balance: -40 },
+          { id: 'B', balance: -50 },
+          { id: 'C', balance: -50 },
+        ]
+        const result = calculateSettlements(members)
+
+        expect(result).toContainEqual({ fromId: 'A', toId: 'X', amount: 40 })
+        expect(result).toHaveLength(4)
+        expectFullySettled(members, result)
+      })
+
+      it('matches balances that come from uneven floating-point splits', () => {
+        // e.g. 200/3 and 100/3 — should still pair cleanly despite float noise
+        const members = [
+          { id: 'X', balance: 200 / 3 },
+          { id: 'Y', balance: 100 / 3 },
+          { id: 'A', balance: -100 / 3 },
+          { id: 'B', balance: -200 / 3 },
+        ]
+        const result = calculateSettlements(members)
+
+        expect(result).toHaveLength(2)
+        expect(result.find(s => s.fromId === 'A')?.toId).toBe('Y')
+        expect(result.find(s => s.fromId === 'B')?.toId).toBe('X')
+        expectFullySettled(members, result)
+      })
+
+      it('tolerates a one-cent rounding drift when grouping', () => {
+        const members = [
+          { id: 'X', balance: 33.33 },
+          { id: 'Y', balance: 66.67 },
+          { id: 'A', balance: -66.67 },
+          { id: 'B', balance: -33.34 },
+        ]
+        const result = calculateSettlements(members)
+
+        expect(result.find(s => s.fromId === 'A')?.toId).toBe('Y')
+        expect(result.filter(s => s.fromId === 'B').every(s => s.toId === 'X')).toBe(true)
+      })
+
+      it('falls back to greedy for very large groups and still settles everything', () => {
+        // 20 non-zero members exceeds the exact-search limit
+        const members = [
+          ...Array.from({ length: 4 }, (_, i) => ({ id: `C${i}`, balance: 160 })),
+          ...Array.from({ length: 16 }, (_, i) => ({ id: `D${i}`, balance: -40 })),
+        ]
+        const result = calculateSettlements(members)
+
+        expectFullySettled(members, result)
+        expect(result.reduce((sum, s) => sum + s.amount, 0)).toBeCloseTo(640)
+      })
+
+      it('handles balances that do not total zero without throwing', () => {
+        const members = [
+          { id: 'X', balance: 50 },
+          { id: 'A', balance: -50 },
+          { id: 'Y', balance: 30 },
+          { id: 'B', balance: -20 },
+        ]
+        const result = calculateSettlements(members)
+
+        expect(result).toContainEqual({ fromId: 'A', toId: 'X', amount: 50 })
+        expect(result).toContainEqual({ fromId: 'B', toId: 'Y', amount: 20 })
+      })
     })
   })
 })
