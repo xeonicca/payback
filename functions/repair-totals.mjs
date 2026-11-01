@@ -6,8 +6,9 @@
  * the same rule the onExpenseChange triggers apply, so a repaired trip stays
  * in step with them.
  *
- * Usage: node repair-totals.mjs            # dry run, prints the drift
- *        node repair-totals.mjs --apply    # writes the corrections
+ * Usage: node repair-totals.mjs                       # dry run, prints the drift
+ *        node repair-totals.mjs --apply               # writes the corrections
+ *        node repair-totals.mjs --trip <id> [--apply] # only that one trip
  */
 import { readFileSync } from 'node:fs'
 import path from 'node:path'
@@ -17,6 +18,12 @@ import { cert, initializeApp } from 'firebase-admin/app'
 import { getFirestore } from 'firebase-admin/firestore'
 
 const APPLY = process.argv.includes('--apply')
+const tripFlag = process.argv.indexOf('--trip')
+const TRIP_ID = tripFlag === -1 ? null : process.argv[tripFlag + 1]
+if (tripFlag !== -1 && (!TRIP_ID || TRIP_ID.startsWith('--'))) {
+  console.error('Usage: node repair-totals.mjs --trip <id> [--apply]')
+  process.exit(1)
+}
 const { contribution } = createRequire(import.meta.url)('./expenseTotals.js')
 const here = path.dirname(fileURLToPath(import.meta.url))
 const sa = JSON.parse(readFileSync(path.resolve(here, '../service-account.json'), 'utf8'))
@@ -25,11 +32,22 @@ const db = getFirestore()
 
 const near = (a, b) => Math.abs((a ?? 0) - (b ?? 0)) < 0.01
 
-const trips = await db.collection('trips').get()
+let tripDocs
+if (TRIP_ID) {
+  const one = await db.collection('trips').doc(TRIP_ID).get()
+  if (!one.exists) {
+    console.error(`Trip ${TRIP_ID} not found — nothing checked or written.`)
+    process.exit(1)
+  }
+  tripDocs = [one]
+}
+else {
+  tripDocs = (await db.collection('trips').get()).docs
+}
 let drifted = 0
 const writes = []
 
-for (const tripDoc of trips.docs) {
+for (const tripDoc of tripDocs) {
   const trip = tripDoc.data()
   const [expensesSnap, membersSnap] = await Promise.all([
     tripDoc.ref.collection('expenses').get(),
@@ -77,7 +95,7 @@ for (const tripDoc of trips.docs) {
     writes.push({ ref: m.ref, data: { spending: m.to } })
 }
 
-console.log(`\n${drifted} of ${trips.size} trips drifted; ${writes.length} document(s) to update.`)
+console.log(`\n${drifted} of ${tripDocs.length} trips drifted; ${writes.length} document(s) to update.`)
 
 if (!APPLY) {
   console.log('DRY RUN — nothing written. Re-run with --apply to repair.')
